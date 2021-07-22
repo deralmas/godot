@@ -75,7 +75,7 @@ private:
 	int total_subshapes = 0;
 
 	Map<uint32_t, ShapeData> shapes;
-	bool only_update_transform_changes = false; //this is used for sync physics in CharacterBody2D
+	bool only_update_transform_changes = false; // This is used for sync to physics.
 
 	void _apply_disabled();
 	void _apply_enabled();
@@ -91,6 +91,9 @@ protected:
 	void _input_event(Node *p_viewport, const Ref<InputEvent> &p_input_event, int p_shape);
 	void _mouse_enter();
 	void _mouse_exit();
+
+	void _mouse_shape_enter(int p_shape);
+	void _mouse_shape_exit(int p_shape);
 
 	void set_only_update_transform_changes(bool p_enable);
 	bool is_only_update_transform_changes_enabled() const;

@@ -169,8 +169,8 @@ void SceneTree::_flush_ugc() {
 			v[i] = E->get()[i];
 		}
 
-		static_assert(VARIANT_ARG_MAX == 5, "This code needs to be updated if VARIANT_ARG_MAX != 5");
-		call_group_flags(GROUP_CALL_REALTIME, E->key().group, E->key().call, v[0], v[1], v[2], v[3], v[4]);
+		static_assert(VARIANT_ARG_MAX == 8, "This code needs to be updated if VARIANT_ARG_MAX != 8");
+		call_group_flags(GROUP_CALL_REALTIME, E->key().group, E->key().call, v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7]);
 
 		unique_group_calls.erase(E);
 	}
@@ -406,11 +406,11 @@ bool SceneTree::physics_process(float p_time) {
 	MainLoop::physics_process(p_time);
 	physics_process_time = p_time;
 
-	emit_signal("physics_frame");
+	emit_signal(SNAME("physics_frame"));
 
-	_notify_group_pause("physics_process_internal", Node::NOTIFICATION_INTERNAL_PHYSICS_PROCESS);
-	call_group_flags(GROUP_CALL_REALTIME, "_viewports", "_process_picking");
-	_notify_group_pause("physics_process", Node::NOTIFICATION_PHYSICS_PROCESS);
+	_notify_group_pause(SNAME("physics_process_internal"), Node::NOTIFICATION_INTERNAL_PHYSICS_PROCESS);
+	call_group_flags(GROUP_CALL_REALTIME, SNAME("_picking_viewports"), SNAME("_process_picking"));
+	_notify_group_pause(SNAME("physics_process"), Node::NOTIFICATION_PHYSICS_PROCESS);
 	_flush_ugc();
 	MessageQueue::get_singleton()->flush(); //small little hack
 
@@ -436,14 +436,14 @@ bool SceneTree::process(float p_time) {
 		multiplayer->poll();
 	}
 
-	emit_signal("process_frame");
+	emit_signal(SNAME("process_frame"));
 
 	MessageQueue::get_singleton()->flush(); //small little hack
 
 	flush_transform_notifications();
 
-	_notify_group_pause("process_internal", Node::NOTIFICATION_INTERNAL_PROCESS);
-	_notify_group_pause("process", Node::NOTIFICATION_PROCESS);
+	_notify_group_pause(SNAME("process_internal"), Node::NOTIFICATION_INTERNAL_PROCESS);
+	_notify_group_pause(SNAME("process"), Node::NOTIFICATION_PROCESS);
 
 	_flush_ugc();
 	MessageQueue::get_singleton()->flush(); //small little hack
@@ -471,7 +471,7 @@ bool SceneTree::process(float p_time) {
 		E->get()->set_time_left(time_left);
 
 		if (time_left < 0) {
-			E->get()->emit_signal("timeout");
+			E->get()->emit_signal(SNAME("timeout"));
 			timers.erase(E);
 		}
 		if (E == L) {
@@ -490,7 +490,7 @@ bool SceneTree::process(float p_time) {
 
 	if (Engine::get_singleton()->is_editor_hint()) {
 		//simple hack to reload fallback environment if it changed from editor
-		String env_path = ProjectSettings::get_singleton()->get("rendering/environment/defaults/default_environment");
+		String env_path = ProjectSettings::get_singleton()->get(SNAME("rendering/environment/defaults/default_environment"));
 		env_path = env_path.strip_edges(); //user may have added a space or two
 		String cpath;
 		Ref<Environment> fallback = get_root()->get_world_3d()->get_fallback_environment();
@@ -927,8 +927,8 @@ Variant SceneTree::_call_group_flags(const Variant **p_args, int p_argcount, Cal
 		v[i] = *p_args[i + 3];
 	}
 
-	static_assert(VARIANT_ARG_MAX == 5, "This code needs to be updated if VARIANT_ARG_MAX != 5");
-	call_group_flags(flags, group, method, v[0], v[1], v[2], v[3], v[4]);
+	static_assert(VARIANT_ARG_MAX == 8, "This code needs to be updated if VARIANT_ARG_MAX != 8");
+	call_group_flags(flags, group, method, v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7]);
 	return Variant();
 }
 
@@ -947,8 +947,8 @@ Variant SceneTree::_call_group(const Variant **p_args, int p_argcount, Callable:
 		v[i] = *p_args[i + 2];
 	}
 
-	static_assert(VARIANT_ARG_MAX == 5, "This code needs to be updated if VARIANT_ARG_MAX != 5");
-	call_group_flags(0, group, method, v[0], v[1], v[2], v[3], v[4]);
+	static_assert(VARIANT_ARG_MAX == 8, "This code needs to be updated if VARIANT_ARG_MAX != 8");
+	call_group_flags(0, group, method, v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7]);
 	return Variant();
 }
 
@@ -1097,7 +1097,7 @@ Error SceneTree::change_scene_to(const Ref<PackedScene> &p_scene) {
 		ERR_FAIL_COND_V(!new_scene, ERR_CANT_CREATE);
 	}
 
-	call_deferred("_change_scene", new_scene);
+	call_deferred(SNAME("_change_scene"), new_scene);
 	return OK;
 }
 
@@ -1142,26 +1142,6 @@ Array SceneTree::get_processed_tweens() {
 	return ret;
 }
 
-void SceneTree::_network_peer_connected(int p_id) {
-	emit_signal("network_peer_connected", p_id);
-}
-
-void SceneTree::_network_peer_disconnected(int p_id) {
-	emit_signal("network_peer_disconnected", p_id);
-}
-
-void SceneTree::_connected_to_server() {
-	emit_signal("connected_to_server");
-}
-
-void SceneTree::_connection_failed() {
-	emit_signal("connection_failed");
-}
-
-void SceneTree::_server_disconnected() {
-	emit_signal("server_disconnected");
-}
-
 Ref<MultiplayerAPI> SceneTree::get_multiplayer() const {
 	return multiplayer;
 }
@@ -1177,58 +1157,8 @@ bool SceneTree::is_multiplayer_poll_enabled() const {
 void SceneTree::set_multiplayer(Ref<MultiplayerAPI> p_multiplayer) {
 	ERR_FAIL_COND(!p_multiplayer.is_valid());
 
-	if (multiplayer.is_valid()) {
-		multiplayer->disconnect("network_peer_connected", callable_mp(this, &SceneTree::_network_peer_connected));
-		multiplayer->disconnect("network_peer_disconnected", callable_mp(this, &SceneTree::_network_peer_disconnected));
-		multiplayer->disconnect("connected_to_server", callable_mp(this, &SceneTree::_connected_to_server));
-		multiplayer->disconnect("connection_failed", callable_mp(this, &SceneTree::_connection_failed));
-		multiplayer->disconnect("server_disconnected", callable_mp(this, &SceneTree::_server_disconnected));
-	}
-
 	multiplayer = p_multiplayer;
 	multiplayer->set_root_node(root);
-
-	multiplayer->connect("network_peer_connected", callable_mp(this, &SceneTree::_network_peer_connected));
-	multiplayer->connect("network_peer_disconnected", callable_mp(this, &SceneTree::_network_peer_disconnected));
-	multiplayer->connect("connected_to_server", callable_mp(this, &SceneTree::_connected_to_server));
-	multiplayer->connect("connection_failed", callable_mp(this, &SceneTree::_connection_failed));
-	multiplayer->connect("server_disconnected", callable_mp(this, &SceneTree::_server_disconnected));
-}
-
-void SceneTree::set_network_peer(const Ref<NetworkedMultiplayerPeer> &p_network_peer) {
-	multiplayer->set_network_peer(p_network_peer);
-}
-
-Ref<NetworkedMultiplayerPeer> SceneTree::get_network_peer() const {
-	return multiplayer->get_network_peer();
-}
-
-bool SceneTree::is_network_server() const {
-	return multiplayer->is_network_server();
-}
-
-bool SceneTree::has_network_peer() const {
-	return multiplayer->has_network_peer();
-}
-
-int SceneTree::get_network_unique_id() const {
-	return multiplayer->get_network_unique_id();
-}
-
-Vector<int> SceneTree::get_network_connected_peers() const {
-	return multiplayer->get_network_connected_peers();
-}
-
-int SceneTree::get_rpc_sender_id() const {
-	return multiplayer->get_rpc_sender_id();
-}
-
-void SceneTree::set_refuse_new_network_connections(bool p_refuse) {
-	multiplayer->set_refuse_new_network_connections(p_refuse);
-}
-
-bool SceneTree::is_refusing_new_network_connections() const {
-	return multiplayer->is_refusing_new_network_connections();
 }
 
 void SceneTree::_bind_methods() {
@@ -1297,24 +1227,12 @@ void SceneTree::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_multiplayer"), &SceneTree::get_multiplayer);
 	ClassDB::bind_method(D_METHOD("set_multiplayer_poll_enabled", "enabled"), &SceneTree::set_multiplayer_poll_enabled);
 	ClassDB::bind_method(D_METHOD("is_multiplayer_poll_enabled"), &SceneTree::is_multiplayer_poll_enabled);
-	ClassDB::bind_method(D_METHOD("set_network_peer", "peer"), &SceneTree::set_network_peer);
-	ClassDB::bind_method(D_METHOD("get_network_peer"), &SceneTree::get_network_peer);
-	ClassDB::bind_method(D_METHOD("is_network_server"), &SceneTree::is_network_server);
-	ClassDB::bind_method(D_METHOD("has_network_peer"), &SceneTree::has_network_peer);
-	ClassDB::bind_method(D_METHOD("get_network_connected_peers"), &SceneTree::get_network_connected_peers);
-	ClassDB::bind_method(D_METHOD("get_network_unique_id"), &SceneTree::get_network_unique_id);
-	ClassDB::bind_method(D_METHOD("get_rpc_sender_id"), &SceneTree::get_rpc_sender_id);
-	ClassDB::bind_method(D_METHOD("set_refuse_new_network_connections", "refuse"), &SceneTree::set_refuse_new_network_connections);
-	ClassDB::bind_method(D_METHOD("is_refusing_new_network_connections"), &SceneTree::is_refusing_new_network_connections);
 
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "debug_collisions_hint"), "set_debug_collisions_hint", "is_debugging_collisions_hint");
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "debug_navigation_hint"), "set_debug_navigation_hint", "is_debugging_navigation_hint");
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "paused"), "set_pause", "is_paused");
-	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "refuse_new_network_connections"), "set_refuse_new_network_connections", "is_refusing_new_network_connections");
-	ADD_PROPERTY_DEFAULT("refuse_new_network_connections", false);
 	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "edited_scene_root", PROPERTY_HINT_RESOURCE_TYPE, "Node", PROPERTY_USAGE_NONE), "set_edited_scene_root", "get_edited_scene_root");
 	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "current_scene", PROPERTY_HINT_RESOURCE_TYPE, "Node", PROPERTY_USAGE_NONE), "set_current_scene", "get_current_scene");
-	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "network_peer", PROPERTY_HINT_RESOURCE_TYPE, "NetworkedMultiplayerPeer", PROPERTY_USAGE_NONE), "set_network_peer", "get_network_peer");
 	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "root", PROPERTY_HINT_RESOURCE_TYPE, "Node", PROPERTY_USAGE_NONE), "", "get_root");
 	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "multiplayer", PROPERTY_HINT_RESOURCE_TYPE, "MultiplayerAPI", PROPERTY_USAGE_NONE), "set_multiplayer", "get_multiplayer");
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "multiplayer_poll"), "set_multiplayer_poll_enabled", "is_multiplayer_poll_enabled");
@@ -1330,11 +1248,6 @@ void SceneTree::_bind_methods() {
 	ADD_SIGNAL(MethodInfo("physics_frame"));
 
 	ADD_SIGNAL(MethodInfo("files_dropped", PropertyInfo(Variant::PACKED_STRING_ARRAY, "files"), PropertyInfo(Variant::INT, "screen")));
-	ADD_SIGNAL(MethodInfo("network_peer_connected", PropertyInfo(Variant::INT, "id")));
-	ADD_SIGNAL(MethodInfo("network_peer_disconnected", PropertyInfo(Variant::INT, "id")));
-	ADD_SIGNAL(MethodInfo("connected_to_server"));
-	ADD_SIGNAL(MethodInfo("connection_failed"));
-	ADD_SIGNAL(MethodInfo("server_disconnected"));
 
 	BIND_ENUM_CONSTANT(GROUP_CALL_DEFAULT);
 	BIND_ENUM_CONSTANT(GROUP_CALL_REVERSE);

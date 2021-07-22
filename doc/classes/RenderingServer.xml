@@ -1209,6 +1209,14 @@
 			<description>
 			</description>
 		</method>
+		<method name="decals_set_filter">
+			<return type="void">
+			</return>
+			<argument index="0" name="filter" type="int" enum="RenderingServer.DecalFilter">
+			</argument>
+			<description>
+			</description>
+		</method>
 		<method name="directional_light_create">
 			<return type="RID">
 			</return>
@@ -1666,13 +1674,12 @@
 			<description>
 			</description>
 		</method>
-		<method name="get_render_info">
+		<method name="get_rendering_info">
 			<return type="int">
 			</return>
-			<argument index="0" name="info" type="int" enum="RenderingServer.RenderInfo">
+			<argument index="0" name="info" type="int" enum="RenderingServer.RenderingInfo">
 			</argument>
 			<description>
-				Returns a certain information, see [enum RenderInfo] for options.
 			</description>
 		</method>
 		<method name="get_test_cube">
@@ -2121,17 +2128,6 @@
 				If [code]true[/code], this directional light will blend between shadow map splits resulting in a smoother transition between them. Equivalent to [member DirectionalLight3D.directional_shadow_blend_splits].
 			</description>
 		</method>
-		<method name="light_directional_set_shadow_depth_range_mode">
-			<return type="void">
-			</return>
-			<argument index="0" name="light" type="RID">
-			</argument>
-			<argument index="1" name="range_mode" type="int" enum="RenderingServer.LightDirectionalShadowDepthRangeMode">
-			</argument>
-			<description>
-				Sets the shadow depth range mode for this directional light. Equivalent to [member DirectionalLight3D.directional_shadow_depth_range]. See [enum LightDirectionalShadowDepthRangeMode] for options.
-			</description>
-		</method>
 		<method name="light_directional_set_shadow_mode">
 			<return type="void">
 			</return>
@@ -2163,6 +2159,14 @@
 			</argument>
 			<description>
 				Sets whether to use a dual paraboloid or a cubemap for the shadow map. Dual paraboloid is faster but may suffer from artifacts. Equivalent to [member OmniLight3D.omni_shadow_mode].
+			</description>
+		</method>
+		<method name="light_projectors_set_filter">
+			<return type="void">
+			</return>
+			<argument index="0" name="filter" type="int" enum="RenderingServer.LightProjectorFilter">
+			</argument>
+			<description>
 			</description>
 		</method>
 		<method name="light_set_bake_mode">
@@ -4112,10 +4116,11 @@
 			</return>
 			<argument index="0" name="viewport" type="RID">
 			</argument>
-			<argument index="1" name="info" type="int" enum="RenderingServer.ViewportRenderInfo">
+			<argument index="1" name="type" type="int" enum="RenderingServer.ViewportRenderInfoType">
+			</argument>
+			<argument index="2" name="info" type="int" enum="RenderingServer.ViewportRenderInfo">
 			</argument>
 			<description>
-				Returns a viewport's render information. For options, see the [enum ViewportRenderInfo] constants.
 			</description>
 		</method>
 		<method name="viewport_get_texture" qualifiers="const">
@@ -4876,6 +4881,16 @@
 		<constant name="MULTIMESH_TRANSFORM_3D" value="1" enum="MultimeshTransformFormat">
 			Use [Transform3D] to store MultiMesh transform.
 		</constant>
+		<constant name="LIGHT_PROJECTOR_FILTER_NEAREST" value="0" enum="LightProjectorFilter">
+		</constant>
+		<constant name="LIGHT_PROJECTOR_FILTER_NEAREST_MIPMAPS" value="1" enum="LightProjectorFilter">
+		</constant>
+		<constant name="LIGHT_PROJECTOR_FILTER_LINEAR" value="2" enum="LightProjectorFilter">
+		</constant>
+		<constant name="LIGHT_PROJECTOR_FILTER_LINEAR_MIPMAPS" value="3" enum="LightProjectorFilter">
+		</constant>
+		<constant name="LIGHT_PROJECTOR_FILTER_LINEAR_MIPMAPS_ANISOTROPIC" value="4" enum="LightProjectorFilter">
+		</constant>
 		<constant name="LIGHT_DIRECTIONAL" value="0" enum="LightType">
 			Is a directional (sun) light.
 		</constant>
@@ -4963,12 +4978,6 @@
 		<constant name="LIGHT_DIRECTIONAL_SHADOW_PARALLEL_4_SPLITS" value="2" enum="LightDirectionalShadowMode">
 			Use 4 splits for shadow projection when using directional light.
 		</constant>
-		<constant name="LIGHT_DIRECTIONAL_SHADOW_DEPTH_RANGE_STABLE" value="0" enum="LightDirectionalShadowDepthRangeMode">
-			Keeps shadows stable as camera moves but has lower effective resolution.
-		</constant>
-		<constant name="LIGHT_DIRECTIONAL_SHADOW_DEPTH_RANGE_OPTIMIZED" value="1" enum="LightDirectionalShadowDepthRangeMode">
-			Optimize use of shadow maps, increasing the effective resolution. But may result in shadows moving or flickering slightly.
-		</constant>
 		<constant name="SHADOW_QUALITY_HARD" value="0" enum="ShadowQuality">
 		</constant>
 		<constant name="SHADOW_QUALITY_SOFT_LOW" value="1" enum="ShadowQuality">
@@ -5002,6 +5011,16 @@
 		<constant name="DECAL_TEXTURE_EMISSION" value="3" enum="DecalTexture">
 		</constant>
 		<constant name="DECAL_TEXTURE_MAX" value="4" enum="DecalTexture">
+		</constant>
+		<constant name="DECAL_FILTER_NEAREST" value="0" enum="DecalFilter">
+		</constant>
+		<constant name="DECAL_FILTER_NEAREST_MIPMAPS" value="1" enum="DecalFilter">
+		</constant>
+		<constant name="DECAL_FILTER_LINEAR" value="2" enum="DecalFilter">
+		</constant>
+		<constant name="DECAL_FILTER_LINEAR_MIPMAPS" value="3" enum="DecalFilter">
+		</constant>
+		<constant name="DECAL_FILTER_LINEAR_MIPMAPS_ANISOTROPIC" value="4" enum="DecalFilter">
 		</constant>
 		<constant name="VOXEL_GI_QUALITY_LOW" value="0" enum="VoxelGIQuality">
 		</constant>
@@ -5141,23 +5160,20 @@
 		<constant name="VIEWPORT_RENDER_INFO_OBJECTS_IN_FRAME" value="0" enum="ViewportRenderInfo">
 			Number of objects drawn in a single frame.
 		</constant>
-		<constant name="VIEWPORT_RENDER_INFO_VERTICES_IN_FRAME" value="1" enum="ViewportRenderInfo">
+		<constant name="VIEWPORT_RENDER_INFO_PRIMITIVES_IN_FRAME" value="1" enum="ViewportRenderInfo">
 			Number of vertices drawn in a single frame.
 		</constant>
-		<constant name="VIEWPORT_RENDER_INFO_MATERIAL_CHANGES_IN_FRAME" value="2" enum="ViewportRenderInfo">
-			Number of material changes during this frame.
-		</constant>
-		<constant name="VIEWPORT_RENDER_INFO_SHADER_CHANGES_IN_FRAME" value="3" enum="ViewportRenderInfo">
-			Number of shader changes during this frame.
-		</constant>
-		<constant name="VIEWPORT_RENDER_INFO_SURFACE_CHANGES_IN_FRAME" value="4" enum="ViewportRenderInfo">
-			Number of surface changes during this frame.
-		</constant>
-		<constant name="VIEWPORT_RENDER_INFO_DRAW_CALLS_IN_FRAME" value="5" enum="ViewportRenderInfo">
+		<constant name="VIEWPORT_RENDER_INFO_DRAW_CALLS_IN_FRAME" value="2" enum="ViewportRenderInfo">
 			Number of draw calls during this frame.
 		</constant>
-		<constant name="VIEWPORT_RENDER_INFO_MAX" value="6" enum="ViewportRenderInfo">
+		<constant name="VIEWPORT_RENDER_INFO_MAX" value="3" enum="ViewportRenderInfo">
 			Represents the size of the [enum ViewportRenderInfo] enum.
+		</constant>
+		<constant name="VIEWPORT_RENDER_INFO_TYPE_VISIBLE" value="0" enum="ViewportRenderInfoType">
+		</constant>
+		<constant name="VIEWPORT_RENDER_INFO_TYPE_SHADOW" value="1" enum="ViewportRenderInfoType">
+		</constant>
+		<constant name="VIEWPORT_RENDER_INFO_TYPE_MAX" value="2" enum="ViewportRenderInfoType">
 		</constant>
 		<constant name="VIEWPORT_DEBUG_DRAW_DISABLED" value="0" enum="ViewportDebugDraw">
 			Debug draw is disabled. Default setting.
@@ -5632,35 +5648,17 @@
 		</constant>
 		<constant name="GLOBAL_VAR_TYPE_MAX" value="28" enum="GlobalVariableType">
 		</constant>
-		<constant name="INFO_OBJECTS_IN_FRAME" value="0" enum="RenderInfo">
-			The amount of objects in the frame.
+		<constant name="RENDERING_INFO_TOTAL_OBJECTS_IN_FRAME" value="0" enum="RenderingInfo">
 		</constant>
-		<constant name="INFO_VERTICES_IN_FRAME" value="1" enum="RenderInfo">
-			The amount of vertices in the frame.
+		<constant name="RENDERING_INFO_TOTAL_PRIMITIVES_IN_FRAME" value="1" enum="RenderingInfo">
 		</constant>
-		<constant name="INFO_MATERIAL_CHANGES_IN_FRAME" value="2" enum="RenderInfo">
-			The amount of modified materials in the frame.
+		<constant name="RENDERING_INFO_TOTAL_DRAW_CALLS_IN_FRAME" value="2" enum="RenderingInfo">
 		</constant>
-		<constant name="INFO_SHADER_CHANGES_IN_FRAME" value="3" enum="RenderInfo">
-			The amount of shader rebinds in the frame.
+		<constant name="RENDERING_INFO_TEXTURE_MEM_USED" value="3" enum="RenderingInfo">
 		</constant>
-		<constant name="INFO_SURFACE_CHANGES_IN_FRAME" value="4" enum="RenderInfo">
-			The amount of surface changes in the frame.
+		<constant name="RENDERING_INFO_BUFFER_MEM_USED" value="4" enum="RenderingInfo">
 		</constant>
-		<constant name="INFO_DRAW_CALLS_IN_FRAME" value="5" enum="RenderInfo">
-			The amount of draw calls in frame.
-		</constant>
-		<constant name="INFO_USAGE_VIDEO_MEM_TOTAL" value="6" enum="RenderInfo">
-			Unimplemented in the GLES2 rendering backend, always returns 0.
-		</constant>
-		<constant name="INFO_VIDEO_MEM_USED" value="7" enum="RenderInfo">
-			The amount of video memory used, i.e. texture and vertex memory combined.
-		</constant>
-		<constant name="INFO_TEXTURE_MEM_USED" value="8" enum="RenderInfo">
-			The amount of texture memory used.
-		</constant>
-		<constant name="INFO_VERTEX_MEM_USED" value="9" enum="RenderInfo">
-			The amount of vertex memory used.
+		<constant name="RENDERING_INFO_VIDEO_MEM_USED" value="5" enum="RenderingInfo">
 		</constant>
 		<constant name="FEATURE_SHADERS" value="0" enum="Features">
 			Hardware supports shaders. This enum is currently unused in Godot 3.x.

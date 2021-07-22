@@ -41,25 +41,31 @@
 #include "editor/editor_settings.h"
 
 void TileAtlasView::_gui_input(const Ref<InputEvent> &p_event) {
-	bool ctrl = Input::get_singleton()->is_key_pressed(KEY_CTRL);
-
 	Ref<InputEventMouseButton> mb = p_event;
 	if (mb.is_valid()) {
 		drag_type = DRAG_TYPE_NONE;
-		if (ctrl && mb->is_pressed() && mb->get_button_index() == MOUSE_BUTTON_WHEEL_DOWN) {
-			// Zoom out
-			zoom_widget->set_zoom_by_increments(-2);
-			emit_signal("transform_changed", zoom_widget->get_zoom(), panning);
-			_update_zoom_and_panning(true);
-			accept_event();
-		}
 
-		if (ctrl && mb->is_pressed() && mb->get_button_index() == MOUSE_BUTTON_WHEEL_UP) {
-			// Zoom in
-			zoom_widget->set_zoom_by_increments(2);
-			emit_signal("transform_changed", zoom_widget->get_zoom(), panning);
-			_update_zoom_and_panning(true);
-			accept_event();
+		Vector2i scroll_vec = Vector2((mb->get_button_index() == MOUSE_BUTTON_WHEEL_LEFT) - (mb->get_button_index() == MOUSE_BUTTON_WHEEL_RIGHT), (mb->get_button_index() == MOUSE_BUTTON_WHEEL_UP) - (mb->get_button_index() == MOUSE_BUTTON_WHEEL_DOWN));
+		if (scroll_vec != Vector2()) {
+			if (mb->is_ctrl_pressed()) {
+				if (mb->is_shift_pressed()) {
+					panning.x += 32 * mb->get_factor() * scroll_vec.y;
+					panning.y += 32 * mb->get_factor() * scroll_vec.x;
+				} else {
+					panning.y += 32 * mb->get_factor() * scroll_vec.y;
+					panning.x += 32 * mb->get_factor() * scroll_vec.x;
+				}
+
+				emit_signal(SNAME("transform_changed"), zoom_widget->get_zoom(), panning);
+				_update_zoom_and_panning(true);
+				accept_event();
+
+			} else if (!mb->is_shift_pressed()) {
+				zoom_widget->set_zoom_by_increments(scroll_vec.y * 2);
+				emit_signal(SNAME("transform_changed"), zoom_widget->get_zoom(), panning);
+				_update_zoom_and_panning(true);
+				accept_event();
+			}
 		}
 
 		if (mb->get_button_index() == MOUSE_BUTTON_MIDDLE || mb->get_button_index() == MOUSE_BUTTON_RIGHT) {
@@ -77,7 +83,7 @@ void TileAtlasView::_gui_input(const Ref<InputEvent> &p_event) {
 		if (drag_type == DRAG_TYPE_PAN) {
 			panning += mm->get_relative();
 			_update_zoom_and_panning();
-			emit_signal("transform_changed", zoom_widget->get_zoom(), panning);
+			emit_signal(SNAME("transform_changed"), zoom_widget->get_zoom(), panning);
 			accept_event();
 		}
 	}
@@ -176,14 +182,14 @@ void TileAtlasView::_update_zoom_and_panning(bool p_zoom_on_mouse_pos) {
 
 void TileAtlasView::_zoom_widget_changed() {
 	_update_zoom_and_panning();
-	emit_signal("transform_changed", zoom_widget->get_zoom(), panning);
+	emit_signal(SNAME("transform_changed"), zoom_widget->get_zoom(), panning);
 }
 
 void TileAtlasView::_center_view() {
 	panning = Vector2();
 	button_center_view->set_disabled(true);
 	_update_zoom_and_panning();
-	emit_signal("transform_changed", zoom_widget->get_zoom(), panning);
+	emit_signal(SNAME("transform_changed"), zoom_widget->get_zoom(), panning);
 }
 
 void TileAtlasView::_base_tiles_root_control_gui_input(const Ref<InputEvent> &p_event) {
@@ -382,13 +388,13 @@ void TileAtlasView::_draw_alternatives() {
 }
 
 void TileAtlasView::_draw_background_left() {
-	Ref<Texture2D> texture = get_theme_icon("Checkerboard", "EditorIcons");
+	Ref<Texture2D> texture = get_theme_icon(SNAME("Checkerboard"), SNAME("EditorIcons"));
 	background_left->set_size(base_tiles_root_control->get_custom_minimum_size());
 	background_left->draw_texture_rect(texture, Rect2(Vector2(), background_left->get_size()), true);
 }
 
 void TileAtlasView::_draw_background_right() {
-	Ref<Texture2D> texture = get_theme_icon("Checkerboard", "EditorIcons");
+	Ref<Texture2D> texture = get_theme_icon(SNAME("Checkerboard"), SNAME("EditorIcons"));
 	background_right->set_size(alternative_tiles_root_control->get_custom_minimum_size());
 	background_right->draw_texture_rect(texture, Rect2(Vector2(), background_right->get_size()), true);
 }
@@ -535,7 +541,7 @@ void TileAtlasView::update() {
 void TileAtlasView::_notification(int p_what) {
 	switch (p_what) {
 		case NOTIFICATION_READY:
-			button_center_view->set_icon(get_theme_icon("CenterView", "EditorIcons"));
+			button_center_view->set_icon(get_theme_icon(SNAME("CenterView"), SNAME("EditorIcons")));
 			break;
 	}
 }
@@ -564,11 +570,12 @@ TileAtlasView::TileAtlasView() {
 	zoom_widget->connect("zoom_changed", callable_mp(this, &TileAtlasView::_zoom_widget_changed).unbind(1));
 
 	button_center_view = memnew(Button);
-	button_center_view->set_icon(get_theme_icon("CenterView", "EditorIcons"));
+	button_center_view->set_icon(get_theme_icon(SNAME("CenterView"), SNAME("EditorIcons")));
 	button_center_view->set_anchors_and_offsets_preset(Control::PRESET_TOP_RIGHT, Control::PRESET_MODE_MINSIZE, 5);
 	button_center_view->connect("pressed", callable_mp(this, &TileAtlasView::_center_view));
 	button_center_view->set_flat(true);
 	button_center_view->set_disabled(true);
+	button_center_view->set_tooltip(TTR("Center View"));
 	add_child(button_center_view);
 
 	center_container = memnew(CenterContainer);

@@ -155,8 +155,12 @@ public:
 
 		virtual void set_render_priority(int p_priority) = 0;
 		virtual void set_next_pass(RID p_pass) = 0;
-		virtual void update_parameters(const Map<StringName, Variant> &p_parameters, bool p_uniform_dirty, bool p_textures_dirty) = 0;
+		virtual bool update_parameters(const Map<StringName, Variant> &p_parameters, bool p_uniform_dirty, bool p_textures_dirty) = 0;
 		virtual ~MaterialData();
+
+		//to be used internally by update_parameters, in the most common configuration of material parameters
+		bool update_parameters_uniform_set(const Map<StringName, Variant> &p_parameters, bool p_uniform_dirty, bool p_textures_dirty, const Map<StringName, ShaderLanguage::ShaderNode::Uniform> &p_uniforms, const uint32_t *p_uniform_offsets, const Vector<ShaderCompilerRD::GeneratedCode::Texture> &p_texture_uniforms, const Map<StringName, RID> &p_default_texture_params, uint32_t p_ubo_size, RID &uniform_set, RID p_shader, uint32_t p_shader_uniform_set, uint32_t p_barrier = RD::BARRIER_MASK_ALL);
+		void free_parameters_uniform_set(RID p_uniform_set);
 
 	private:
 		friend class RendererStorageRD;
@@ -165,8 +169,14 @@ public:
 		List<RID>::Element *global_texture_E = nullptr;
 		uint64_t global_textures_pass = 0;
 		Map<StringName, uint64_t> used_global_textures;
+
+		//internally by update_parameters_uniform_set
+		Vector<uint8_t> ubo_data;
+		RID uniform_buffer;
+		Vector<RID> texture_cache;
 	};
 	typedef MaterialData *(*MaterialDataRequestFunction)(ShaderData *);
+	static void _material_uniform_set_erased(const RID &p_set, void *p_material);
 
 	enum DefaultRDTexture {
 		DEFAULT_RD_TEXTURE_WHITE,
@@ -373,25 +383,28 @@ private:
 
 	struct Material {
 		RID self;
-		MaterialData *data;
-		Shader *shader;
+		MaterialData *data = nullptr;
+		Shader *shader = nullptr;
 		//shortcut to shader data and type
-		ShaderType shader_type;
+		ShaderType shader_type = SHADER_TYPE_MAX;
 		uint32_t shader_id = 0;
-		bool update_requested;
-		bool uniform_dirty;
-		bool texture_dirty;
-		Material *update_next;
+		bool uniform_dirty = false;
+		bool texture_dirty = false;
 		Map<StringName, Variant> params;
-		int32_t priority;
+		int32_t priority = 0;
 		RID next_pass;
+		SelfList<Material> update_element;
+
 		Dependency dependency;
+
+		Material() :
+				update_element(this) {}
 	};
 
 	MaterialDataRequestFunction material_data_request_func[SHADER_TYPE_MAX];
 	mutable RID_Owner<Material, true> material_owner;
 
-	Material *material_update_list;
+	SelfList<Material>::List material_update_list;
 	void _material_queue_update(Material *material, bool p_uniform, bool p_texture);
 	void _update_queued_materials();
 
@@ -434,6 +447,7 @@ private:
 
 			struct LOD {
 				float edge_length = 0.0;
+				uint32_t index_count = 0;
 				RID index_buffer;
 				RID index_array;
 			};
@@ -894,17 +908,14 @@ private:
 	}
 
 	struct ParticlesMaterialData : public MaterialData {
-		uint64_t last_frame;
-		ParticlesShaderData *shader_data;
-		RID uniform_buffer;
+		uint64_t last_frame = 0;
+		ParticlesShaderData *shader_data = nullptr;
 		RID uniform_set;
-		Vector<RID> texture_cache;
-		Vector<uint8_t> ubo_data;
-		bool uniform_set_updated;
+		bool uniform_set_updated = false;
 
 		virtual void set_render_priority(int p_priority) {}
 		virtual void set_next_pass(RID p_pass) {}
-		virtual void update_parameters(const Map<StringName, Variant> &p_parameters, bool p_uniform_dirty, bool p_textures_dirty);
+		virtual bool update_parameters(const Map<StringName, Variant> &p_parameters, bool p_uniform_dirty, bool p_textures_dirty);
 		virtual ~ParticlesMaterialData();
 	};
 
@@ -1002,7 +1013,6 @@ private:
 		uint32_t cull_mask = 0xFFFFFFFF;
 		RS::LightOmniShadowMode omni_shadow_mode = RS::LIGHT_OMNI_SHADOW_DUAL_PARABOLOID;
 		RS::LightDirectionalShadowMode directional_shadow_mode = RS::LIGHT_DIRECTIONAL_SHADOW_ORTHOGONAL;
-		RS::LightDirectionalShadowDepthRangeMode directional_range_mode = RS::LIGHT_DIRECTIONAL_SHADOW_DEPTH_RANGE_STABLE;
 		bool directional_blend_splits = false;
 		bool directional_sky_only = false;
 		uint64_t version = 0;
@@ -1525,10 +1535,18 @@ public:
 		return s->lod_count > 0;
 	}
 
-	_FORCE_INLINE_ uint32_t mesh_surface_get_lod(void *p_surface, float p_model_scale, float p_distance_threshold, float p_lod_threshold) const {
+	_FORCE_INLINE_ uint32_t mesh_surface_get_vertices_drawn_count(void *p_surface) const {
+		Mesh::Surface *s = reinterpret_cast<Mesh::Surface *>(p_surface);
+		return s->index_count ? s->index_count : s->vertex_count;
+	}
+
+	_FORCE_INLINE_ uint32_t mesh_surface_get_lod(void *p_surface, float p_model_scale, float p_distance_threshold, float p_lod_threshold, uint32_t *r_index_count = nullptr) const {
 		Mesh::Surface *s = reinterpret_cast<Mesh::Surface *>(p_surface);
 
 		int32_t current_lod = -1;
+		if (r_index_count) {
+			*r_index_count = s->index_count;
+		}
 		for (uint32_t i = 0; i < s->lod_count; i++) {
 			float screen_size = s->lods[i].edge_length * p_model_scale / p_distance_threshold;
 			if (screen_size > p_lod_threshold) {
@@ -1539,6 +1557,9 @@ public:
 		if (current_lod == -1) {
 			return 0;
 		} else {
+			if (r_index_count) {
+				*r_index_count = s->lods[current_lod].index_count;
+			}
 			return current_lod + 1;
 		}
 	}
@@ -1813,8 +1834,6 @@ public:
 	bool light_directional_get_blend_splits(RID p_light) const;
 	void light_directional_set_sky_only(RID p_light, bool p_sky_only);
 	bool light_directional_is_sky_only(RID p_light) const;
-	void light_directional_set_shadow_depth_range_mode(RID p_light, RS::LightDirectionalShadowDepthRangeMode p_range_mode);
-	RS::LightDirectionalShadowDepthRangeMode light_directional_get_shadow_depth_range_mode(RID p_light) const;
 
 	RS::LightDirectionalShadowMode light_directional_get_shadow_mode(RID p_light);
 	RS::LightOmniShadowMode light_omni_get_shadow_mode(RID p_light);
@@ -1867,6 +1886,13 @@ public:
 		ERR_FAIL_COND_V(!light, RS::LIGHT_DIRECTIONAL);
 
 		return light->shadow;
+	}
+
+	_FORCE_INLINE_ bool light_has_projector(RID p_light) const {
+		const Light *light = light_owner.getornull(p_light);
+		ERR_FAIL_COND_V(!light, RS::LIGHT_DIRECTIONAL);
+
+		return texture_owner.owns(light->projector);
 	}
 
 	_FORCE_INLINE_ bool light_is_negative(RID p_light) const {
@@ -2325,13 +2351,16 @@ public:
 
 	void set_debug_generate_wireframes(bool p_generate) {}
 
-	void render_info_begin_capture() {}
-	void render_info_end_capture() {}
-	int get_captured_render_info(RS::RenderInfo p_info) { return 0; }
+	//keep cached since it can be called form any thread
+	uint64_t texture_mem_cache = 0;
+	uint64_t buffer_mem_cache = 0;
+	uint64_t total_mem_cache = 0;
 
-	uint64_t get_render_info(RS::RenderInfo p_info) { return 0; }
-	String get_video_adapter_name() const { return String(); }
-	String get_video_adapter_vendor() const { return String(); }
+	virtual void update_memory_info();
+	virtual uint64_t get_rendering_info(RS::RenderingInfo p_info);
+
+	String get_video_adapter_name() const;
+	String get_video_adapter_vendor() const;
 
 	virtual void capture_timestamps_begin();
 	virtual void capture_timestamp(const String &p_name);

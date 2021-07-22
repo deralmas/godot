@@ -78,7 +78,8 @@ public:
 		CANVAS_ITEM_Z_MAX = 4096,
 		MAX_GLOW_LEVELS = 7,
 		MAX_CURSORS = 8,
-		MAX_2D_DIRECTIONAL_LIGHTS = 8
+		MAX_2D_DIRECTIONAL_LIGHTS = 8,
+		MAX_MESH_SURFACES = 256
 	};
 
 	/* TEXTURE API */
@@ -469,13 +470,6 @@ public:
 	virtual void light_directional_set_blend_splits(RID p_light, bool p_enable) = 0;
 	virtual void light_directional_set_sky_only(RID p_light, bool p_sky_only) = 0;
 
-	enum LightDirectionalShadowDepthRangeMode {
-		LIGHT_DIRECTIONAL_SHADOW_DEPTH_RANGE_STABLE,
-		LIGHT_DIRECTIONAL_SHADOW_DEPTH_RANGE_OPTIMIZED,
-	};
-
-	virtual void light_directional_set_shadow_depth_range_mode(RID p_light, LightDirectionalShadowDepthRangeMode p_range_mode) = 0;
-
 	virtual void directional_shadow_atlas_set_size(int p_size, bool p_16_bits = false) = 0;
 
 	enum ShadowQuality {
@@ -489,6 +483,17 @@ public:
 
 	virtual void shadows_quality_set(ShadowQuality p_quality) = 0;
 	virtual void directional_shadow_quality_set(ShadowQuality p_quality) = 0;
+
+	enum LightProjectorFilter {
+		LIGHT_PROJECTOR_FILTER_NEAREST,
+		LIGHT_PROJECTOR_FILTER_NEAREST_MIPMAPS,
+		LIGHT_PROJECTOR_FILTER_LINEAR,
+		LIGHT_PROJECTOR_FILTER_LINEAR_MIPMAPS,
+		LIGHT_PROJECTOR_FILTER_LINEAR_MIPMAPS_ANISOTROPIC,
+	};
+
+	virtual void light_projectors_set_filter(LightProjectorFilter p_filter) = 0;
+
 	/* PROBE API */
 
 	virtual RID reflection_probe_create() = 0;
@@ -540,6 +545,16 @@ public:
 	virtual void decal_set_distance_fade(RID p_decal, bool p_enabled, float p_begin, float p_length) = 0;
 	virtual void decal_set_fade(RID p_decal, float p_above, float p_below) = 0;
 	virtual void decal_set_normal_fade(RID p_decal, float p_fade) = 0;
+
+	enum DecalFilter {
+		DECAL_FILTER_NEAREST,
+		DECAL_FILTER_NEAREST_MIPMAPS,
+		DECAL_FILTER_LINEAR,
+		DECAL_FILTER_LINEAR_MIPMAPS,
+		DECAL_FILTER_LINEAR_MIPMAPS_ANISOTROPIC,
+	};
+
+	virtual void decals_set_filter(DecalFilter p_quality) = 0;
 
 	/* VOXEL GI API */
 
@@ -842,15 +857,18 @@ public:
 
 	enum ViewportRenderInfo {
 		VIEWPORT_RENDER_INFO_OBJECTS_IN_FRAME,
-		VIEWPORT_RENDER_INFO_VERTICES_IN_FRAME,
-		VIEWPORT_RENDER_INFO_MATERIAL_CHANGES_IN_FRAME,
-		VIEWPORT_RENDER_INFO_SHADER_CHANGES_IN_FRAME,
-		VIEWPORT_RENDER_INFO_SURFACE_CHANGES_IN_FRAME,
+		VIEWPORT_RENDER_INFO_PRIMITIVES_IN_FRAME,
 		VIEWPORT_RENDER_INFO_DRAW_CALLS_IN_FRAME,
 		VIEWPORT_RENDER_INFO_MAX,
 	};
 
-	virtual int viewport_get_render_info(RID p_viewport, ViewportRenderInfo p_info) = 0;
+	enum ViewportRenderInfoType {
+		VIEWPORT_RENDER_INFO_TYPE_VISIBLE,
+		VIEWPORT_RENDER_INFO_TYPE_SHADOW,
+		VIEWPORT_RENDER_INFO_TYPE_MAX
+	};
+
+	virtual int viewport_get_render_info(RID p_viewport, ViewportRenderInfoType p_type, ViewportRenderInfo p_info) = 0;
 
 	enum ViewportDebugDraw {
 		VIEWPORT_DEBUG_DRAW_DISABLED,
@@ -1402,20 +1420,17 @@ public:
 
 	/* STATUS INFORMATION */
 
-	enum RenderInfo {
-		INFO_OBJECTS_IN_FRAME,
-		INFO_VERTICES_IN_FRAME,
-		INFO_MATERIAL_CHANGES_IN_FRAME,
-		INFO_SHADER_CHANGES_IN_FRAME,
-		INFO_SURFACE_CHANGES_IN_FRAME,
-		INFO_DRAW_CALLS_IN_FRAME,
-		INFO_USAGE_VIDEO_MEM_TOTAL,
-		INFO_VIDEO_MEM_USED,
-		INFO_TEXTURE_MEM_USED,
-		INFO_VERTEX_MEM_USED,
+	enum RenderingInfo {
+		RENDERING_INFO_TOTAL_OBJECTS_IN_FRAME,
+		RENDERING_INFO_TOTAL_PRIMITIVES_IN_FRAME,
+		RENDERING_INFO_TOTAL_DRAW_CALLS_IN_FRAME,
+		RENDERING_INFO_TEXTURE_MEM_USED,
+		RENDERING_INFO_BUFFER_MEM_USED,
+		RENDERING_INFO_VIDEO_MEM_USED,
+		RENDERING_INFO_MAX
 	};
 
-	virtual uint64_t get_render_info(RenderInfo p_info) = 0;
+	virtual uint64_t get_rendering_info(RenderingInfo p_info) = 0;
 	virtual String get_video_adapter_name() const = 0;
 	virtual String get_video_adapter_vendor() const = 0;
 
@@ -1461,7 +1476,7 @@ public:
 
 	virtual void set_debug_generate_wireframes(bool p_generate) = 0;
 
-	virtual void call_set_use_vsync(bool p_enable) = 0;
+	virtual void call_set_vsync_mode(DisplayServer::VSyncMode p_mode, DisplayServer::WindowID p_window) = 0;
 
 	virtual bool is_low_end() const = 0;
 
@@ -1505,11 +1520,12 @@ VARIANT_ENUM_CAST(RenderingServer::LightParam);
 VARIANT_ENUM_CAST(RenderingServer::LightBakeMode);
 VARIANT_ENUM_CAST(RenderingServer::LightOmniShadowMode);
 VARIANT_ENUM_CAST(RenderingServer::LightDirectionalShadowMode);
-VARIANT_ENUM_CAST(RenderingServer::LightDirectionalShadowDepthRangeMode);
+VARIANT_ENUM_CAST(RenderingServer::LightProjectorFilter);
 VARIANT_ENUM_CAST(RenderingServer::ReflectionProbeUpdateMode);
 VARIANT_ENUM_CAST(RenderingServer::ReflectionProbeAmbientMode);
 VARIANT_ENUM_CAST(RenderingServer::VoxelGIQuality);
 VARIANT_ENUM_CAST(RenderingServer::DecalTexture);
+VARIANT_ENUM_CAST(RenderingServer::DecalFilter);
 VARIANT_ENUM_CAST(RenderingServer::ParticlesMode);
 VARIANT_ENUM_CAST(RenderingServer::ParticlesTransformAlign);
 VARIANT_ENUM_CAST(RenderingServer::ParticlesDrawOrder);
@@ -1521,6 +1537,7 @@ VARIANT_ENUM_CAST(RenderingServer::ViewportClearMode);
 VARIANT_ENUM_CAST(RenderingServer::ViewportMSAA);
 VARIANT_ENUM_CAST(RenderingServer::ViewportScreenSpaceAA);
 VARIANT_ENUM_CAST(RenderingServer::ViewportRenderInfo);
+VARIANT_ENUM_CAST(RenderingServer::ViewportRenderInfoType);
 VARIANT_ENUM_CAST(RenderingServer::ViewportDebugDraw);
 VARIANT_ENUM_CAST(RenderingServer::ViewportOcclusionCullingBuildQuality);
 VARIANT_ENUM_CAST(RenderingServer::ViewportSDFOversize);
@@ -1554,7 +1571,7 @@ VARIANT_ENUM_CAST(RenderingServer::CanvasLightBlendMode);
 VARIANT_ENUM_CAST(RenderingServer::CanvasLightShadowFilter);
 VARIANT_ENUM_CAST(RenderingServer::CanvasOccluderPolygonCullMode);
 VARIANT_ENUM_CAST(RenderingServer::GlobalVariableType);
-VARIANT_ENUM_CAST(RenderingServer::RenderInfo);
+VARIANT_ENUM_CAST(RenderingServer::RenderingInfo);
 VARIANT_ENUM_CAST(RenderingServer::Features);
 VARIANT_ENUM_CAST(RenderingServer::CanvasTextureChannel);
 VARIANT_ENUM_CAST(RenderingServer::BakeChannels);

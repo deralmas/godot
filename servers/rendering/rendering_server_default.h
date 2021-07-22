@@ -362,7 +362,6 @@ public:
 	FUNC2(light_directional_set_shadow_mode, RID, LightDirectionalShadowMode)
 	FUNC2(light_directional_set_blend_splits, RID, bool)
 	FUNC2(light_directional_set_sky_only, RID, bool)
-	FUNC2(light_directional_set_shadow_depth_range_mode, RID, LightDirectionalShadowDepthRangeMode)
 
 	/* PROBE API */
 
@@ -571,14 +570,14 @@ public:
 	FUNC1(viewport_set_occlusion_culling_build_quality, ViewportOcclusionCullingBuildQuality)
 	FUNC2(viewport_set_lod_threshold, RID, float)
 
-	FUNC2R(int, viewport_get_render_info, RID, ViewportRenderInfo)
+	FUNC3R(int, viewport_get_render_info, RID, ViewportRenderInfoType, ViewportRenderInfo)
 	FUNC2(viewport_set_debug_draw, RID, ViewportDebugDraw)
 
 	FUNC2(viewport_set_measure_render_time, RID, bool)
 	FUNC1RC(float, viewport_get_measured_render_time_cpu, RID)
 	FUNC1RC(float, viewport_get_measured_render_time_gpu, RID)
 
-	FUNC1(call_set_use_vsync, bool)
+	FUNC2(call_set_vsync_mode, DisplayServer::VSyncMode, DisplayServer::WindowID)
 
 	/* ENVIRONMENT API */
 
@@ -657,6 +656,8 @@ public:
 
 	FUNC1(shadows_quality_set, ShadowQuality);
 	FUNC1(directional_shadow_quality_set, ShadowQuality);
+	FUNC1(decals_set_filter, RS::DecalFilter);
+	FUNC1(light_projectors_set_filter, RS::LightProjectorFilter);
 
 	/* SCENARIO API */
 
@@ -877,7 +878,7 @@ public:
 
 	/* STATUS INFORMATION */
 
-	virtual uint64_t get_render_info(RenderInfo p_info) override;
+	virtual uint64_t get_rendering_info(RenderingInfo p_info) override;
 	virtual String get_video_adapter_name() const override;
 	virtual String get_video_adapter_vendor() const override;
 

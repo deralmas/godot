@@ -191,7 +191,10 @@ PropertyInfo VisualScriptFunction::get_input_value_port_info(int p_idx) const {
 }
 
 PropertyInfo VisualScriptFunction::get_output_value_port_info(int p_idx) const {
-	ERR_FAIL_INDEX_V(p_idx, arguments.size(), PropertyInfo());
+	// Need to check it without ERR_FAIL_COND, to prevent warnings from appearing on node creation via dragging.
+	if (p_idx < 0 || p_idx >= arguments.size()) {
+		return PropertyInfo();
+	}
 	PropertyInfo out;
 	out.type = arguments[p_idx].type;
 	out.name = arguments[p_idx].name;
@@ -2179,8 +2182,8 @@ double VisualScriptMathConstant::const_value[MATH_CONSTANT_MAX] = {
 	Math_TAU,
 	2.71828182845904523536,
 	Math::sqrt(2.0),
-	Math_INF,
-	Math_NAN
+	INFINITY,
+	NAN
 };
 
 int VisualScriptMathConstant::get_output_sequence_port_count() const {
@@ -2865,6 +2868,12 @@ PropertyInfo VisualScriptCustomNode::get_input_value_port_info(int p_idx) const 
 	if (get_script_instance() && get_script_instance()->has_method("_get_input_value_port_name")) {
 		info.name = get_script_instance()->call("_get_input_value_port_name", p_idx);
 	}
+	if (get_script_instance() && get_script_instance()->has_method("_get_input_value_port_hint")) {
+		info.hint = PropertyHint(int(get_script_instance()->call("_get_input_value_port_hint", p_idx)));
+	}
+	if (get_script_instance() && get_script_instance()->has_method("_get_input_value_port_hint_string")) {
+		info.hint_string = get_script_instance()->call("_get_input_value_port_hint_string", p_idx);
+	}
 	return info;
 }
 
@@ -2876,7 +2885,29 @@ PropertyInfo VisualScriptCustomNode::get_output_value_port_info(int p_idx) const
 	if (get_script_instance() && get_script_instance()->has_method("_get_output_value_port_name")) {
 		info.name = get_script_instance()->call("_get_output_value_port_name", p_idx);
 	}
+	if (get_script_instance() && get_script_instance()->has_method("_get_output_value_port_hint")) {
+		info.hint = PropertyHint(int(get_script_instance()->call("_get_output_value_port_hint", p_idx)));
+	}
+	if (get_script_instance() && get_script_instance()->has_method("_get_output_value_port_hint_string")) {
+		info.hint_string = get_script_instance()->call("_get_output_value_port_hint_string", p_idx);
+	}
 	return info;
+}
+
+VisualScriptCustomNode::TypeGuess VisualScriptCustomNode::guess_output_type(TypeGuess *p_inputs, int p_output) const {
+	TypeGuess tg;
+	PropertyInfo pi = VisualScriptCustomNode::get_output_value_port_info(p_output);
+	tg.type = pi.type;
+	if (pi.type == Variant::OBJECT) {
+		if (pi.hint == PROPERTY_HINT_RESOURCE_TYPE) {
+			if (pi.hint_string.is_resource_file()) {
+				tg.script = ResourceLoader::load(pi.hint_string);
+			} else if (ClassDB::class_exists(pi.hint_string)) {
+				tg.gdclass = pi.hint_string;
+			}
+		}
+	}
+	return tg;
 }
 
 String VisualScriptCustomNode::get_caption() const {
@@ -2987,7 +3018,7 @@ VisualScriptNodeInstance *VisualScriptCustomNode::instantiate(VisualScriptInstan
 }
 
 void VisualScriptCustomNode::_script_changed() {
-	call_deferred("ports_changed_notify");
+	call_deferred(SNAME("ports_changed_notify"));
 }
 
 void VisualScriptCustomNode::_bind_methods() {
@@ -3000,9 +3031,13 @@ void VisualScriptCustomNode::_bind_methods() {
 
 	BIND_VMETHOD(MethodInfo(Variant::INT, "_get_input_value_port_type", PropertyInfo(Variant::INT, "idx")));
 	BIND_VMETHOD(MethodInfo(Variant::STRING, "_get_input_value_port_name", PropertyInfo(Variant::INT, "idx")));
+	BIND_VMETHOD(MethodInfo(Variant::INT, "_get_input_value_port_hint", PropertyInfo(Variant::INT, "idx")));
+	BIND_VMETHOD(MethodInfo(Variant::STRING, "_get_input_value_port_hint_string", PropertyInfo(Variant::INT, "idx")));
 
 	BIND_VMETHOD(MethodInfo(Variant::INT, "_get_output_value_port_type", PropertyInfo(Variant::INT, "idx")));
 	BIND_VMETHOD(MethodInfo(Variant::STRING, "_get_output_value_port_name", PropertyInfo(Variant::INT, "idx")));
+	BIND_VMETHOD(MethodInfo(Variant::INT, "_get_output_value_port_hint", PropertyInfo(Variant::INT, "idx")));
+	BIND_VMETHOD(MethodInfo(Variant::STRING, "_get_output_value_port_hint_string", PropertyInfo(Variant::INT, "idx")));
 
 	BIND_VMETHOD(MethodInfo(Variant::STRING, "_get_caption"));
 	BIND_VMETHOD(MethodInfo(Variant::STRING, "_get_text"));

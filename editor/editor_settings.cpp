@@ -63,7 +63,7 @@ bool EditorSettings::_set(const StringName &p_name, const Variant &p_value) {
 
 	bool changed = _set_only(p_name, p_value);
 	if (changed) {
-		emit_signal("settings_changed");
+		emit_signal(SNAME("settings_changed"));
 	}
 	return true;
 }
@@ -631,6 +631,7 @@ void EditorSettings::_load_defaults(Ref<ConfigFile> p_extra_config) {
 	_initial_set("editors/3d/navigation/zoom_style", 0);
 	hints["editors/3d/navigation/zoom_style"] = PropertyInfo(Variant::INT, "editors/3d/navigation/zoom_style", PROPERTY_HINT_ENUM, "Vertical, Horizontal");
 
+	_initial_set("editors/3d/navigation/emulate_numpad", false);
 	_initial_set("editors/3d/navigation/emulate_3_button_mouse", false);
 	_initial_set("editors/3d/navigation/orbit_modifier", 0);
 	hints["editors/3d/navigation/orbit_modifier"] = PropertyInfo(Variant::INT, "editors/3d/navigation/orbit_modifier", PROPERTY_HINT_ENUM, "None,Shift,Alt,Meta,Ctrl");
@@ -883,7 +884,7 @@ void EditorSettings::create() {
 		return;
 	}
 
-	ClassDB::register_class<EditorSettings>(); // Otherwise it can't be unserialized.
+	GDREGISTER_CLASS(EditorSettings); // Otherwise it can't be unserialized.
 
 	String config_file_path;
 	Ref<ConfigFile> extra_config = memnew(ConfigFile);
@@ -1343,7 +1344,7 @@ void EditorSettings::load_text_editor_theme() {
 			}
 		}
 	}
-	emit_signal("settings_changed");
+	emit_signal(SNAME("settings_changed"));
 	// if it doesn't load just use what is currently loaded
 }
 

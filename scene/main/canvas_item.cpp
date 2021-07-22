@@ -128,24 +128,21 @@ void CanvasItemMaterial::_update_shader() {
 	if (particles_animation) {
 		code += "uniform int particles_anim_h_frames;\n";
 		code += "uniform int particles_anim_v_frames;\n";
-		code += "uniform bool particles_anim_loop;\n";
+		code += "uniform bool particles_anim_loop;\n\n";
 
 		code += "void vertex() {\n";
-
-		code += "\tfloat h_frames = float(particles_anim_h_frames);\n";
-		code += "\tfloat v_frames = float(particles_anim_v_frames);\n";
-
-		code += "\tVERTEX.xy /= vec2(h_frames, v_frames);\n";
-
-		code += "\tfloat particle_total_frames = float(particles_anim_h_frames * particles_anim_v_frames);\n";
-		code += "\tfloat particle_frame = floor(INSTANCE_CUSTOM.z * float(particle_total_frames));\n";
-		code += "\tif (!particles_anim_loop) {\n";
-		code += "\t\tparticle_frame = clamp(particle_frame, 0.0, particle_total_frames - 1.0);\n";
-		code += "\t} else {\n";
-		code += "\t\tparticle_frame = mod(particle_frame, particle_total_frames);\n";
-		code += "\t}";
-		code += "\tUV /= vec2(h_frames, v_frames);\n";
-		code += "\tUV += vec2(mod(particle_frame, h_frames) / h_frames, floor(particle_frame / h_frames) / v_frames);\n";
+		code += "	float h_frames = float(particles_anim_h_frames);\n";
+		code += "	float v_frames = float(particles_anim_v_frames);\n";
+		code += "	VERTEX.xy /= vec2(h_frames, v_frames);\n";
+		code += "	float particle_total_frames = float(particles_anim_h_frames * particles_anim_v_frames);\n";
+		code += "	float particle_frame = floor(INSTANCE_CUSTOM.z * float(particle_total_frames));\n";
+		code += "	if (!particles_anim_loop) {\n";
+		code += "		particle_frame = clamp(particle_frame, 0.0, particle_total_frames - 1.0);\n";
+		code += "	} else {\n";
+		code += "		particle_frame = mod(particle_frame, particle_total_frames);\n";
+		code += "	}";
+		code += "	UV /= vec2(h_frames, v_frames);\n";
+		code += "	UV += vec2(mod(particle_frame, h_frames) / h_frames, floor(particle_frame / h_frames) / v_frames);\n";
 		code += "}\n";
 	}
 
@@ -526,7 +523,7 @@ void CanvasItem::_enter_canvas() {
 			get_viewport()->gui_reset_canvas_sort_index();
 		}
 
-		get_tree()->call_group_flags(SceneTree::GROUP_CALL_UNIQUE, group, "_top_level_raise_self");
+		get_tree()->call_group_flags(SceneTree::GROUP_CALL_UNIQUE, group, SNAME("_top_level_raise_self"));
 
 	} else {
 		CanvasItem *parent = get_parent_item();
@@ -545,7 +542,7 @@ void CanvasItem::_exit_canvas() {
 	notification(NOTIFICATION_EXIT_CANVAS, true); //reverse the notification
 	RenderingServer::get_singleton()->canvas_item_set_parent(canvas_item, RID());
 	canvas_layer = nullptr;
-	group = "";
+	group = StringName();
 }
 
 void CanvasItem::_notification(int p_what) {
@@ -591,7 +588,7 @@ void CanvasItem::_notification(int p_what) {
 				break;
 			}
 
-			if (group != "") {
+			if (group != StringName()) {
 				get_tree()->call_group_flags(SceneTree::GROUP_CALL_UNIQUE, group, "_top_level_raise_self");
 			} else {
 				CanvasItem *p = get_parent_item();
@@ -651,7 +648,7 @@ void CanvasItem::update() {
 
 	pending_update = true;
 
-	MessageQueue::get_singleton()->push_call(this, "_update_callback");
+	MessageQueue::get_singleton()->push_call(this, SNAME("_update_callback"));
 }
 
 void CanvasItem::set_modulate(const Color &p_modulate) {
@@ -1227,7 +1224,7 @@ void CanvasItem::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "texture_repeat", PROPERTY_HINT_ENUM, "Inherit,Disabled,Enabled,Mirror"), "set_texture_repeat", "get_texture_repeat");
 
 	ADD_GROUP("Material", "");
-	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "material", PROPERTY_HINT_RESOURCE_TYPE, "ShaderMaterial,CanvasItemMaterial"), "set_material", "get_material");
+	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "material", PROPERTY_HINT_RESOURCE_TYPE, "CanvasItemMaterial,ShaderMaterial"), "set_material", "get_material");
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "use_parent_material"), "set_use_parent_material", "get_use_parent_material");
 	// ADD_PROPERTY(PropertyInfo(Variant::BOOL,"transform/notify"),"set_transform_notify","is_transform_notify_enabled");
 

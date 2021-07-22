@@ -267,6 +267,7 @@ public:
 			FLAG_VISIBILITY_DEPENDENCY_NEEDS_CHECK = (3 << 20), // 2 bits, overlaps with the other vis. dependency flags
 			FLAG_VISIBILITY_DEPENDENCY_HIDDEN_CLOSE_RANGE = (1 << 20),
 			FLAG_VISIBILITY_DEPENDENCY_HIDDEN = (1 << 21),
+			FLAG_GEOM_PROJECTOR_SOFTSHADOW_DIRTY = (1 << 22),
 		};
 
 		uint32_t flags = 0;
@@ -489,6 +490,14 @@ public:
 				case RendererStorage::DEPENDENCY_CHANGED_SKELETON_BONES: {
 					//ignored
 				} break;
+				case RendererStorage::DEPENDENCY_CHANGED_LIGHT_SOFT_SHADOW_AND_PROJECTOR: {
+					//requires repairing
+					if (instance->indexer_id.is_valid()) {
+						singleton->_unpair_instance(instance);
+						singleton->_instance_queue_update(instance, true, true);
+					}
+
+				} break;
 			}
 		}
 
@@ -567,6 +576,8 @@ public:
 		Set<Instance *> lights;
 		bool can_cast_shadows;
 		bool material_is_animated;
+		uint32_t projector_count = 0;
+		uint32_t softshadow_count = 0;
 
 		Set<Instance *> decals;
 		Set<Instance *> reflection_probes;
@@ -631,6 +642,8 @@ public:
 		List<Instance *>::Element *D; // directional light in scenario
 
 		bool shadow_dirty;
+		bool uses_projector = false;
+		bool uses_softshadow = false;
 
 		Set<Instance *> geometries;
 
@@ -1019,10 +1032,10 @@ public:
 	void _scene_cull(CullData &cull_data, InstanceCullResult &cull_result, uint64_t p_from, uint64_t p_to);
 
 	bool _render_reflection_probe_step(Instance *p_instance, int p_step);
-	void _render_scene(const RendererSceneRender::CameraData *p_camera_data, RID p_render_buffers, RID p_environment, RID p_force_camera_effects, uint32_t p_visible_layers, RID p_scenario, RID p_viewport, RID p_shadow_atlas, RID p_reflection_probe, int p_reflection_probe_pass, float p_screen_lod_threshold, bool p_using_shadows = true);
+	void _render_scene(const RendererSceneRender::CameraData *p_camera_data, RID p_render_buffers, RID p_environment, RID p_force_camera_effects, uint32_t p_visible_layers, RID p_scenario, RID p_viewport, RID p_shadow_atlas, RID p_reflection_probe, int p_reflection_probe_pass, float p_screen_lod_threshold, bool p_using_shadows = true, RenderInfo *r_render_info = nullptr);
 	void render_empty_scene(RID p_render_buffers, RID p_scenario, RID p_shadow_atlas);
 
-	void render_camera(RID p_render_buffers, RID p_camera, RID p_scenario, RID p_viewport, Size2 p_viewport_size, float p_screen_lod_threshold, RID p_shadow_atlas, Ref<XRInterface> &p_xr_interface);
+	void render_camera(RID p_render_buffers, RID p_camera, RID p_scenario, RID p_viewport, Size2 p_viewport_size, float p_screen_lod_threshold, RID p_shadow_atlas, Ref<XRInterface> &p_xr_interface, RendererScene::RenderInfo *r_render_info = nullptr);
 	void update_dirty_instances();
 
 	void render_particle_colliders();
@@ -1129,6 +1142,9 @@ public:
 	PASS3(shadow_atlas_set_quadrant_subdivision, RID, int, int)
 
 	PASS1(set_debug_draw_mode, RS::ViewportDebugDraw)
+
+	PASS1(decals_set_filter, RS::DecalFilter)
+	PASS1(light_projectors_set_filter, RS::LightProjectorFilter)
 
 	virtual void update();
 

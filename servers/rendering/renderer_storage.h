@@ -48,6 +48,7 @@ public:
 		DEPENDENCY_CHANGED_SKELETON_DATA,
 		DEPENDENCY_CHANGED_SKELETON_BONES,
 		DEPENDENCY_CHANGED_LIGHT,
+		DEPENDENCY_CHANGED_LIGHT_SOFT_SHADOW_AND_PROJECTOR,
 		DEPENDENCY_CHANGED_REFLECTION_PROBE,
 	};
 
@@ -331,13 +332,13 @@ public:
 	virtual bool light_directional_get_blend_splits(RID p_light) const = 0;
 	virtual void light_directional_set_sky_only(RID p_light, bool p_sky_only) = 0;
 	virtual bool light_directional_is_sky_only(RID p_light) const = 0;
-	virtual void light_directional_set_shadow_depth_range_mode(RID p_light, RS::LightDirectionalShadowDepthRangeMode p_range_mode) = 0;
-	virtual RS::LightDirectionalShadowDepthRangeMode light_directional_get_shadow_depth_range_mode(RID p_light) const = 0;
 
 	virtual RS::LightDirectionalShadowMode light_directional_get_shadow_mode(RID p_light) = 0;
 	virtual RS::LightOmniShadowMode light_omni_get_shadow_mode(RID p_light) = 0;
 
 	virtual bool light_has_shadow(RID p_light) const = 0;
+
+	virtual bool light_has_projector(RID p_light) const = 0;
 
 	virtual RS::LightType light_get_type(RID p_light) const = 0;
 	virtual AABB light_get_aabb(RID p_light) const = 0;
@@ -601,11 +602,9 @@ public:
 
 	virtual void set_debug_generate_wireframes(bool p_generate) = 0;
 
-	virtual void render_info_begin_capture() = 0;
-	virtual void render_info_end_capture() = 0;
-	virtual int get_captured_render_info(RS::RenderInfo p_info) = 0;
+	virtual void update_memory_info() = 0;
 
-	virtual uint64_t get_render_info(RS::RenderInfo p_info) = 0;
+	virtual uint64_t get_rendering_info(RS::RenderingInfo p_info) = 0;
 	virtual String get_video_adapter_name() const = 0;
 	virtual String get_video_adapter_vendor() const = 0;
 

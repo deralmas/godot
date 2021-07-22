@@ -156,6 +156,7 @@ class RenderingDeviceVulkan : public RenderingDevice {
 	uint32_t texture_upload_region_size_px = 0;
 
 	Vector<uint8_t> _texture_get_data_from_image(Texture *tex, VkImage p_image, VmaAllocation p_allocation, uint32_t p_layer, bool p_2d = false);
+	Error _texture_update(RID p_texture, uint32_t p_layer, const Vector<uint8_t> &p_data, uint32_t p_post_barrier, bool p_use_setup_queue);
 
 	/*****************/
 	/**** SAMPLER ****/
@@ -622,11 +623,17 @@ class RenderingDeviceVulkan : public RenderingDevice {
 
 		uint32_t compute_local_size[3] = { 0, 0, 0 };
 
+		struct SpecializationConstant {
+			PipelineSpecializationConstant constant;
+			uint32_t stage_flags = 0;
+		};
+
 		bool is_compute = false;
 		int max_output = 0;
 		Vector<Set> sets;
 		Vector<uint32_t> set_formats;
 		Vector<VkPipelineShaderStageCreateInfo> pipeline_stages;
+		Vector<SpecializationConstant> specialization_constants;
 		VkPipelineLayout pipeline_layout = VK_NULL_HANDLE;
 	};
 
@@ -731,6 +738,8 @@ class RenderingDeviceVulkan : public RenderingDevice {
 		LocalVector<AttachableTexture> attachable_textures; //used for validation
 		Vector<Texture *> mutable_sampled_textures; //used for layout change
 		Vector<Texture *> mutable_storage_textures; //used for layout change
+		UniformSetInvalidatedCallback invalidated_callback = nullptr;
+		void *invalidated_callback_userdata = nullptr;
 	};
 
 	RID_Owner<UniformSet, true> uniform_set_owner;
@@ -1005,6 +1014,9 @@ class RenderingDeviceVulkan : public RenderingDevice {
 
 	VulkanContext *context = nullptr;
 
+	uint64_t image_memory = 0;
+	uint64_t buffer_memory = 0;
+
 	void _free_internal(RID p_id);
 	void _flush(bool p_current_frame);
 
@@ -1084,6 +1096,7 @@ public:
 
 	virtual RID uniform_set_create(const Vector<Uniform> &p_uniforms, RID p_shader, uint32_t p_shader_set);
 	virtual bool uniform_set_is_valid(RID p_uniform_set);
+	virtual void uniform_set_set_invalidation_callback(RID p_uniform_set, UniformSetInvalidatedCallback p_callback, void *p_userdata);
 
 	virtual Error buffer_update(RID p_buffer, uint32_t p_offset, uint32_t p_size, const void *p_data, uint32_t p_post_barrier = BARRIER_MASK_ALL); //works for any buffer
 	virtual Error buffer_clear(RID p_buffer, uint32_t p_offset, uint32_t p_size, uint32_t p_post_barrier = BARRIER_MASK_ALL);
@@ -1093,14 +1106,14 @@ public:
 	/**** RENDER PIPELINE ****/
 	/*************************/
 
-	virtual RID render_pipeline_create(RID p_shader, FramebufferFormatID p_framebuffer_format, VertexFormatID p_vertex_format, RenderPrimitive p_render_primitive, const PipelineRasterizationState &p_rasterization_state, const PipelineMultisampleState &p_multisample_state, const PipelineDepthStencilState &p_depth_stencil_state, const PipelineColorBlendState &p_blend_state, int p_dynamic_state_flags = 0, uint32_t p_for_render_pass = 0);
+	virtual RID render_pipeline_create(RID p_shader, FramebufferFormatID p_framebuffer_format, VertexFormatID p_vertex_format, RenderPrimitive p_render_primitive, const PipelineRasterizationState &p_rasterization_state, const PipelineMultisampleState &p_multisample_state, const PipelineDepthStencilState &p_depth_stencil_state, const PipelineColorBlendState &p_blend_state, int p_dynamic_state_flags = 0, uint32_t p_for_render_pass = 0, const Vector<PipelineSpecializationConstant> &p_specialization_constants = Vector<PipelineSpecializationConstant>());
 	virtual bool render_pipeline_is_valid(RID p_pipeline);
 
 	/**************************/
 	/**** COMPUTE PIPELINE ****/
 	/**************************/
 
-	virtual RID compute_pipeline_create(RID p_shader);
+	virtual RID compute_pipeline_create(RID p_shader, const Vector<PipelineSpecializationConstant> &p_specialization_constants = Vector<PipelineSpecializationConstant>());
 	virtual bool compute_pipeline_is_valid(RID p_pipeline);
 
 	/****************/
@@ -1191,7 +1204,7 @@ public:
 
 	virtual RenderingDevice *create_local_device();
 
-	virtual uint64_t get_memory_usage() const;
+	virtual uint64_t get_memory_usage(MemoryType p_type) const;
 
 	virtual void set_resource_name(RID p_id, const String p_name);
 

@@ -506,7 +506,7 @@ Sprite2DEditor::Sprite2DEditor() {
 	CanvasItemEditor::get_singleton()->add_control_to_menu_panel(options);
 
 	options->set_text(TTR("Sprite2D"));
-	options->set_icon(EditorNode::get_singleton()->get_gui_base()->get_theme_icon("Sprite2D", "EditorIcons"));
+	options->set_icon(EditorNode::get_singleton()->get_gui_base()->get_theme_icon(SNAME("Sprite2D"), SNAME("EditorIcons")));
 
 	options->get_popup()->add_item(TTR("Convert to Mesh2D"), MENU_OPTION_CONVERT_TO_MESH_2D);
 	options->get_popup()->add_item(TTR("Convert to Polygon2D"), MENU_OPTION_CONVERT_TO_POLYGON_2D);
@@ -521,7 +521,7 @@ Sprite2DEditor::Sprite2DEditor() {
 
 	debug_uv_dialog = memnew(ConfirmationDialog);
 	debug_uv_dialog->get_ok_button()->set_text(TTR("Create Mesh2D"));
-	debug_uv_dialog->set_title("Mesh 2D Preview");
+	debug_uv_dialog->set_title(TTR("Mesh 2D Preview"));
 	VBoxContainer *vb = memnew(VBoxContainer);
 	debug_uv_dialog->add_child(vb);
 	ScrollContainer *scroll = memnew(ScrollContainer);

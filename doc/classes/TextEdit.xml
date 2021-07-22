@@ -14,6 +14,7 @@
 			<return type="void">
 			</return>
 			<description>
+				A virtual method that is called whenever backspace is triggered.
 			</description>
 		</method>
 		<method name="add_gutter">
@@ -28,6 +29,7 @@
 			<return type="void">
 			</return>
 			<description>
+				Causes the [TextEdit] to perform a backspace.
 			</description>
 		</method>
 		<method name="center_viewport_to_cursor">
@@ -172,6 +174,7 @@
 			<argument index="0" name="line" type="int">
 			</argument>
 			<description>
+				Returns the indent level of a specific line.
 			</description>
 		</method>
 		<method name="get_line" qualifiers="const">
@@ -312,6 +315,7 @@
 			<return type="int">
 			</return>
 			<description>
+				Returns the [TextEdit]'s' tab size.
 			</description>
 		</method>
 		<method name="get_visible_line_count" qualifiers="const">
@@ -376,6 +380,13 @@
 			<argument index="1" name="gutter" type="int">
 			</argument>
 			<description>
+			</description>
+		</method>
+		<method name="is_menu_visible" qualifiers="const">
+			<return type="bool">
+			</return>
+			<description>
+				Returns whether the menu is visible. Use this instead of [code]get_menu().visible[/code] to improve performance (so the creation of the menu is avoided).
 			</description>
 		</method>
 		<method name="is_selection_active" qualifiers="const">
@@ -667,6 +678,7 @@
 			<argument index="0" name="size" type="int">
 			</argument>
 			<description>
+				Sets the tab size for the [TextEdit] to use.
 			</description>
 		</method>
 		<method name="undo">
@@ -846,9 +858,9 @@
 		</constant>
 		<constant name="GUTTER_TYPE_STRING" value="0" enum="GutterType">
 		</constant>
-		<constant name="GUTTER_TPYE_ICON" value="1" enum="GutterType">
+		<constant name="GUTTER_TYPE_ICON" value="1" enum="GutterType">
 		</constant>
-		<constant name="GUTTER_TPYE_CUSTOM" value="2" enum="GutterType">
+		<constant name="GUTTER_TYPE_CUSTOM" value="2" enum="GutterType">
 		</constant>
 		<constant name="MENU_CUT" value="0" enum="MenuItems">
 			Cuts (copies and clears) the selected text.

@@ -71,7 +71,7 @@ void WebSocketServer::_bind_methods() {
 
 	ADD_SIGNAL(MethodInfo("client_close_request", PropertyInfo(Variant::INT, "id"), PropertyInfo(Variant::INT, "code"), PropertyInfo(Variant::STRING, "reason")));
 	ADD_SIGNAL(MethodInfo("client_disconnected", PropertyInfo(Variant::INT, "id"), PropertyInfo(Variant::BOOL, "was_clean_close")));
-	ADD_SIGNAL(MethodInfo("client_connected", PropertyInfo(Variant::INT, "id"), PropertyInfo(Variant::STRING, "protocol")));
+	ADD_SIGNAL(MethodInfo("client_connected", PropertyInfo(Variant::INT, "id"), PropertyInfo(Variant::STRING, "protocol"), PropertyInfo(Variant::STRING, "resource_name")));
 	ADD_SIGNAL(MethodInfo("data_received", PropertyInfo(Variant::INT, "id")));
 }
 
@@ -121,7 +121,7 @@ void WebSocketServer::set_handshake_timeout(float p_timeout) {
 	handshake_timeout = p_timeout * 1000;
 }
 
-NetworkedMultiplayerPeer::ConnectionStatus WebSocketServer::get_connection_status() const {
+MultiplayerPeer::ConnectionStatus WebSocketServer::get_connection_status() const {
 	if (is_listening()) {
 		return CONNECTION_CONNECTED;
 	}
@@ -137,17 +137,17 @@ void WebSocketServer::_on_peer_packet(int32_t p_peer_id) {
 	if (_is_multiplayer) {
 		_process_multiplayer(get_peer(p_peer_id), p_peer_id);
 	} else {
-		emit_signal("data_received", p_peer_id);
+		emit_signal(SNAME("data_received"), p_peer_id);
 	}
 }
 
-void WebSocketServer::_on_connect(int32_t p_peer_id, String p_protocol) {
+void WebSocketServer::_on_connect(int32_t p_peer_id, String p_protocol, String p_resource_name) {
 	if (_is_multiplayer) {
 		// Send add to clients
 		_send_add(p_peer_id);
-		emit_signal("peer_connected", p_peer_id);
+		emit_signal(SNAME("peer_connected"), p_peer_id);
 	} else {
-		emit_signal("client_connected", p_peer_id, p_protocol);
+		emit_signal(SNAME("client_connected"), p_peer_id, p_protocol, p_resource_name);
 	}
 }
 
@@ -155,12 +155,12 @@ void WebSocketServer::_on_disconnect(int32_t p_peer_id, bool p_was_clean) {
 	if (_is_multiplayer) {
 		// Send delete to clients
 		_send_del(p_peer_id);
-		emit_signal("peer_disconnected", p_peer_id);
+		emit_signal(SNAME("peer_disconnected"), p_peer_id);
 	} else {
-		emit_signal("client_disconnected", p_peer_id, p_was_clean);
+		emit_signal(SNAME("client_disconnected"), p_peer_id, p_was_clean);
 	}
 }
 
 void WebSocketServer::_on_close_request(int32_t p_peer_id, int p_code, String p_reason) {
-	emit_signal("client_close_request", p_peer_id, p_code, p_reason);
+	emit_signal(SNAME("client_close_request"), p_peer_id, p_code, p_reason);
 }

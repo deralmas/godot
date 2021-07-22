@@ -1398,12 +1398,15 @@ Error RenderingDeviceVulkan::_buffer_allocate(Buffer *p_buffer, uint32_t p_size,
 	p_buffer->buffer_info.range = p_size;
 	p_buffer->usage = p_usage;
 
+	buffer_memory += p_size;
+
 	return OK;
 }
 
 Error RenderingDeviceVulkan::_buffer_free(Buffer *p_buffer) {
 	ERR_FAIL_COND_V(p_buffer->size == 0, ERR_INVALID_PARAMETER);
 
+	buffer_memory -= p_buffer->size;
 	vmaDestroyBuffer(allocator, p_buffer->buffer, p_buffer->allocation);
 	p_buffer->buffer = VK_NULL_HANDLE;
 	p_buffer->allocation = nullptr;
@@ -1896,7 +1899,7 @@ RID RenderingDeviceVulkan::texture_create(const TextureFormat &p_format, const T
 
 	VkResult err = vmaCreateImage(allocator, &image_create_info, &allocInfo, &texture.image, &texture.allocation, &texture.allocation_info);
 	ERR_FAIL_COND_V_MSG(err, RID(), "vmaCreateImage failed with error " + itos(err) + ".");
-
+	image_memory += texture.allocation_info.size;
 	texture.type = p_format.texture_type;
 	texture.format = p_format.format;
 	texture.width = image_create_info.extent.width;
@@ -2029,7 +2032,7 @@ RID RenderingDeviceVulkan::texture_create(const TextureFormat &p_format, const T
 
 	if (p_data.size()) {
 		for (uint32_t i = 0; i < image_create_info.arrayLayers; i++) {
-			texture_update(id, i, p_data[i]);
+			_texture_update(id, i, p_data[i], RD::BARRIER_MASK_ALL, true);
 		}
 	}
 	return id;
@@ -2276,10 +2279,14 @@ RID RenderingDeviceVulkan::texture_create_shared_from_slice(const TextureView &p
 }
 
 Error RenderingDeviceVulkan::texture_update(RID p_texture, uint32_t p_layer, const Vector<uint8_t> &p_data, uint32_t p_post_barrier) {
+	return _texture_update(p_texture, p_layer, p_data, p_post_barrier, false);
+}
+
+Error RenderingDeviceVulkan::_texture_update(RID p_texture, uint32_t p_layer, const Vector<uint8_t> &p_data, uint32_t p_post_barrier, bool p_use_setup_queue) {
 	_THREAD_SAFE_METHOD_
 
-	ERR_FAIL_COND_V_MSG(draw_list || compute_list, ERR_INVALID_PARAMETER,
-			"Updating textures in is forbidden during creation of a draw or compute list");
+	ERR_FAIL_COND_V_MSG((draw_list || compute_list) && !p_use_setup_queue, ERR_INVALID_PARAMETER,
+			"Updating textures is forbidden during creation of a draw or compute list");
 
 	Texture *texture = texture_owner.getornull(p_texture);
 	ERR_FAIL_COND_V(!texture, ERR_INVALID_PARAMETER);
@@ -2320,7 +2327,7 @@ Error RenderingDeviceVulkan::texture_update(RID p_texture, uint32_t p_layer, con
 
 	const uint8_t *r = p_data.ptr();
 
-	VkCommandBuffer command_buffer = p_post_barrier ? frames[frame].draw_command_buffer : frames[frame].setup_command_buffer;
+	VkCommandBuffer command_buffer = p_use_setup_queue ? frames[frame].setup_command_buffer : frames[frame].draw_command_buffer;
 
 	//barrier to transfer
 	{
@@ -2373,7 +2380,7 @@ Error RenderingDeviceVulkan::texture_update(RID p_texture, uint32_t p_layer, con
 					to_allocate >>= get_compressed_image_format_pixel_rshift(texture->format);
 
 					uint32_t alloc_offset, alloc_size;
-					Error err = _staging_buffer_allocate(to_allocate, required_align, alloc_offset, alloc_size, false, p_post_barrier);
+					Error err = _staging_buffer_allocate(to_allocate, required_align, alloc_offset, alloc_size, false, !p_use_setup_queue);
 					ERR_FAIL_COND_V(err, ERR_CANT_CREATE);
 
 					uint8_t *write_ptr;
@@ -4367,6 +4374,8 @@ RID RenderingDeviceVulkan::shader_create(const Vector<ShaderStageData> &p_stages
 
 	uint32_t stages_processed = 0;
 
+	Vector<Shader::SpecializationConstant> specialization_constants;
+
 	bool is_compute = false;
 
 	uint32_t compute_local_size[3] = { 0, 0, 0 };
@@ -4553,6 +4562,60 @@ RID RenderingDeviceVulkan::shader_create(const Vector<ShaderStageData> &p_stages
 				}
 			}
 
+			{
+				//specialization constants
+
+				uint32_t sc_count = 0;
+				result = spvReflectEnumerateSpecializationConstants(&module, &sc_count, nullptr);
+				ERR_FAIL_COND_V_MSG(result != SPV_REFLECT_RESULT_SUCCESS, RID(),
+						"Reflection of SPIR-V shader stage '" + String(shader_stage_names[p_stages[i].shader_stage]) + "' failed enumerating specialization constants.");
+
+				if (sc_count) {
+					Vector<SpvReflectSpecializationConstant *> spec_constants;
+					spec_constants.resize(sc_count);
+
+					result = spvReflectEnumerateSpecializationConstants(&module, &sc_count, spec_constants.ptrw());
+					ERR_FAIL_COND_V_MSG(result != SPV_REFLECT_RESULT_SUCCESS, RID(),
+							"Reflection of SPIR-V shader stage '" + String(shader_stage_names[p_stages[i].shader_stage]) + "' failed obtaining specialization constants.");
+
+					for (uint32_t j = 0; j < sc_count; j++) {
+						int32_t existing = -1;
+						Shader::SpecializationConstant sconst;
+						sconst.constant.constant_id = spec_constants[j]->constant_id;
+						switch (spec_constants[j]->constant_type) {
+							case SPV_REFLECT_SPECIALIZATION_CONSTANT_BOOL: {
+								sconst.constant.type = PIPELINE_SPECIALIZATION_CONSTANT_TYPE_BOOL;
+								sconst.constant.bool_value = spec_constants[j]->default_value.int_bool_value != 0;
+							} break;
+							case SPV_REFLECT_SPECIALIZATION_CONSTANT_INT: {
+								sconst.constant.type = PIPELINE_SPECIALIZATION_CONSTANT_TYPE_INT;
+								sconst.constant.int_value = spec_constants[j]->default_value.int_bool_value;
+							} break;
+							case SPV_REFLECT_SPECIALIZATION_CONSTANT_FLOAT: {
+								sconst.constant.type = PIPELINE_SPECIALIZATION_CONSTANT_TYPE_FLOAT;
+								sconst.constant.float_value = spec_constants[j]->default_value.float_value;
+							} break;
+						}
+						sconst.stage_flags = 1 << p_stages[i].shader_stage;
+
+						for (int k = 0; k < specialization_constants.size(); k++) {
+							if (specialization_constants[k].constant.constant_id == sconst.constant.constant_id) {
+								ERR_FAIL_COND_V_MSG(specialization_constants[k].constant.type != sconst.constant.type, RID(), "More than one specialization constant used for id (" + itos(sconst.constant.constant_id) + "), but their types differ.");
+								ERR_FAIL_COND_V_MSG(specialization_constants[k].constant.int_value != sconst.constant.int_value, RID(), "More than one specialization constant used for id (" + itos(sconst.constant.constant_id) + "), but their default values differ.");
+								existing = k;
+								break;
+							}
+						}
+
+						if (existing > 0) {
+							specialization_constants.write[existing].stage_flags |= sconst.stage_flags;
+						} else {
+							specialization_constants.push_back(sconst);
+						}
+					}
+				}
+			}
+
 			if (stage == SHADER_STAGE_VERTEX) {
 				uint32_t iv_count = 0;
 				result = spvReflectEnumerateInputVariables(&module, &iv_count, nullptr);
@@ -4649,6 +4712,7 @@ RID RenderingDeviceVulkan::shader_create(const Vector<ShaderStageData> &p_stages
 	shader.compute_local_size[0] = compute_local_size[0];
 	shader.compute_local_size[1] = compute_local_size[1];
 	shader.compute_local_size[2] = compute_local_size[2];
+	shader.specialization_constants = specialization_constants;
 
 	String error_text;
 
@@ -5498,6 +5562,13 @@ bool RenderingDeviceVulkan::uniform_set_is_valid(RID p_uniform_set) {
 	return uniform_set_owner.owns(p_uniform_set);
 }
 
+void RenderingDeviceVulkan::uniform_set_set_invalidation_callback(RID p_uniform_set, UniformSetInvalidatedCallback p_callback, void *p_userdata) {
+	UniformSet *us = uniform_set_owner.getornull(p_uniform_set);
+	ERR_FAIL_COND(!us);
+	us->invalidated_callback = p_callback;
+	us->invalidated_callback_userdata = p_userdata;
+}
+
 Error RenderingDeviceVulkan::buffer_update(RID p_buffer, uint32_t p_offset, uint32_t p_size, const void *p_data, uint32_t p_post_barrier) {
 	_THREAD_SAFE_METHOD_
 
@@ -5637,7 +5708,7 @@ Vector<uint8_t> RenderingDeviceVulkan::buffer_get_data(RID p_buffer) {
 /**** RENDER PIPELINE ****/
 /*************************/
 
-RID RenderingDeviceVulkan::render_pipeline_create(RID p_shader, FramebufferFormatID p_framebuffer_format, VertexFormatID p_vertex_format, RenderPrimitive p_render_primitive, const PipelineRasterizationState &p_rasterization_state, const PipelineMultisampleState &p_multisample_state, const PipelineDepthStencilState &p_depth_stencil_state, const PipelineColorBlendState &p_blend_state, int p_dynamic_state_flags, uint32_t p_for_render_pass) {
+RID RenderingDeviceVulkan::render_pipeline_create(RID p_shader, FramebufferFormatID p_framebuffer_format, VertexFormatID p_vertex_format, RenderPrimitive p_render_primitive, const PipelineRasterizationState &p_rasterization_state, const PipelineMultisampleState &p_multisample_state, const PipelineDepthStencilState &p_depth_stencil_state, const PipelineColorBlendState &p_blend_state, int p_dynamic_state_flags, uint32_t p_for_render_pass, const Vector<PipelineSpecializationConstant> &p_specialization_constants) {
 	_THREAD_SAFE_METHOD_
 
 	//needs a shader
@@ -5737,7 +5808,7 @@ RID RenderingDeviceVulkan::render_pipeline_create(RID p_shader, FramebufferForma
 	tessellation_create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_TESSELLATION_STATE_CREATE_INFO;
 	tessellation_create_info.pNext = nullptr;
 	tessellation_create_info.flags = 0;
-	ERR_FAIL_COND_V(p_rasterization_state.patch_control_points < 1 || p_rasterization_state.patch_control_points > limits.maxTessellationPatchSize, RID());
+	ERR_FAIL_COND_V(limits.maxTessellationPatchSize > 0 && (p_rasterization_state.patch_control_points < 1 || p_rasterization_state.patch_control_points > limits.maxTessellationPatchSize), RID());
 	tessellation_create_info.patchControlPoints = p_rasterization_state.patch_control_points;
 
 	VkPipelineViewportStateCreateInfo viewport_state_create_info;
@@ -5955,8 +6026,63 @@ RID RenderingDeviceVulkan::render_pipeline_create(RID p_shader, FramebufferForma
 	graphics_pipeline_create_info.pNext = nullptr;
 	graphics_pipeline_create_info.flags = 0;
 
-	graphics_pipeline_create_info.stageCount = shader->pipeline_stages.size();
-	graphics_pipeline_create_info.pStages = shader->pipeline_stages.ptr();
+	Vector<VkPipelineShaderStageCreateInfo> pipeline_stages = shader->pipeline_stages;
+	Vector<VkSpecializationInfo> specialization_info;
+	Vector<Vector<VkSpecializationMapEntry>> specialization_map_entries;
+	Vector<uint32_t> specialization_constant_data;
+
+	if (shader->specialization_constants.size()) {
+		specialization_constant_data.resize(shader->specialization_constants.size());
+		uint32_t *data_ptr = specialization_constant_data.ptrw();
+		specialization_info.resize(pipeline_stages.size());
+		specialization_map_entries.resize(pipeline_stages.size());
+		for (int i = 0; i < shader->specialization_constants.size(); i++) {
+			//see if overriden
+			const Shader::SpecializationConstant &sc = shader->specialization_constants[i];
+			data_ptr[i] = sc.constant.int_value; //just copy the 32 bits
+
+			for (int j = 0; j < p_specialization_constants.size(); j++) {
+				const PipelineSpecializationConstant &psc = p_specialization_constants[j];
+				if (psc.constant_id == sc.constant.constant_id) {
+					ERR_FAIL_COND_V_MSG(psc.type != sc.constant.type, RID(), "Specialization constant provided for id (" + itos(sc.constant.constant_id) + ") is of the wrong type.");
+					data_ptr[i] = psc.int_value;
+					break;
+				}
+			}
+
+			VkSpecializationMapEntry entry;
+
+			entry.constantID = sc.constant.constant_id;
+			entry.offset = i * sizeof(uint32_t);
+			entry.size = sizeof(uint32_t);
+
+			for (int j = 0; j < SHADER_STAGE_MAX; j++) {
+				if (sc.stage_flags & (1 << j)) {
+					VkShaderStageFlagBits stage = shader_stage_masks[j];
+					for (int k = 0; k < pipeline_stages.size(); k++) {
+						if (pipeline_stages[k].stage == stage) {
+							specialization_map_entries.write[k].push_back(entry);
+						}
+					}
+				}
+			}
+		}
+
+		for (int i = 0; i < pipeline_stages.size(); i++) {
+			if (specialization_map_entries[i].size()) {
+				specialization_info.write[i].dataSize = specialization_constant_data.size() * sizeof(uint32_t);
+				specialization_info.write[i].pData = data_ptr;
+				specialization_info.write[i].mapEntryCount = specialization_map_entries[i].size();
+				specialization_info.write[i].pMapEntries = specialization_map_entries[i].ptr();
+
+				pipeline_stages.write[i].pSpecializationInfo = specialization_info.ptr() + i;
+			}
+		}
+	}
+
+	graphics_pipeline_create_info.stageCount = pipeline_stages.size();
+	graphics_pipeline_create_info.pStages = pipeline_stages.ptr();
+
 	graphics_pipeline_create_info.pVertexInputState = &pipeline_vertex_input_state_create_info;
 	graphics_pipeline_create_info.pInputAssemblyState = &input_assembly_create_info;
 	graphics_pipeline_create_info.pTessellationState = &tessellation_create_info;
@@ -6025,7 +6151,7 @@ bool RenderingDeviceVulkan::render_pipeline_is_valid(RID p_pipeline) {
 /**** COMPUTE PIPELINE ****/
 /**************************/
 
-RID RenderingDeviceVulkan::compute_pipeline_create(RID p_shader) {
+RID RenderingDeviceVulkan::compute_pipeline_create(RID p_shader, const Vector<PipelineSpecializationConstant> &p_specialization_constants) {
 	_THREAD_SAFE_METHOD_
 
 	//needs a shader
@@ -6046,6 +6172,44 @@ RID RenderingDeviceVulkan::compute_pipeline_create(RID p_shader) {
 	compute_pipeline_create_info.layout = shader->pipeline_layout;
 	compute_pipeline_create_info.basePipelineHandle = VK_NULL_HANDLE;
 	compute_pipeline_create_info.basePipelineIndex = 0;
+
+	VkSpecializationInfo specialization_info;
+	Vector<VkSpecializationMapEntry> specialization_map_entries;
+	Vector<uint32_t> specialization_constant_data;
+
+	if (shader->specialization_constants.size()) {
+		specialization_constant_data.resize(shader->specialization_constants.size());
+		uint32_t *data_ptr = specialization_constant_data.ptrw();
+		for (int i = 0; i < shader->specialization_constants.size(); i++) {
+			//see if overriden
+			const Shader::SpecializationConstant &sc = shader->specialization_constants[i];
+			data_ptr[i] = sc.constant.int_value; //just copy the 32 bits
+
+			for (int j = 0; j < p_specialization_constants.size(); j++) {
+				const PipelineSpecializationConstant &psc = p_specialization_constants[j];
+				if (psc.constant_id == sc.constant.constant_id) {
+					ERR_FAIL_COND_V_MSG(psc.type != sc.constant.type, RID(), "Specialization constant provided for id (" + itos(sc.constant.constant_id) + ") is of the wrong type.");
+					data_ptr[i] = sc.constant.int_value;
+					break;
+				}
+			}
+
+			VkSpecializationMapEntry entry;
+
+			entry.constantID = sc.constant.constant_id;
+			entry.offset = i * sizeof(uint32_t);
+			entry.size = sizeof(uint32_t);
+
+			specialization_map_entries.push_back(entry);
+		}
+
+		specialization_info.dataSize = specialization_constant_data.size() * sizeof(uint32_t);
+		specialization_info.pData = data_ptr;
+		specialization_info.mapEntryCount = specialization_map_entries.size();
+		specialization_info.pMapEntries = specialization_map_entries.ptr();
+
+		compute_pipeline_create_info.stage.pSpecializationInfo = &specialization_info;
+	}
 
 	ComputePipeline pipeline;
 	VkResult err = vkCreateComputePipelines(device, VK_NULL_HANDLE, 1, &compute_pipeline_create_info, nullptr, &pipeline.pipeline);
@@ -7837,6 +8001,10 @@ void RenderingDeviceVulkan::_free_internal(RID p_id) {
 	} else if (uniform_set_owner.owns(p_id)) {
 		UniformSet *uniform_set = uniform_set_owner.getornull(p_id);
 		frames[frame].uniform_sets_to_dispose_of.push_back(*uniform_set);
+		if (uniform_set->invalidated_callback != nullptr) {
+			uniform_set->invalidated_callback(p_id, uniform_set->invalidated_callback_userdata);
+		}
+
 		uniform_set_owner.free(p_id);
 	} else if (render_pipeline_owner.owns(p_id)) {
 		RenderPipeline *pipeline = render_pipeline_owner.getornull(p_id);
@@ -8121,6 +8289,7 @@ void RenderingDeviceVulkan::_free_pending_resources(int p_frame) {
 		vkDestroyImageView(device, texture->view, nullptr);
 		if (texture->owner.is_null()) {
 			//actually owns the image and the allocation too
+			image_memory -= texture->allocation_info.size;
 			vmaDestroyImage(allocator, texture->image, texture->allocation);
 		}
 		frames[p_frame].textures_to_dispose_of.pop_front();
@@ -8144,10 +8313,16 @@ uint32_t RenderingDeviceVulkan::get_frame_delay() const {
 	return frame_count;
 }
 
-uint64_t RenderingDeviceVulkan::get_memory_usage() const {
-	VmaStats stats;
-	vmaCalculateStats(allocator, &stats);
-	return stats.total.usedBytes;
+uint64_t RenderingDeviceVulkan::get_memory_usage(MemoryType p_type) const {
+	if (p_type == MEMORY_BUFFERS) {
+		return buffer_memory;
+	} else if (p_type == MEMORY_TEXTURES) {
+		return image_memory;
+	} else {
+		VmaStats stats;
+		vmaCalculateStats(allocator, &stats);
+		return stats.total.usedBytes;
+	}
 }
 
 void RenderingDeviceVulkan::_flush(bool p_current_frame) {

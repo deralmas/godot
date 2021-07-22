@@ -50,7 +50,7 @@ protected:
 	Ref<KinematicCollision2D> _move(const Vector2 &p_motion, bool p_infinite_inertia = true, bool p_exclude_raycast_shapes = true, bool p_test_only = false, real_t p_margin = 0.08);
 
 public:
-	bool move_and_collide(const Vector2 &p_motion, bool p_infinite_inertia, PhysicsServer2D::MotionResult &r_result, real_t p_margin, bool p_exclude_raycast_shapes = true, bool p_test_only = false, bool p_cancel_sliding = true);
+	bool move_and_collide(const Vector2 &p_motion, bool p_infinite_inertia, PhysicsServer2D::MotionResult &r_result, real_t p_margin, bool p_exclude_raycast_shapes = true, bool p_test_only = false, bool p_cancel_sliding = true, const Set<RID> &p_exclude = Set<RID>());
 	bool test_move(const Transform2D &p_from, const Vector2 &p_motion, bool p_infinite_inertia = true, bool p_exclude_raycast_shapes = true, const Ref<KinematicCollision2D> &r_collision = Ref<KinematicCollision2D>(), real_t p_margin = 0.08);
 
 	TypedArray<PhysicsBody2D> get_collision_exceptions();
@@ -69,6 +69,11 @@ class StaticBody2D : public PhysicsBody2D {
 	Ref<PhysicsMaterial> physics_material_override;
 
 	bool kinematic_motion = false;
+	bool sync_to_physics = false;
+
+	Transform2D last_valid_transform;
+
+	void _direct_state_changed(Object *p_state);
 
 protected:
 	void _notification(int p_what);
@@ -84,6 +89,8 @@ public:
 	Vector2 get_constant_linear_velocity() const;
 	real_t get_constant_angular_velocity() const;
 
+	virtual TypedArray<String> get_configuration_warnings() const override;
+
 	StaticBody2D();
 
 private:
@@ -93,6 +100,9 @@ private:
 
 	void set_kinematic_motion_enabled(bool p_enabled);
 	bool is_kinematic_motion_enabled() const;
+
+	void set_sync_to_physics(bool p_enable);
+	bool is_sync_to_physics_enabled() const;
 };
 
 class RigidBody2D : public PhysicsBody2D {
@@ -243,7 +253,7 @@ public:
 
 	TypedArray<Node2D> get_colliding_bodies() const; //function for script
 
-	TypedArray<String> get_configuration_warnings() const override;
+	virtual TypedArray<String> get_configuration_warnings() const override;
 
 	RigidBody2D();
 	~RigidBody2D();
@@ -276,7 +286,6 @@ private:
 	bool on_floor = false;
 	bool on_ceiling = false;
 	bool on_wall = false;
-	bool sync_to_physics = false;
 
 	Vector<PhysicsServer2D::MotionResult> motion_results;
 	Vector<Ref<KinematicCollision2D>> slide_colliders;
@@ -284,9 +293,6 @@ private:
 	Ref<KinematicCollision2D> _get_slide_collision(int p_bounce);
 
 	bool separate_raycast_shapes(PhysicsServer2D::MotionResult &r_result);
-
-	Transform2D last_valid_transform;
-	void _direct_state_changed(Object *p_state);
 
 	void set_safe_margin(real_t p_margin);
 	real_t get_safe_margin() const;
@@ -308,6 +314,7 @@ private:
 
 	const Vector2 &get_up_direction() const;
 	void set_up_direction(const Vector2 &p_up_direction);
+	void _set_collision_direction(const PhysicsServer2D::MotionResult &p_result);
 
 protected:
 	void _notification(int p_what);
@@ -327,9 +334,6 @@ public:
 
 	int get_slide_count() const;
 	PhysicsServer2D::MotionResult get_slide_collision(int p_bounce) const;
-
-	void set_sync_to_physics(bool p_enable);
-	bool is_sync_to_physics_enabled() const;
 
 	CharacterBody2D();
 	~CharacterBody2D();

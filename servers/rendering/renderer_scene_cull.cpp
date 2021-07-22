@@ -151,6 +151,22 @@ void RendererSceneCull::_instance_pair(Instance *p_A, Instance *p_B) {
 			idata.flags |= InstanceData::FLAG_GEOM_LIGHTING_DIRTY;
 		}
 
+		if (light->uses_projector) {
+			geom->projector_count++;
+			if (geom->projector_count == 1) {
+				InstanceData &idata = A->scenario->instance_data[A->array_index];
+				idata.flags |= InstanceData::FLAG_GEOM_PROJECTOR_SOFTSHADOW_DIRTY;
+			}
+		}
+
+		if (light->uses_softshadow) {
+			geom->softshadow_count++;
+			if (geom->softshadow_count == 1) {
+				InstanceData &idata = A->scenario->instance_data[A->array_index];
+				idata.flags |= InstanceData::FLAG_GEOM_PROJECTOR_SOFTSHADOW_DIRTY;
+			}
+		}
+
 	} else if (self->geometry_instance_pair_mask & (1 << RS::INSTANCE_REFLECTION_PROBE) && B->base_type == RS::INSTANCE_REFLECTION_PROBE && ((1 << A->base_type) & RS::INSTANCE_GEOMETRY_MASK)) {
 		InstanceReflectionProbeData *reflection_probe = static_cast<InstanceReflectionProbeData *>(B->base_data);
 		InstanceGeometryData *geom = static_cast<InstanceGeometryData *>(A->base_data);
@@ -240,6 +256,32 @@ void RendererSceneCull::_instance_unpair(Instance *p_A, Instance *p_B) {
 		if (A->scenario && A->array_index >= 0) {
 			InstanceData &idata = A->scenario->instance_data[A->array_index];
 			idata.flags |= InstanceData::FLAG_GEOM_LIGHTING_DIRTY;
+		}
+
+		if (light->uses_projector) {
+#ifdef DEBUG_ENABLED
+			if (geom->projector_count == 0) {
+				ERR_PRINT("geom->projector_count==0 - BUG!");
+			}
+#endif
+			geom->projector_count--;
+			if (geom->projector_count == 0) {
+				InstanceData &idata = A->scenario->instance_data[A->array_index];
+				idata.flags |= InstanceData::FLAG_GEOM_PROJECTOR_SOFTSHADOW_DIRTY;
+			}
+		}
+
+		if (light->uses_softshadow) {
+#ifdef DEBUG_ENABLED
+			if (geom->softshadow_count == 0) {
+				ERR_PRINT("geom->softshadow_count==0 - BUG!");
+			}
+#endif
+			geom->softshadow_count--;
+			if (geom->softshadow_count == 0) {
+				InstanceData &idata = A->scenario->instance_data[A->array_index];
+				idata.flags |= InstanceData::FLAG_GEOM_PROJECTOR_SOFTSHADOW_DIRTY;
+			}
 		}
 
 	} else if (self->geometry_instance_pair_mask & (1 << RS::INSTANCE_REFLECTION_PROBE) && B->base_type == RS::INSTANCE_REFLECTION_PROBE && ((1 << A->base_type) & RS::INSTANCE_GEOMETRY_MASK)) {
@@ -1315,6 +1357,8 @@ void RendererSceneCull::instance_geometry_set_shader_parameter(RID p_instance, c
 	Instance *instance = instance_owner.getornull(p_instance);
 	ERR_FAIL_COND(!instance);
 
+	ERR_FAIL_COND(p_value.get_type() == Variant::OBJECT);
+
 	Map<StringName, Instance::InstanceShaderParameter>::Element *E = instance->instance_shader_parameters.find(p_parameter);
 
 	if (!E) {
@@ -1530,7 +1574,11 @@ void RendererSceneCull::_update_instance(Instance *p_instance) {
 				}
 			} break;
 			case RS::INSTANCE_LIGHT: {
-				idata.instance_data_rid = static_cast<InstanceLightData *>(p_instance->base_data)->instance.get_id();
+				InstanceLightData *light_data = static_cast<InstanceLightData *>(p_instance->base_data);
+				idata.instance_data_rid = light_data->instance.get_id();
+				light_data->uses_projector = RSG::storage->light_has_projector(p_instance->base);
+				light_data->uses_softshadow = RSG::storage->light_get_param(p_instance->base, RS::LIGHT_PARAM_SIZE) > CMP_EPSILON;
+
 			} break;
 			case RS::INSTANCE_REFLECTION_PROBE: {
 				idata.instance_data_rid = static_cast<InstanceReflectionProbeData *>(p_instance->base_data)->instance.get_id();
@@ -1877,8 +1925,6 @@ void RendererSceneCull::_light_instance_setup_directional_shadow(int p_shadow_in
 	max_distance = MAX(max_distance, p_cam_projection.get_z_near() + 0.001);
 	real_t min_distance = MIN(p_cam_projection.get_z_near(), max_distance);
 
-	RS::LightDirectionalShadowDepthRangeMode depth_range_mode = RSG::storage->light_directional_get_shadow_depth_range_mode(p_instance->base);
-
 	real_t pancake_size = RSG::storage->light_get_param(p_instance->base, RS::LIGHT_PARAM_SHADOW_PANCAKE_SIZE);
 
 	real_t range = max_distance - min_distance;
@@ -2038,22 +2084,13 @@ void RendererSceneCull::_light_instance_setup_directional_shadow(int p_shadow_in
 				}
 			}
 
-			x_max_cam = x_vec.dot(center) + radius + soft_shadow_expand;
-			x_min_cam = x_vec.dot(center) - radius - soft_shadow_expand;
-			y_max_cam = y_vec.dot(center) + radius + soft_shadow_expand;
-			y_min_cam = y_vec.dot(center) - radius - soft_shadow_expand;
-
-			if (depth_range_mode == RS::LIGHT_DIRECTIONAL_SHADOW_DEPTH_RANGE_STABLE) {
-				//this trick here is what stabilizes the shadow (make potential jaggies to not move)
-				//at the cost of some wasted resolution. Still the quality increase is very well worth it
-
-				real_t unit = radius * 2.0 / texture_size;
-
-				x_max_cam = Math::snapped(x_max_cam, unit);
-				x_min_cam = Math::snapped(x_min_cam, unit);
-				y_max_cam = Math::snapped(y_max_cam, unit);
-				y_min_cam = Math::snapped(y_min_cam, unit);
-			}
+			// This trick here is what stabilizes the shadow (make potential jaggies to not move)
+			// at the cost of some wasted resolution. Still, the quality increase is very well worth it.
+			const real_t unit = radius * 2.0 / texture_size;
+			x_max_cam = Math::snapped(x_vec.dot(center) + radius + soft_shadow_expand, unit);
+			x_min_cam = Math::snapped(x_vec.dot(center) - radius - soft_shadow_expand, unit);
+			y_max_cam = Math::snapped(y_vec.dot(center) + radius + soft_shadow_expand, unit);
+			y_min_cam = Math::snapped(y_vec.dot(center) - radius - soft_shadow_expand, unit);
 		}
 
 		//now that we know all ranges, we can proceed to make the light frustum planes, for culling octree
@@ -2383,7 +2420,7 @@ bool RendererSceneCull::_light_instance_update_shadow(Instance *p_instance, cons
 	return animated_material_found;
 }
 
-void RendererSceneCull::render_camera(RID p_render_buffers, RID p_camera, RID p_scenario, RID p_viewport, Size2 p_viewport_size, float p_screen_lod_threshold, RID p_shadow_atlas, Ref<XRInterface> &p_xr_interface) {
+void RendererSceneCull::render_camera(RID p_render_buffers, RID p_camera, RID p_scenario, RID p_viewport, Size2 p_viewport_size, float p_screen_lod_threshold, RID p_shadow_atlas, Ref<XRInterface> &p_xr_interface, RenderInfo *r_render_info) {
 #ifndef _3D_DISABLED
 
 	Camera *camera = camera_owner.getornull(p_camera);
@@ -2465,7 +2502,7 @@ void RendererSceneCull::render_camera(RID p_render_buffers, RID p_camera, RID p_
 	// For now just cull on the first camera
 	RendererSceneOcclusionCull::get_singleton()->buffer_update(p_viewport, camera_data.main_transform, camera_data.main_projection, camera_data.is_ortogonal, RendererThreadPool::singleton->thread_work_pool);
 
-	_render_scene(&camera_data, p_render_buffers, environment, camera->effects, camera->visible_layers, p_scenario, p_viewport, p_shadow_atlas, RID(), -1, p_screen_lod_threshold);
+	_render_scene(&camera_data, p_render_buffers, environment, camera->effects, camera->visible_layers, p_scenario, p_viewport, p_shadow_atlas, RID(), -1, p_screen_lod_threshold, true, r_render_info);
 #endif
 }
 
@@ -2655,6 +2692,13 @@ void RendererSceneCull::_scene_cull(CullData &cull_data, InstanceCullResult &cul
 						idata.flags &= ~uint32_t(InstanceData::FLAG_GEOM_LIGHTING_DIRTY);
 					}
 
+					if (idata.flags & InstanceData::FLAG_GEOM_PROJECTOR_SOFTSHADOW_DIRTY) {
+						InstanceGeometryData *geom = static_cast<InstanceGeometryData *>(idata.instance->base_data);
+
+						scene_render->geometry_instance_set_softshadow_projector_pairing(geom->geometry_instance, geom->softshadow_count > 0, geom->projector_count > 0);
+						idata.flags &= ~uint32_t(InstanceData::FLAG_GEOM_PROJECTOR_SOFTSHADOW_DIRTY);
+					}
+
 					if (geometry_instance_pair_mask & (1 << RS::INSTANCE_REFLECTION_PROBE) && (idata.flags & InstanceData::FLAG_GEOM_REFLECTION_DIRTY)) {
 						InstanceGeometryData *geom = static_cast<InstanceGeometryData *>(idata.instance->base_data);
 						uint32_t idx = 0;
@@ -2771,7 +2815,7 @@ void RendererSceneCull::_scene_cull(CullData &cull_data, InstanceCullResult &cul
 	}
 }
 
-void RendererSceneCull::_render_scene(const RendererSceneRender::CameraData *p_camera_data, RID p_render_buffers, RID p_environment, RID p_force_camera_effects, uint32_t p_visible_layers, RID p_scenario, RID p_viewport, RID p_shadow_atlas, RID p_reflection_probe, int p_reflection_probe_pass, float p_screen_lod_threshold, bool p_using_shadows) {
+void RendererSceneCull::_render_scene(const RendererSceneRender::CameraData *p_camera_data, RID p_render_buffers, RID p_environment, RID p_force_camera_effects, uint32_t p_visible_layers, RID p_scenario, RID p_viewport, RID p_shadow_atlas, RID p_reflection_probe, int p_reflection_probe_pass, float p_screen_lod_threshold, bool p_using_shadows, RendererScene::RenderInfo *r_render_info) {
 	Instance *render_reflection_probe = instance_owner.getornull(p_reflection_probe); //if null, not rendering to it
 
 	Scenario *scenario = scenario_owner.getornull(p_scenario);
@@ -3116,7 +3160,7 @@ void RendererSceneCull::_render_scene(const RendererSceneRender::CameraData *p_c
 	}
 
 	RENDER_TIMESTAMP("Render Scene ");
-	scene_render->render_scene(p_render_buffers, p_camera_data, scene_cull_result.geometry_instances, scene_cull_result.light_instances, scene_cull_result.reflections, scene_cull_result.voxel_gi_instances, scene_cull_result.decals, scene_cull_result.lightmaps, p_environment, camera_effects, p_shadow_atlas, occluders_tex, p_reflection_probe.is_valid() ? RID() : scenario->reflection_atlas, p_reflection_probe, p_reflection_probe_pass, p_screen_lod_threshold, render_shadow_data, max_shadows_used, render_sdfgi_data, cull.sdfgi.region_count, &sdfgi_update_data);
+	scene_render->render_scene(p_render_buffers, p_camera_data, scene_cull_result.geometry_instances, scene_cull_result.light_instances, scene_cull_result.reflections, scene_cull_result.voxel_gi_instances, scene_cull_result.decals, scene_cull_result.lightmaps, p_environment, camera_effects, p_shadow_atlas, occluders_tex, p_reflection_probe.is_valid() ? RID() : scenario->reflection_atlas, p_reflection_probe, p_reflection_probe_pass, p_screen_lod_threshold, render_shadow_data, max_shadows_used, render_sdfgi_data, cull.sdfgi.region_count, &sdfgi_update_data, r_render_info);
 
 	for (uint32_t i = 0; i < max_shadows_used; i++) {
 		render_shadow_data[i].instances.clear();
@@ -3153,7 +3197,6 @@ RID RendererSceneCull::_render_get_environment(RID p_camera, RID p_scenario) {
 
 void RendererSceneCull::render_empty_scene(RID p_render_buffers, RID p_scenario, RID p_shadow_atlas) {
 #ifndef _3D_DISABLED
-
 	Scenario *scenario = scenario_owner.getornull(p_scenario);
 
 	RID environment;

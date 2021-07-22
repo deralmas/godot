@@ -106,8 +106,8 @@ void ExportTemplateManager::_update_template_status() {
 		TreeItem *ti = installed_table->create_item(installed_root);
 		ti->set_text(0, version_string);
 
-		ti->add_button(0, get_theme_icon("Folder", "EditorIcons"), OPEN_TEMPLATE_FOLDER, false, TTR("Open the folder containing these templates."));
-		ti->add_button(0, get_theme_icon("Remove", "EditorIcons"), UNINSTALL_TEMPLATE, false, TTR("Uninstall these templates."));
+		ti->add_button(0, get_theme_icon(SNAME("Folder"), SNAME("EditorIcons")), OPEN_TEMPLATE_FOLDER, false, TTR("Open the folder containing these templates."));
+		ti->add_button(0, get_theme_icon(SNAME("Remove"), SNAME("EditorIcons")), UNINSTALL_TEMPLATE, false, TTR("Uninstall these templates."));
 	}
 }
 
@@ -352,9 +352,9 @@ void ExportTemplateManager::_set_current_progress_status(const String &p_status,
 	download_progress_label->set_text(p_status);
 
 	if (p_error) {
-		download_progress_label->add_theme_color_override("font_color", get_theme_color("error_color", "Editor"));
+		download_progress_label->add_theme_color_override("font_color", get_theme_color(SNAME("error_color"), SNAME("Editor")));
 	} else {
-		download_progress_label->add_theme_color_override("font_color", get_theme_color("font_color", "Label"));
+		download_progress_label->add_theme_color_override("font_color", get_theme_color(SNAME("font_color"), SNAME("Label")));
 	}
 }
 
@@ -630,6 +630,12 @@ bool ExportTemplateManager::can_install_android_template() {
 }
 
 Error ExportTemplateManager::install_android_template() {
+	const String &templates_path = EditorSettings::get_singleton()->get_templates_dir().plus_file(VERSION_FULL_CONFIG);
+	const String &source_zip = templates_path.plus_file("android_source.zip");
+	ERR_FAIL_COND_V(!FileAccess::exists(source_zip), ERR_CANT_OPEN);
+	return install_android_template_from_file(source_zip);
+}
+Error ExportTemplateManager::install_android_template_from_file(const String &p_file) {
 	// To support custom Android builds, we install the Java source code and buildsystem
 	// from android_source.zip to the project's res://android folder.
 
@@ -662,14 +668,10 @@ Error ExportTemplateManager::install_android_template() {
 
 	// Uncompress source template.
 
-	const String &templates_path = EditorSettings::get_singleton()->get_templates_dir().plus_file(VERSION_FULL_CONFIG);
-	const String &source_zip = templates_path.plus_file("android_source.zip");
-	ERR_FAIL_COND_V(!FileAccess::exists(source_zip), ERR_CANT_OPEN);
-
 	FileAccess *src_f = nullptr;
 	zlib_filefunc_def io = zipio_create_io_from_file(&src_f);
 
-	unzFile pkg = unzOpen2(source_zip.utf8().get_data(), &io);
+	unzFile pkg = unzOpen2(p_file.utf8().get_data(), &io);
 	ERR_FAIL_COND_V_MSG(!pkg, ERR_CANT_OPEN, "Android sources not in ZIP format.");
 
 	int ret = unzGoToFirstFile(pkg);
@@ -737,11 +739,11 @@ void ExportTemplateManager::_notification(int p_what) {
 	switch (p_what) {
 		case NOTIFICATION_ENTER_TREE:
 		case NOTIFICATION_THEME_CHANGED: {
-			current_value->add_theme_font_override("font", get_theme_font("main", "EditorFonts"));
-			current_missing_label->add_theme_color_override("font_color", get_theme_color("error_color", "Editor"));
-			current_installed_label->add_theme_color_override("font_color", get_theme_color("disabled_font_color", "Editor"));
+			current_value->add_theme_font_override("font", get_theme_font(SNAME("main"), SNAME("EditorFonts")));
+			current_missing_label->add_theme_color_override("font_color", get_theme_color(SNAME("error_color"), SNAME("Editor")));
+			current_installed_label->add_theme_color_override("font_color", get_theme_color(SNAME("disabled_font_color"), SNAME("Editor")));
 
-			mirror_options_button->set_icon(get_theme_icon("GuiTabMenu", "EditorIcons"));
+			mirror_options_button->set_icon(get_theme_icon(SNAME("GuiTabMenu"), SNAME("EditorIcons")));
 		} break;
 
 		case NOTIFICATION_VISIBILITY_CHANGED: {
@@ -812,6 +814,7 @@ ExportTemplateManager::ExportTemplateManager() {
 	main_vb->add_child(current_hb);
 
 	Label *current_label = memnew(Label);
+	current_label->set_theme_type_variation("HeaderSmall");
 	current_label->set_text(TTR("Current Version:"));
 	current_hb->add_child(current_label);
 
@@ -821,6 +824,8 @@ ExportTemplateManager::ExportTemplateManager() {
 	// Current version statuses.
 	// Status: Current version is missing.
 	current_missing_label = memnew(Label);
+	current_missing_label->set_theme_type_variation("HeaderSmall");
+
 	current_missing_label->set_h_size_flags(Control::SIZE_EXPAND_FILL);
 	current_missing_label->set_align(Label::ALIGN_RIGHT);
 	current_missing_label->set_text(TTR("Export templates are missing. Download them or install from a file."));
@@ -828,6 +833,7 @@ ExportTemplateManager::ExportTemplateManager() {
 
 	// Status: Current version is installed.
 	current_installed_label = memnew(Label);
+	current_installed_label->set_theme_type_variation("HeaderSmall");
 	current_installed_label->set_h_size_flags(Control::SIZE_EXPAND_FILL);
 	current_installed_label->set_align(Label::ALIGN_RIGHT);
 	current_installed_label->set_text(TTR("Export templates are installed and ready to be used."));
@@ -947,6 +953,7 @@ ExportTemplateManager::ExportTemplateManager() {
 	HBoxContainer *installed_versions_hb = memnew(HBoxContainer);
 	main_vb->add_child(installed_versions_hb);
 	Label *installed_label = memnew(Label);
+	installed_label->set_theme_type_variation("HeaderSmall");
 	installed_label->set_text(TTR("Other Installed Versions:"));
 	installed_versions_hb->add_child(installed_label);
 

@@ -108,7 +108,7 @@ void EditorPluginSettings::update_plugins() {
 				bool is_active = EditorNode::get_singleton()->is_addon_plugin_enabled(path);
 				item->set_checked(3, is_active);
 				item->set_editable(3, true);
-				item->add_button(4, get_theme_icon("Edit", "EditorIcons"), BUTTON_PLUGIN_EDIT, false, TTR("Edit Plugin"));
+				item->add_button(4, get_theme_icon(SNAME("Edit"), SNAME("EditorIcons")), BUTTON_PLUGIN_EDIT, false, TTR("Edit Plugin"));
 			}
 		}
 	}
@@ -192,7 +192,9 @@ EditorPluginSettings::EditorPluginSettings() {
 	add_child(plugin_config_dialog);
 
 	HBoxContainer *title_hb = memnew(HBoxContainer);
-	title_hb->add_child(memnew(Label(TTR("Installed Plugins:"))));
+	Label *l = memnew(Label(TTR("Installed Plugins:")));
+	l->set_theme_type_variation("HeaderSmall");
+	title_hb->add_child(l);
 	title_hb->add_spacer();
 	create_plugin = memnew(Button(TTR("Create")));
 	create_plugin->connect("pressed", callable_mp(this, &EditorPluginSettings::_create_clicked));
@@ -212,10 +214,15 @@ EditorPluginSettings::EditorPluginSettings() {
 	plugin_list->set_column_title(3, TTR("Status:"));
 	plugin_list->set_column_title(4, TTR("Edit:"));
 	plugin_list->set_column_expand(0, true);
+	plugin_list->set_column_clip_content(0, true);
 	plugin_list->set_column_expand(1, false);
+	plugin_list->set_column_clip_content(1, true);
 	plugin_list->set_column_expand(2, false);
+	plugin_list->set_column_clip_content(2, true);
 	plugin_list->set_column_expand(3, false);
+	plugin_list->set_column_clip_content(3, true);
 	plugin_list->set_column_expand(4, false);
+	plugin_list->set_column_clip_content(4, true);
 	plugin_list->set_column_custom_minimum_width(1, 100 * EDSCALE);
 	plugin_list->set_column_custom_minimum_width(2, 250 * EDSCALE);
 	plugin_list->set_column_custom_minimum_width(3, 80 * EDSCALE);

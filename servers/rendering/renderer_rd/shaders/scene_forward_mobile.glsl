@@ -370,6 +370,26 @@ void main() {
 
 #VERSION_DEFINES
 
+/* Specialization Constants */
+
+/* Specialization Constants (Toggles) */
+
+layout(constant_id = 0) const bool sc_use_forward_gi = false;
+layout(constant_id = 1) const bool sc_use_light_projector = false;
+layout(constant_id = 2) const bool sc_use_light_soft_shadows = false;
+layout(constant_id = 3) const bool sc_use_directional_soft_shadows = false;
+
+/* Specialization Constants (Values) */
+
+layout(constant_id = 6) const uint sc_soft_shadow_samples = 4;
+layout(constant_id = 7) const uint sc_penumbra_shadow_samples = 4;
+
+layout(constant_id = 8) const uint sc_directional_soft_shadow_samples = 4;
+layout(constant_id = 9) const uint sc_directional_penumbra_shadow_samples = 4;
+
+layout(constant_id = 10) const bool sc_decal_use_mipmaps = true;
+layout(constant_id = 11) const bool sc_projector_use_mipmaps = true;
+
 /* Include our forward mobile UBOs definitions etc. */
 #include "scene_forward_mobile_inc.glsl"
 
@@ -543,7 +563,6 @@ void main() {
 	vec3 backlight = vec3(0.0);
 	vec4 transmittance_color = vec4(0.0);
 	float transmittance_depth = 0.0;
-	float transmittance_curve = 1.0;
 	float transmittance_boost = 0.0;
 	float metallic = 0.0;
 	float specular = 0.5;
@@ -1285,7 +1304,7 @@ void main() {
 
 			blur_shadow(shadow);
 
-			light_compute(normal, directional_lights.data[i].direction, normalize(view), directional_lights.data[i].color * directional_lights.data[i].energy, shadow, f0, orms, 1.0,
+			light_compute(normal, directional_lights.data[i].direction, normalize(view), 0.0, directional_lights.data[i].color * directional_lights.data[i].energy, shadow, f0, orms, 1.0,
 #ifdef LIGHT_BACKLIGHT_USED
 					backlight,
 #endif
@@ -1293,7 +1312,6 @@ void main() {
 #ifdef LIGHT_TRANSMITTANCE_USED
 					transmittance_color,
 					transmittance_depth,
-					transmittance_curve,
 					transmittance_boost,
 					transmittance_z,
 #endif
@@ -1344,7 +1362,6 @@ void main() {
 #ifdef LIGHT_TRANSMITTANCE_USED
 					transmittance_color,
 					transmittance_depth,
-					transmittance_curve,
 					transmittance_boost,
 #endif
 */
@@ -1393,7 +1410,6 @@ void main() {
 #ifdef LIGHT_TRANSMITTANCE_USED
 					transmittance_color,
 					transmittance_depth,
-					transmittance_curve,
 					transmittance_boost,
 #endif
 */

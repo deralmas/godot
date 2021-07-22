@@ -69,10 +69,7 @@ void VoxelGIEditorPlugin::_notification(int p_what) {
 
 		const Vector3i size = voxel_gi->get_estimated_cell_size();
 		String text = vformat(String::utf8("%d × %d × %d"), size.x, size.y, size.z);
-		int data_size = 4;
-		if (GLOBAL_GET("rendering/quality/voxel_gi/anisotropic")) {
-			data_size += 4;
-		}
+		const int data_size = 4;
 		const double size_mb = size.x * size.y * size.z * data_size / (1024.0 * 1024.0);
 		text += " - " + vformat(TTR("VRAM Size: %s MB"), String::num(size_mb, 2));
 
@@ -84,13 +81,13 @@ void VoxelGIEditorPlugin::_notification(int p_what) {
 		Color color;
 		if (size_mb <= 16.0 + CMP_EPSILON) {
 			// Fast.
-			color = bake_info->get_theme_color("success_color", "Editor");
+			color = bake_info->get_theme_color(SNAME("success_color"), SNAME("Editor"));
 		} else if (size_mb <= 64.0 + CMP_EPSILON) {
 			// Medium.
-			color = bake_info->get_theme_color("warning_color", "Editor");
+			color = bake_info->get_theme_color(SNAME("warning_color"), SNAME("Editor"));
 		} else {
 			// Slow.
-			color = bake_info->get_theme_color("error_color", "Editor");
+			color = bake_info->get_theme_color(SNAME("error_color"), SNAME("Editor"));
 		}
 		bake_info->add_theme_color_override("font_color", color);
 
@@ -146,7 +143,7 @@ VoxelGIEditorPlugin::VoxelGIEditorPlugin(EditorNode *p_node) {
 	bake_hb->hide();
 	bake = memnew(Button);
 	bake->set_flat(true);
-	bake->set_icon(editor->get_gui_base()->get_theme_icon("Bake", "EditorIcons"));
+	bake->set_icon(editor->get_gui_base()->get_theme_icon(SNAME("Bake"), SNAME("EditorIcons")));
 	bake->set_text(TTR("Bake GI Probe"));
 	bake->connect("pressed", callable_mp(this, &VoxelGIEditorPlugin::_bake));
 	bake_hb->add_child(bake);

@@ -92,9 +92,9 @@ void ViewportRotationControl::_notification(int p_what) {
 		axis_menu_options.push_back(Node3DEditorViewport::VIEW_FRONT);
 
 		axis_colors.clear();
-		axis_colors.push_back(get_theme_color("axis_x_color", "Editor"));
-		axis_colors.push_back(get_theme_color("axis_y_color", "Editor"));
-		axis_colors.push_back(get_theme_color("axis_z_color", "Editor"));
+		axis_colors.push_back(get_theme_color(SNAME("axis_x_color"), SNAME("Editor")));
+		axis_colors.push_back(get_theme_color(SNAME("axis_y_color"), SNAME("Editor")));
+		axis_colors.push_back(get_theme_color(SNAME("axis_z_color"), SNAME("Editor")));
 		update();
 
 		if (!is_connected("mouse_exited", callable_mp(this, &ViewportRotationControl::_on_mouse_exited))) {
@@ -143,7 +143,7 @@ void ViewportRotationControl::_draw_axis(const Axis2D &p_axis) {
 	if (front) {
 		String axis_name = direction == 0 ? "X" : (direction == 1 ? "Y" : "Z");
 		draw_circle(p_axis.screen_point, AXIS_CIRCLE_RADIUS, c);
-		draw_char(get_theme_font("rotation_control", "EditorFonts"), p_axis.screen_point + Vector2i(-4, 5) * EDSCALE, axis_name, "", get_theme_font_size("rotation_control_size", "EditorFonts"), Color(0.3, 0.3, 0.3));
+		draw_char(get_theme_font(SNAME("rotation_control"), SNAME("EditorFonts")), p_axis.screen_point + Vector2i(-4, 5) * EDSCALE, axis_name, "", get_theme_font_size(SNAME("rotation_control_size"), SNAME("EditorFonts")), Color(0.3, 0.3, 0.3));
 	} else {
 		draw_circle(p_axis.screen_point, AXIS_CIRCLE_RADIUS * (0.55 + (0.2 * (1.0 + p_axis.z_axis))), c);
 	}
@@ -467,21 +467,30 @@ void Node3DEditorViewport::_select_clicked(bool p_append, bool p_single, bool p_
 }
 
 void Node3DEditorViewport::_select(Node *p_node, bool p_append, bool p_single) {
-	if (!p_append) {
-		editor_selection->clear();
-	}
-
-	if (editor_selection->is_selected(p_node)) {
-		//erase
-		editor_selection->remove_node(p_node);
-	} else {
+	// Add or remove a single node from the selection
+	if (p_append && p_single) {
+		if (editor_selection->is_selected(p_node)) {
+			// Already in the selection, remove it from the selected nodes
+			editor_selection->remove_node(p_node);
+		} else {
+			// Add the item to the selection
+			editor_selection->add_node(p_node);
+		}
+	} else if (p_append && !p_single) {
+		// Add the item to the selection
 		editor_selection->add_node(p_node);
-	}
-
-	if (p_single) {
+	} else {
+		// No append; single select
+		editor_selection->clear();
+		editor_selection->add_node(p_node);
+		// Reselect
 		if (Engine::get_singleton()->is_editor_hint()) {
 			editor->call("edit_node", p_node);
 		}
+	}
+
+	if (editor_selection->get_selected_node_list().size() == 1) {
+		editor->push_item(editor_selection->get_selected_node_list()[0]);
 	}
 }
 
@@ -562,7 +571,7 @@ ObjectID Node3DEditorViewport::_select_ray(const Point2 &p_pos, bool p_append, b
 	return closest;
 }
 
-void Node3DEditorViewport::_find_items_at_pos(const Point2 &p_pos, bool &r_includes_current, Vector<_RayResult> &results, bool p_alt_select) {
+void Node3DEditorViewport::_find_items_at_pos(const Point2 &p_pos, bool &r_includes_current, Vector<_RayResult> &results, bool p_alt_select, bool p_include_locked_nodes) {
 	Vector3 ray = _get_ray(p_pos);
 	Vector3 pos = _get_ray_pos(p_pos);
 
@@ -602,6 +611,10 @@ void Node3DEditorViewport::_find_items_at_pos(const Point2 &p_pos, bool &r_inclu
 		float dist = pos.distance_to(point);
 
 		if (dist < 0) {
+			continue;
+		}
+
+		if (!p_include_locked_nodes && _is_node_locked(spat)) {
 			continue;
 		}
 
@@ -1025,7 +1038,7 @@ bool Node3DEditorViewport ::_is_node_locked(const Node *p_node) {
 }
 
 void Node3DEditorViewport::_list_select(Ref<InputEventMouseButton> b) {
-	_find_items_at_pos(b->get_position(), clicked_includes_current, selection_results, b->is_shift_pressed());
+	_find_items_at_pos(b->get_position(), clicked_includes_current, selection_results, b->is_shift_pressed(), spatial_editor->get_tool_mode() == Node3DEditor::TOOL_MODE_SELECT);
 
 	Node *scene = editor->get_edited_scene();
 
@@ -1045,7 +1058,7 @@ void Node3DEditorViewport::_list_select(Ref<InputEventMouseButton> b) {
 		selection_results.clear();
 
 		if (clicked.is_valid()) {
-			_select_clicked(clicked_wants_append, true, spatial_editor->get_tool_mode() != Node3DEditor::TOOL_MODE_LIST_SELECT);
+			_select_clicked(clicked_wants_append, true, spatial_editor->get_tool_mode() == Node3DEditor::TOOL_MODE_SELECT);
 			clicked = ObjectID();
 		}
 
@@ -1122,7 +1135,7 @@ void Node3DEditorViewport::_sinput(const Ref<InputEvent> &p_event) {
 	Ref<InputEventMouseButton> b = p_event;
 
 	if (b.is_valid()) {
-		emit_signal("clicked", this);
+		emit_signal(SNAME("clicked"), this);
 
 		float zoom_factor = 1 + (ZOOM_FREELOOK_MULTIPLIER - 1) * b->get_factor();
 		switch (b->get_button_index()) {
@@ -1454,7 +1467,7 @@ void Node3DEditorViewport::_sinput(const Ref<InputEvent> &p_event) {
 			} else if (nav_scheme == NAVIGATION_MODO && m->is_alt_pressed()) {
 				nav_mode = NAVIGATION_ORBIT;
 			} else {
-				bool movement_threshold_passed = _edit.original_mouse_pos.distance_to(_edit.mouse_pos) > 10 * EDSCALE;
+				const bool movement_threshold_passed = _edit.original_mouse_pos.distance_to(_edit.mouse_pos) > 8 * EDSCALE;
 				if (clicked.is_valid() && movement_threshold_passed) {
 					if (!clicked_includes_current) {
 						_select_clicked(clicked_wants_append, true);
@@ -1967,6 +1980,13 @@ void Node3DEditorViewport::_sinput(const Ref<InputEvent> &p_event) {
 			return;
 		}
 
+		if (EditorSettings::get_singleton()->get("editors/3d/navigation/emulate_numpad")) {
+			const uint32_t code = k->get_keycode();
+			if (code >= KEY_0 && code <= KEY_9) {
+				k->set_keycode(code - KEY_0 + KEY_KP_0);
+			}
+		}
+
 		if (ED_IS_SHORTCUT("spatial_editor/snap", p_event)) {
 			if (_edit.mode != TRANSFORM_NONE) {
 				_edit.snap = !_edit.snap;
@@ -2025,7 +2045,7 @@ void Node3DEditorViewport::_sinput(const Ref<InputEvent> &p_event) {
 					continue;
 				}
 
-				spatial_editor->emit_signal("transform_key_request", sp, "", sp->get_transform());
+				spatial_editor->emit_signal(SNAME("transform_key_request"), sp, "", sp->get_transform());
 			}
 
 			set_message(TTR("Animation Key Inserted."));
@@ -2041,7 +2061,7 @@ void Node3DEditorViewport::_sinput(const Ref<InputEvent> &p_event) {
 
 		if (k->get_keycode() == KEY_SPACE) {
 			if (!k->is_pressed()) {
-				emit_signal("toggle_maximize_view", this);
+				emit_signal(SNAME("toggle_maximize_view"), this);
 			}
 		}
 	}
@@ -2395,12 +2415,12 @@ void Node3DEditorViewport::_notification(int p_what) {
 		} else {
 			set_freelook_active(false);
 		}
-		call_deferred("update_transform_gizmo_view");
+		call_deferred(SNAME("update_transform_gizmo_view"));
 		rotation_control->set_visible(EditorSettings::get_singleton()->get("editors/3d/navigation/show_viewport_rotation_gizmo"));
 	}
 
 	if (p_what == NOTIFICATION_RESIZED) {
-		call_deferred("update_transform_gizmo_view");
+		call_deferred(SNAME("update_transform_gizmo_view"));
 	}
 
 	if (p_what == NOTIFICATION_PROCESS) {
@@ -2418,7 +2438,7 @@ void Node3DEditorViewport::_notification(int p_what) {
 
 		Node *scene_root = editor->get_scene_tree_dock()->get_editor_data()->get_edited_scene_root();
 		if (previewing_cinema && scene_root != nullptr) {
-			Camera3D *cam = scene_root->get_viewport()->get_camera();
+			Camera3D *cam = scene_root->get_viewport()->get_camera_3d();
 			if (cam != nullptr && cam != previewing) {
 				//then switch the viewport's camera to the scene's viewport camera
 				if (previewing != nullptr) {
@@ -2504,25 +2524,21 @@ void Node3DEditorViewport::_notification(int p_what) {
 		}
 
 		if (show_info) {
+			const String viewport_size = vformat(String::utf8("%d × %d"), viewport->get_size().x, viewport->get_size().y);
 			String text;
-			text += "X: " + rtos(current_camera->get_position().x).pad_decimals(1) + "\n";
-			text += "Y: " + rtos(current_camera->get_position().y).pad_decimals(1) + "\n";
-			text += "Z: " + rtos(current_camera->get_position().z).pad_decimals(1) + "\n";
-			text += TTR("Pitch") + ": " + itos(Math::round(Math::rad2deg(current_camera->get_rotation().x))) + "\n";
-			text += TTR("Yaw") + ": " + itos(Math::round(Math::rad2deg(current_camera->get_rotation().y))) + "\n\n";
+			text += vformat(TTR("X: %s\n"), rtos(current_camera->get_position().x).pad_decimals(1));
+			text += vformat(TTR("Y: %s\n"), rtos(current_camera->get_position().y).pad_decimals(1));
+			text += vformat(TTR("Z: %s\n"), rtos(current_camera->get_position().z).pad_decimals(1));
+			text += "\n";
+			text += vformat(
+					TTR("Size: %s (%.1fMP)\n"),
+					viewport_size,
+					viewport->get_size().x * viewport->get_size().y * 0.000001);
 
-			text += TTR("Size") +
-					vformat(
-							": %dx%d (%.1fMP)\n",
-							viewport->get_size().x,
-							viewport->get_size().y,
-							viewport->get_size().x * viewport->get_size().y * 0.000'001);
-			text += TTR("Objects Drawn") + ": " + itos(viewport->get_render_info(Viewport::RENDER_INFO_OBJECTS_IN_FRAME)) + "\n";
-			text += TTR("Material Changes") + ": " + itos(viewport->get_render_info(Viewport::RENDER_INFO_MATERIAL_CHANGES_IN_FRAME)) + "\n";
-			text += TTR("Shader Changes") + ": " + itos(viewport->get_render_info(Viewport::RENDER_INFO_SHADER_CHANGES_IN_FRAME)) + "\n";
-			text += TTR("Surface Changes") + ": " + itos(viewport->get_render_info(Viewport::RENDER_INFO_SURFACE_CHANGES_IN_FRAME)) + "\n";
-			text += TTR("Draw Calls") + ": " + itos(viewport->get_render_info(Viewport::RENDER_INFO_DRAW_CALLS_IN_FRAME)) + "\n";
-			text += TTR("Vertices") + ": " + itos(viewport->get_render_info(Viewport::RENDER_INFO_VERTICES_IN_FRAME));
+			text += "\n";
+			text += vformat(TTR("Objects: %d\n"), viewport->get_render_info(Viewport::RENDER_INFO_TYPE_VISIBLE, Viewport::RENDER_INFO_OBJECTS_IN_FRAME));
+			text += vformat(TTR("Primitives: %d\n"), viewport->get_render_info(Viewport::RENDER_INFO_TYPE_VISIBLE, Viewport::RENDER_INFO_PRIMITIVES_IN_FRAME));
+			text += vformat(TTR("Draw Calls: %d"), viewport->get_render_info(Viewport::RENDER_INFO_TYPE_VISIBLE, Viewport::RENDER_INFO_DRAW_CALLS_IN_FRAME));
 
 			info_label->set_text(text);
 		}
@@ -2617,31 +2633,31 @@ void Node3DEditorViewport::_notification(int p_what) {
 	}
 
 	if (p_what == NOTIFICATION_THEME_CHANGED) {
-		view_menu->set_icon(get_theme_icon("GuiTabMenuHl", "EditorIcons"));
-		preview_camera->set_icon(get_theme_icon("Camera3D", "EditorIcons"));
+		view_menu->set_icon(get_theme_icon(SNAME("GuiTabMenuHl"), SNAME("EditorIcons")));
+		preview_camera->set_icon(get_theme_icon(SNAME("Camera3D"), SNAME("EditorIcons")));
 
-		view_menu->add_theme_style_override("normal", editor->get_gui_base()->get_theme_stylebox("Information3dViewport", "EditorStyles"));
-		view_menu->add_theme_style_override("hover", editor->get_gui_base()->get_theme_stylebox("Information3dViewport", "EditorStyles"));
-		view_menu->add_theme_style_override("pressed", editor->get_gui_base()->get_theme_stylebox("Information3dViewport", "EditorStyles"));
-		view_menu->add_theme_style_override("focus", editor->get_gui_base()->get_theme_stylebox("Information3dViewport", "EditorStyles"));
-		view_menu->add_theme_style_override("disabled", editor->get_gui_base()->get_theme_stylebox("Information3dViewport", "EditorStyles"));
+		view_menu->add_theme_style_override("normal", editor->get_gui_base()->get_theme_stylebox(SNAME("Information3dViewport"), SNAME("EditorStyles")));
+		view_menu->add_theme_style_override("hover", editor->get_gui_base()->get_theme_stylebox(SNAME("Information3dViewport"), SNAME("EditorStyles")));
+		view_menu->add_theme_style_override("pressed", editor->get_gui_base()->get_theme_stylebox(SNAME("Information3dViewport"), SNAME("EditorStyles")));
+		view_menu->add_theme_style_override("focus", editor->get_gui_base()->get_theme_stylebox(SNAME("Information3dViewport"), SNAME("EditorStyles")));
+		view_menu->add_theme_style_override("disabled", editor->get_gui_base()->get_theme_stylebox(SNAME("Information3dViewport"), SNAME("EditorStyles")));
 
-		preview_camera->add_theme_style_override("normal", editor->get_gui_base()->get_theme_stylebox("Information3dViewport", "EditorStyles"));
-		preview_camera->add_theme_style_override("hover", editor->get_gui_base()->get_theme_stylebox("Information3dViewport", "EditorStyles"));
-		preview_camera->add_theme_style_override("pressed", editor->get_gui_base()->get_theme_stylebox("Information3dViewport", "EditorStyles"));
-		preview_camera->add_theme_style_override("focus", editor->get_gui_base()->get_theme_stylebox("Information3dViewport", "EditorStyles"));
-		preview_camera->add_theme_style_override("disabled", editor->get_gui_base()->get_theme_stylebox("Information3dViewport", "EditorStyles"));
+		preview_camera->add_theme_style_override("normal", editor->get_gui_base()->get_theme_stylebox(SNAME("Information3dViewport"), SNAME("EditorStyles")));
+		preview_camera->add_theme_style_override("hover", editor->get_gui_base()->get_theme_stylebox(SNAME("Information3dViewport"), SNAME("EditorStyles")));
+		preview_camera->add_theme_style_override("pressed", editor->get_gui_base()->get_theme_stylebox(SNAME("Information3dViewport"), SNAME("EditorStyles")));
+		preview_camera->add_theme_style_override("focus", editor->get_gui_base()->get_theme_stylebox(SNAME("Information3dViewport"), SNAME("EditorStyles")));
+		preview_camera->add_theme_style_override("disabled", editor->get_gui_base()->get_theme_stylebox(SNAME("Information3dViewport"), SNAME("EditorStyles")));
 
-		frame_time_gradient->set_color(0, get_theme_color("success_color", "Editor"));
-		frame_time_gradient->set_color(1, get_theme_color("warning_color", "Editor"));
-		frame_time_gradient->set_color(2, get_theme_color("error_color", "Editor"));
+		frame_time_gradient->set_color(0, get_theme_color(SNAME("success_color"), SNAME("Editor")));
+		frame_time_gradient->set_color(1, get_theme_color(SNAME("warning_color"), SNAME("Editor")));
+		frame_time_gradient->set_color(2, get_theme_color(SNAME("error_color"), SNAME("Editor")));
 
-		info_label->add_theme_style_override("normal", editor->get_gui_base()->get_theme_stylebox("Information3dViewport", "EditorStyles"));
-		cpu_time_label->add_theme_style_override("normal", editor->get_gui_base()->get_theme_stylebox("Information3dViewport", "EditorStyles"));
-		gpu_time_label->add_theme_style_override("normal", editor->get_gui_base()->get_theme_stylebox("Information3dViewport", "EditorStyles"));
-		fps_label->add_theme_style_override("normal", editor->get_gui_base()->get_theme_stylebox("Information3dViewport", "EditorStyles"));
-		cinema_label->add_theme_style_override("normal", editor->get_gui_base()->get_theme_stylebox("Information3dViewport", "EditorStyles"));
-		locked_label->add_theme_style_override("normal", editor->get_gui_base()->get_theme_stylebox("Information3dViewport", "EditorStyles"));
+		info_label->add_theme_style_override("normal", editor->get_gui_base()->get_theme_stylebox(SNAME("Information3dViewport"), SNAME("EditorStyles")));
+		cpu_time_label->add_theme_style_override("normal", editor->get_gui_base()->get_theme_stylebox(SNAME("Information3dViewport"), SNAME("EditorStyles")));
+		gpu_time_label->add_theme_style_override("normal", editor->get_gui_base()->get_theme_stylebox(SNAME("Information3dViewport"), SNAME("EditorStyles")));
+		fps_label->add_theme_style_override("normal", editor->get_gui_base()->get_theme_stylebox(SNAME("Information3dViewport"), SNAME("EditorStyles")));
+		cinema_label->add_theme_style_override("normal", editor->get_gui_base()->get_theme_stylebox(SNAME("Information3dViewport"), SNAME("EditorStyles")));
+		locked_label->add_theme_style_override("normal", editor->get_gui_base()->get_theme_stylebox(SNAME("Information3dViewport"), SNAME("EditorStyles")));
 	}
 }
 
@@ -2682,7 +2698,7 @@ void Node3DEditorViewport::_draw() {
 	if (surface->has_focus()) {
 		Size2 size = surface->get_size();
 		Rect2 r = Rect2(Point2(), size);
-		get_theme_stylebox("Focus", "EditorStyles")->draw(surface->get_canvas_item(), r);
+		get_theme_stylebox(SNAME("Focus"), SNAME("EditorStyles"))->draw(surface->get_canvas_item(), r);
 	}
 
 	if (cursor.region_select) {
@@ -2690,11 +2706,11 @@ void Node3DEditorViewport::_draw() {
 
 		surface->draw_rect(
 				selection_rect,
-				get_theme_color("box_selection_fill_color", "Editor"));
+				get_theme_color(SNAME("box_selection_fill_color"), SNAME("Editor")));
 
 		surface->draw_rect(
 				selection_rect,
-				get_theme_color("box_selection_stroke_color", "Editor"),
+				get_theme_color(SNAME("box_selection_stroke_color"), SNAME("Editor")),
 				false,
 				Math::round(EDSCALE));
 	}
@@ -2702,8 +2718,8 @@ void Node3DEditorViewport::_draw() {
 	RID ci = surface->get_canvas_item();
 
 	if (message_time > 0) {
-		Ref<Font> font = get_theme_font("font", "Label");
-		int font_size = get_theme_font_size("font_size", "Label");
+		Ref<Font> font = get_theme_font(SNAME("font"), SNAME("Label"));
+		int font_size = get_theme_font_size(SNAME("font_size"), SNAME("Label"));
 		Point2 msgpos = Point2(5, get_size().y - 20);
 		font->draw_string(ci, msgpos + Point2(1, 1), message, HALIGN_LEFT, -1, font_size, Color(0, 0, 0, 0.8));
 		font->draw_string(ci, msgpos + Point2(-1, -1), message, HALIGN_LEFT, -1, font_size, Color(0, 0, 0, 0.8));
@@ -2716,16 +2732,16 @@ void Node3DEditorViewport::_draw() {
 		Color handle_color;
 		switch (_edit.plane) {
 			case TRANSFORM_X_AXIS:
-				handle_color = get_theme_color("axis_x_color", "Editor");
+				handle_color = get_theme_color(SNAME("axis_x_color"), SNAME("Editor"));
 				break;
 			case TRANSFORM_Y_AXIS:
-				handle_color = get_theme_color("axis_y_color", "Editor");
+				handle_color = get_theme_color(SNAME("axis_y_color"), SNAME("Editor"));
 				break;
 			case TRANSFORM_Z_AXIS:
-				handle_color = get_theme_color("axis_z_color", "Editor");
+				handle_color = get_theme_color(SNAME("axis_z_color"), SNAME("Editor"));
 				break;
 			default:
-				handle_color = get_theme_color("accent_color", "Editor");
+				handle_color = get_theme_color(SNAME("accent_color"), SNAME("Editor"));
 				break;
 		}
 		handle_color.a = 1.0;
@@ -2782,9 +2798,9 @@ void Node3DEditorViewport::_draw() {
 					draw_indicator_bar(
 							*surface,
 							1.0 - logscale_t,
-							get_theme_icon("ViewportSpeed", "EditorIcons"),
-							get_theme_font("font", "Label"),
-							get_theme_font_size("font_size", "Label"),
+							get_theme_icon(SNAME("ViewportSpeed"), SNAME("EditorIcons")),
+							get_theme_font(SNAME("font"), SNAME("Label")),
+							get_theme_font_size(SNAME("font_size"), SNAME("Label")),
 							vformat("%s u/s", String::num(freelook_speed).pad_decimals(precision)));
 				}
 
@@ -2804,9 +2820,9 @@ void Node3DEditorViewport::_draw() {
 					draw_indicator_bar(
 							*surface,
 							logscale_t,
-							get_theme_icon("ViewportZoom", "EditorIcons"),
-							get_theme_font("font", "Label"),
-							get_theme_font_size("font_size", "Label"),
+							get_theme_icon(SNAME("ViewportZoom"), SNAME("EditorIcons")),
+							get_theme_font(SNAME("font"), SNAME("Label")),
+							get_theme_font_size(SNAME("font_size"), SNAME("Label")),
 							vformat("%s u", String::num(cursor.distance).pad_decimals(precision)));
 				}
 			}
@@ -2960,7 +2976,7 @@ void Node3DEditorViewport::_menu_option(int p_option) {
 			view_menu->get_popup()->set_item_checked(view_menu->get_popup()->get_item_index(VIEW_ORTHOGONAL), false);
 			orthogonal = false;
 			auto_orthogonal = false;
-			call_deferred("update_transform_gizmo_view");
+			call_deferred(SNAME("update_transform_gizmo_view"));
 			_update_name();
 
 		} break;
@@ -2969,7 +2985,7 @@ void Node3DEditorViewport::_menu_option(int p_option) {
 			view_menu->get_popup()->set_item_checked(view_menu->get_popup()->get_item_index(VIEW_ORTHOGONAL), true);
 			orthogonal = true;
 			auto_orthogonal = false;
-			call_deferred("update_transform_gizmo_view");
+			call_deferred(SNAME("update_transform_gizmo_view"));
 			_update_name();
 
 		} break;
@@ -3254,14 +3270,12 @@ void Node3DEditorViewport::_toggle_camera_preview(bool p_activate) {
 		if (!preview) {
 			preview_camera->hide();
 		}
-		view_menu->set_disabled(false);
 		surface->update();
 
 	} else {
 		previewing = preview;
 		previewing->connect("tree_exiting", callable_mp(this, &Node3DEditorViewport::_preview_exited_scene));
 		RS::get_singleton()->viewport_attach_camera(viewport->get_viewport_rid(), preview->get_camera()); //replace
-		view_menu->set_disabled(true);
 		surface->update();
 	}
 }
@@ -3296,7 +3310,7 @@ void Node3DEditorViewport::_selection_result_pressed(int p_result) {
 	clicked = selection_results[p_result].item->get_instance_id();
 
 	if (clicked.is_valid()) {
-		_select_clicked(clicked_wants_append, true, spatial_editor->get_tool_mode() != Node3DEditor::TOOL_MODE_LIST_SELECT);
+		_select_clicked(clicked_wants_append, true, spatial_editor->get_tool_mode() == Node3DEditor::TOOL_MODE_SELECT);
 		clicked = ObjectID();
 	}
 }
@@ -3324,7 +3338,7 @@ void Node3DEditorViewport::update_transform_gizmo_view() {
 
 	Transform3D camera_xform = camera->get_transform();
 
-	if (xform.origin.distance_squared_to(camera_xform.origin) < 0.01) {
+	if (xform.origin.is_equal_approx(camera_xform.origin)) {
 		for (int i = 0; i < 3; i++) {
 			RenderingServer::get_singleton()->instance_set_visible(move_gizmo_instance[i], false);
 			RenderingServer::get_singleton()->instance_set_visible(move_plane_gizmo_instance[i], false);
@@ -3508,7 +3522,6 @@ void Node3DEditorViewport::set_state(const Dictionary &p_state) {
 			previewing = Object::cast_to<Camera3D>(pv);
 			previewing->connect("tree_exiting", callable_mp(this, &Node3DEditorViewport::_preview_exited_scene));
 			RS::get_singleton()->viewport_attach_camera(viewport->get_viewport_rid(), previewing->get_camera()); //replace
-			view_menu->set_disabled(true);
 			surface->update();
 			preview_camera->set_pressed(true);
 			preview_camera->show();
@@ -4238,8 +4251,8 @@ void Node3DEditorViewportContainer::_gui_input(const Ref<InputEvent> &p_event) {
 		if (mb->is_pressed()) {
 			Vector2 size = get_size();
 
-			int h_sep = get_theme_constant("separation", "HSplitContainer");
-			int v_sep = get_theme_constant("separation", "VSplitContainer");
+			int h_sep = get_theme_constant(SNAME("separation"), SNAME("HSplitContainer"));
+			int v_sep = get_theme_constant(SNAME("separation"), SNAME("VSplitContainer"));
 
 			int mid_w = size.width * ratio_h;
 			int mid_h = size.height * ratio_v;
@@ -4284,8 +4297,8 @@ void Node3DEditorViewportContainer::_gui_input(const Ref<InputEvent> &p_event) {
 		if (view == VIEW_USE_3_VIEWPORTS || view == VIEW_USE_3_VIEWPORTS_ALT || view == VIEW_USE_4_VIEWPORTS) {
 			Vector2 size = get_size();
 
-			int h_sep = get_theme_constant("separation", "HSplitContainer");
-			int v_sep = get_theme_constant("separation", "VSplitContainer");
+			int h_sep = get_theme_constant(SNAME("separation"), SNAME("HSplitContainer"));
+			int v_sep = get_theme_constant(SNAME("separation"), SNAME("VSplitContainer"));
 
 			int mid_w = size.width * ratio_h;
 			int mid_h = size.height * ratio_v;
@@ -4324,18 +4337,18 @@ void Node3DEditorViewportContainer::_notification(int p_what) {
 	}
 
 	if (p_what == NOTIFICATION_DRAW && mouseover) {
-		Ref<Texture2D> h_grabber = get_theme_icon("grabber", "HSplitContainer");
-		Ref<Texture2D> v_grabber = get_theme_icon("grabber", "VSplitContainer");
+		Ref<Texture2D> h_grabber = get_theme_icon(SNAME("grabber"), SNAME("HSplitContainer"));
+		Ref<Texture2D> v_grabber = get_theme_icon(SNAME("grabber"), SNAME("VSplitContainer"));
 
-		Ref<Texture2D> hdiag_grabber = get_theme_icon("GuiViewportHdiagsplitter", "EditorIcons");
-		Ref<Texture2D> vdiag_grabber = get_theme_icon("GuiViewportVdiagsplitter", "EditorIcons");
-		Ref<Texture2D> vh_grabber = get_theme_icon("GuiViewportVhsplitter", "EditorIcons");
+		Ref<Texture2D> hdiag_grabber = get_theme_icon(SNAME("GuiViewportHdiagsplitter"), SNAME("EditorIcons"));
+		Ref<Texture2D> vdiag_grabber = get_theme_icon(SNAME("GuiViewportVdiagsplitter"), SNAME("EditorIcons"));
+		Ref<Texture2D> vh_grabber = get_theme_icon(SNAME("GuiViewportVhsplitter"), SNAME("EditorIcons"));
 
 		Vector2 size = get_size();
 
-		int h_sep = get_theme_constant("separation", "HSplitContainer");
+		int h_sep = get_theme_constant(SNAME("separation"), SNAME("HSplitContainer"));
 
-		int v_sep = get_theme_constant("separation", "VSplitContainer");
+		int v_sep = get_theme_constant(SNAME("separation"), SNAME("VSplitContainer"));
 
 		int mid_w = size.width * ratio_h;
 		int mid_h = size.height * ratio_v;
@@ -4421,9 +4434,9 @@ void Node3DEditorViewportContainer::_notification(int p_what) {
 			}
 			return;
 		}
-		int h_sep = get_theme_constant("separation", "HSplitContainer");
+		int h_sep = get_theme_constant(SNAME("separation"), SNAME("HSplitContainer"));
 
-		int v_sep = get_theme_constant("separation", "VSplitContainer");
+		int v_sep = get_theme_constant(SNAME("separation"), SNAME("VSplitContainer"));
 
 		int mid_w = size.width * ratio_h;
 		int mid_h = size.height * ratio_v;
@@ -5041,13 +5054,13 @@ void Node3DEditor::_menu_gizmo_toggled(int p_option) {
 	const int state = gizmos_menu->get_item_state(idx);
 	switch (state) {
 		case EditorNode3DGizmoPlugin::VISIBLE:
-			gizmos_menu->set_item_icon(idx, view_menu->get_popup()->get_theme_icon("visibility_visible"));
+			gizmos_menu->set_item_icon(idx, view_menu->get_popup()->get_theme_icon(SNAME("visibility_visible")));
 			break;
 		case EditorNode3DGizmoPlugin::ON_TOP:
-			gizmos_menu->set_item_icon(idx, view_menu->get_popup()->get_theme_icon("visibility_xray"));
+			gizmos_menu->set_item_icon(idx, view_menu->get_popup()->get_theme_icon(SNAME("visibility_xray")));
 			break;
 		case EditorNode3DGizmoPlugin::HIDDEN:
-			gizmos_menu->set_item_icon(idx, view_menu->get_popup()->get_theme_icon("visibility_hidden"));
+			gizmos_menu->set_item_icon(idx, view_menu->get_popup()->get_theme_icon(SNAME("visibility_hidden")));
 			break;
 	}
 
@@ -5334,13 +5347,13 @@ void Node3DEditor::_init_indicators() {
 			Color origin_color;
 			switch (i) {
 				case 0:
-					origin_color = get_theme_color("axis_x_color", "Editor");
+					origin_color = get_theme_color(SNAME("axis_x_color"), SNAME("Editor"));
 					break;
 				case 1:
-					origin_color = get_theme_color("axis_y_color", "Editor");
+					origin_color = get_theme_color(SNAME("axis_y_color"), SNAME("Editor"));
 					break;
 				case 2:
-					origin_color = get_theme_color("axis_z_color", "Editor");
+					origin_color = get_theme_color(SNAME("axis_z_color"), SNAME("Editor"));
 					break;
 				default:
 					origin_color = Color();
@@ -5368,35 +5381,37 @@ void Node3DEditor::_init_indicators() {
 		}
 
 		Ref<Shader> grid_shader = memnew(Shader);
-		grid_shader->set_code(
-				"\n"
-				"shader_type spatial; \n"
-				"render_mode unshaded; \n"
-				"uniform bool orthogonal; \n"
-				"uniform float grid_size; \n"
-				"\n"
-				"void vertex() { \n"
-				"	// From FLAG_SRGB_VERTEX_COLOR \n"
-				"	if (!OUTPUT_IS_SRGB) { \n"
-				"		COLOR.rgb = mix(pow((COLOR.rgb + vec3(0.055)) * (1.0 / (1.0 + 0.055)), vec3(2.4)), COLOR.rgb * (1.0 / 12.92), lessThan(COLOR.rgb, vec3(0.04045))); \n"
-				"	} \n"
-				"} \n"
-				"\n"
-				"void fragment() { \n"
-				"	ALBEDO = COLOR.rgb; \n"
-				"	vec3 dir = orthogonal ? -vec3(0, 0, 1) : VIEW; \n"
-				"	float angle_fade = abs(dot(dir, NORMAL)); \n"
-				"	angle_fade = smoothstep(0.05, 0.2, angle_fade); \n"
-				"	\n"
-				"	vec3 world_pos = (CAMERA_MATRIX * vec4(VERTEX, 1.0)).xyz; \n"
-				"	vec3 world_normal = (CAMERA_MATRIX * vec4(NORMAL, 0.0)).xyz; \n"
-				"	vec3 camera_world_pos = CAMERA_MATRIX[3].xyz; \n"
-				"	vec3 camera_world_pos_on_plane = camera_world_pos * (1.0 - world_normal); \n"
-				"	float dist_fade = 1.0 - (distance(world_pos, camera_world_pos_on_plane) / grid_size); \n"
-				"	dist_fade = smoothstep(0.02, 0.3, dist_fade); \n"
-				"	\n"
-				"	ALPHA = COLOR.a * dist_fade * angle_fade; \n"
-				"}");
+		grid_shader->set_code(R"(
+shader_type spatial;
+
+render_mode unshaded;
+
+uniform bool orthogonal;
+uniform float grid_size;
+
+void vertex() {
+	// From FLAG_SRGB_VERTEX_COLOR.
+	if (!OUTPUT_IS_SRGB) {
+		COLOR.rgb = mix(pow((COLOR.rgb + vec3(0.055)) * (1.0 / (1.0 + 0.055)), vec3(2.4)), COLOR.rgb * (1.0 / 12.92), lessThan(COLOR.rgb, vec3(0.04045)));
+	}
+}
+
+void fragment() {
+	ALBEDO = COLOR.rgb;
+	vec3 dir = orthogonal ? -vec3(0, 0, 1) : VIEW;
+	float angle_fade = abs(dot(dir, NORMAL));
+	angle_fade = smoothstep(0.05, 0.2, angle_fade);
+
+	vec3 world_pos = (CAMERA_MATRIX * vec4(VERTEX, 1.0)).xyz;
+	vec3 world_normal = (CAMERA_MATRIX * vec4(NORMAL, 0.0)).xyz;
+	vec3 camera_world_pos = CAMERA_MATRIX[3].xyz;
+	vec3 camera_world_pos_on_plane = camera_world_pos * (1.0 - world_normal);
+	float dist_fade = 1.0 - (distance(world_pos, camera_world_pos_on_plane) / grid_size);
+	dist_fade = smoothstep(0.02, 0.3, dist_fade);
+
+	ALPHA = COLOR.a * dist_fade * angle_fade;
+}
+)");
 
 		for (int i = 0; i < 3; i++) {
 			grid_mat[i].instantiate();
@@ -5435,13 +5450,13 @@ void Node3DEditor::_init_indicators() {
 			Color col;
 			switch (i) {
 				case 0:
-					col = get_theme_color("axis_x_color", "Editor");
+					col = get_theme_color(SNAME("axis_x_color"), SNAME("Editor"));
 					break;
 				case 1:
-					col = get_theme_color("axis_y_color", "Editor");
+					col = get_theme_color(SNAME("axis_y_color"), SNAME("Editor"));
 					break;
 				case 2:
-					col = get_theme_color("axis_z_color", "Editor");
+					col = get_theme_color(SNAME("axis_z_color"), SNAME("Editor"));
 					break;
 				default:
 					col = Color();
@@ -5608,33 +5623,35 @@ void Node3DEditor::_init_indicators() {
 
 				Ref<Shader> rotate_shader = memnew(Shader);
 
-				rotate_shader->set_code(
-						"\n"
-						"shader_type spatial; \n"
-						"render_mode unshaded, depth_test_disabled; \n"
-						"uniform vec4 albedo; \n"
-						"\n"
-						"mat3 orthonormalize(mat3 m) { \n"
-						"	vec3 x = normalize(m[0]); \n"
-						"	vec3 y = normalize(m[1] - x * dot(x, m[1])); \n"
-						"	vec3 z = m[2] - x * dot(x, m[2]); \n"
-						"	z = normalize(z - y * (dot(y,m[2]))); \n"
-						"	return mat3(x,y,z); \n"
-						"} \n"
-						"\n"
-						"void vertex() { \n"
-						"	mat3 mv = orthonormalize(mat3(MODELVIEW_MATRIX)); \n"
-						"	vec3 n = mv * VERTEX; \n"
-						"	float orientation = dot(vec3(0,0,-1),n); \n"
-						"	if (orientation <= 0.005) { \n"
-						"		VERTEX += NORMAL*0.02; \n"
-						"	} \n"
-						"} \n"
-						"\n"
-						"void fragment() { \n"
-						"	ALBEDO = albedo.rgb; \n"
-						"	ALPHA = albedo.a; \n"
-						"}");
+				rotate_shader->set_code(R"(
+shader_type spatial;
+
+render_mode unshaded, depth_test_disabled;
+
+uniform vec4 albedo;
+
+mat3 orthonormalize(mat3 m) {
+	vec3 x = normalize(m[0]);
+	vec3 y = normalize(m[1] - x * dot(x, m[1]));
+	vec3 z = m[2] - x * dot(x, m[2]);
+	z = normalize(z - y * (dot(y,m[2])));
+	return mat3(x,y,z);
+}
+
+void vertex() {
+	mat3 mv = orthonormalize(mat3(MODELVIEW_MATRIX));
+	vec3 n = mv * VERTEX;
+	float orientation = dot(vec3(0, 0, -1), n);
+	if (orientation <= 0.005) {
+		VERTEX += NORMAL * 0.02;
+	}
+}
+
+void fragment() {
+	ALBEDO = albedo.rgb;
+	ALPHA = albedo.a;
+}
+)");
 
 				Ref<ShaderMaterial> rotate_mat = memnew(ShaderMaterial);
 				rotate_mat->set_render_priority(Material::RENDER_PRIORITY_MAX);
@@ -5654,34 +5671,36 @@ void Node3DEditor::_init_indicators() {
 					Ref<ShaderMaterial> border_mat = rotate_mat->duplicate();
 
 					Ref<Shader> border_shader = memnew(Shader);
-					border_shader->set_code(
-							"\n"
-							"shader_type spatial; \n"
-							"render_mode unshaded, depth_test_disabled; \n"
-							"uniform vec4 albedo; \n"
-							"\n"
-							"mat3 orthonormalize(mat3 m) { \n"
-							"	vec3 x = normalize(m[0]); \n"
-							"	vec3 y = normalize(m[1] - x * dot(x, m[1])); \n"
-							"	vec3 z = m[2] - x * dot(x, m[2]); \n"
-							"	z = normalize(z - y * (dot(y,m[2]))); \n"
-							"	return mat3(x,y,z); \n"
-							"} \n"
-							"\n"
-							"void vertex() { \n"
-							"	mat3 mv = orthonormalize(mat3(MODELVIEW_MATRIX)); \n"
-							"	mv = inverse(mv); \n"
-							"	VERTEX += NORMAL*0.008; \n"
-							"	vec3 camera_dir_local = mv * vec3(0,0,1); \n"
-							"	vec3 camera_up_local = mv * vec3(0,1,0); \n"
-							"	mat3 rotation_matrix = mat3(cross(camera_dir_local, camera_up_local), camera_up_local, camera_dir_local); \n"
-							"	VERTEX = rotation_matrix * VERTEX; \n"
-							"} \n"
-							"\n"
-							"void fragment() { \n"
-							"	ALBEDO = albedo.rgb; \n"
-							"	ALPHA = albedo.a; \n"
-							"}");
+					border_shader->set_code(R"(
+shader_type spatial;
+
+render_mode unshaded, depth_test_disabled;
+
+uniform vec4 albedo;
+
+mat3 orthonormalize(mat3 m) {
+	vec3 x = normalize(m[0]);
+	vec3 y = normalize(m[1] - x * dot(x, m[1]));
+	vec3 z = m[2] - x * dot(x, m[2]);
+	z = normalize(z - y * (dot(y,m[2])));
+	return mat3(x,y,z);
+}
+
+void vertex() {
+	mat3 mv = orthonormalize(mat3(MODELVIEW_MATRIX));
+	mv = inverse(mv);
+	VERTEX += NORMAL*0.008;
+	vec3 camera_dir_local = mv * vec3(0,0,1);
+	vec3 camera_up_local = mv * vec3(0,1,0);
+	mat3 rotation_matrix = mat3(cross(camera_dir_local, camera_up_local), camera_up_local, camera_dir_local);
+	VERTEX = rotation_matrix * VERTEX;
+}
+
+void fragment() {
+	ALBEDO = albedo.rgb;
+	ALPHA = albedo.a;
+}
+)");
 
 					border_mat->set_shader(border_shader);
 					border_mat->set_shader_param("albedo", Color(0.75, 0.75, 0.75, col.a / 3.0));
@@ -5801,13 +5820,13 @@ void Node3DEditor::_update_gizmos_menu() {
 				TTR("Click to toggle between visibility states.\n\nOpen eye: Gizmo is visible.\nClosed eye: Gizmo is hidden.\nHalf-open eye: Gizmo is also visible through opaque surfaces (\"x-ray\")."));
 		switch (plugin_state) {
 			case EditorNode3DGizmoPlugin::VISIBLE:
-				gizmos_menu->set_item_icon(idx, gizmos_menu->get_theme_icon("visibility_visible"));
+				gizmos_menu->set_item_icon(idx, gizmos_menu->get_theme_icon(SNAME("visibility_visible")));
 				break;
 			case EditorNode3DGizmoPlugin::ON_TOP:
-				gizmos_menu->set_item_icon(idx, gizmos_menu->get_theme_icon("visibility_xray"));
+				gizmos_menu->set_item_icon(idx, gizmos_menu->get_theme_icon(SNAME("visibility_xray")));
 				break;
 			case EditorNode3DGizmoPlugin::HIDDEN:
-				gizmos_menu->set_item_icon(idx, gizmos_menu->get_theme_icon("visibility_hidden"));
+				gizmos_menu->set_item_icon(idx, gizmos_menu->get_theme_icon(SNAME("visibility_hidden")));
 				break;
 		}
 	}
@@ -5822,13 +5841,13 @@ void Node3DEditor::_update_gizmos_menu_theme() {
 		const int idx = gizmos_menu->get_item_index(i);
 		switch (plugin_state) {
 			case EditorNode3DGizmoPlugin::VISIBLE:
-				gizmos_menu->set_item_icon(idx, gizmos_menu->get_theme_icon("visibility_visible"));
+				gizmos_menu->set_item_icon(idx, gizmos_menu->get_theme_icon(SNAME("visibility_visible")));
 				break;
 			case EditorNode3DGizmoPlugin::ON_TOP:
-				gizmos_menu->set_item_icon(idx, gizmos_menu->get_theme_icon("visibility_xray"));
+				gizmos_menu->set_item_icon(idx, gizmos_menu->get_theme_icon(SNAME("visibility_xray")));
 				break;
 			case EditorNode3DGizmoPlugin::HIDDEN:
-				gizmos_menu->set_item_icon(idx, gizmos_menu->get_theme_icon("visibility_hidden"));
+				gizmos_menu->set_item_icon(idx, gizmos_menu->get_theme_icon(SNAME("visibility_hidden")));
 				break;
 		}
 	}
@@ -6172,7 +6191,7 @@ void Node3DEditor::snap_selected_nodes_to_floor() {
 		}
 
 		if (snapped_to_floor) {
-			undo_redo->create_action(TTR("Snap Nodes To Floor"));
+			undo_redo->create_action(TTR("Snap Nodes to Floor"));
 
 			// Perform snapping if at least one node can be snapped
 			for (int i = 0; i < keys.size(); i++) {
@@ -6218,39 +6237,58 @@ void Node3DEditor::_sun_environ_settings_pressed() {
 	sun_environ_popup->popup();
 }
 
-void Node3DEditor::_add_sun_to_scene() {
+void Node3DEditor::_add_sun_to_scene(bool p_already_added_environment) {
 	sun_environ_popup->hide();
+
+	if (!p_already_added_environment && world_env_count == 0 && Input::get_singleton()->is_key_pressed(KEY_SHIFT)) {
+		// Prevent infinite feedback loop between the sun and environment methods.
+		_add_environment_to_scene(true);
+	}
 
 	Node *base = get_tree()->get_edited_scene_root();
 	if (!base) {
-		EditorNode::get_singleton()->show_warning(TTR("A root node is needed for this operation"));
-		return;
+		// Create a root node so we can add child nodes to it.
+		EditorNode::get_singleton()->get_scene_tree_dock()->add_root_node(memnew(Node3D));
+		base = get_tree()->get_edited_scene_root();
 	}
 	ERR_FAIL_COND(!base);
 	Node *new_sun = preview_sun->duplicate();
 
-	undo_redo->create_action("Add Preview Sun to Scene");
+	undo_redo->create_action(TTR("Add Preview Sun to Scene"));
 	undo_redo->add_do_method(base, "add_child", new_sun);
+	// Move to the beginning of the scene tree since more "global" nodes
+	// generally look better when placed at the top.
+	undo_redo->add_do_method(base, "move_child", new_sun, 0);
 	undo_redo->add_do_method(new_sun, "set_owner", base);
 	undo_redo->add_undo_method(base, "remove_child", new_sun);
 	undo_redo->add_do_reference(new_sun);
 	undo_redo->commit_action();
 }
-void Node3DEditor::_add_environment_to_scene() {
+
+void Node3DEditor::_add_environment_to_scene(bool p_already_added_sun) {
 	sun_environ_popup->hide();
+
+	if (!p_already_added_sun && directional_light_count == 0 && Input::get_singleton()->is_key_pressed(KEY_SHIFT)) {
+		// Prevent infinite feedback loop between the sun and environment methods.
+		_add_sun_to_scene(true);
+	}
 
 	Node *base = get_tree()->get_edited_scene_root();
 	if (!base) {
-		EditorNode::get_singleton()->show_warning(TTR("A root node is needed for this operation"));
-		return;
+		// Create a root node so we can add child nodes to it.
+		EditorNode::get_singleton()->get_scene_tree_dock()->add_root_node(memnew(Node3D));
+		base = get_tree()->get_edited_scene_root();
 	}
 	ERR_FAIL_COND(!base);
 
 	WorldEnvironment *new_env = memnew(WorldEnvironment);
 	new_env->set_environment(preview_environment->get_environment()->duplicate(true));
 
-	undo_redo->create_action("Add Preview Environment to Scene");
+	undo_redo->create_action(TTR("Add Preview Environment to Scene"));
 	undo_redo->add_do_method(base, "add_child", new_env);
+	// Move to the beginning of the scene tree since more "global" nodes
+	// generally look better when placed at the top.
+	undo_redo->add_do_method(base, "move_child", new_env, 0);
 	undo_redo->add_do_method(new_env, "set_owner", base);
 	undo_redo->add_undo_method(base, "remove_child", new_env);
 	undo_redo->add_do_reference(new_env);
@@ -6259,26 +6297,26 @@ void Node3DEditor::_add_environment_to_scene() {
 
 void Node3DEditor::_notification(int p_what) {
 	if (p_what == NOTIFICATION_READY) {
-		tool_button[Node3DEditor::TOOL_MODE_SELECT]->set_icon(get_theme_icon("ToolSelect", "EditorIcons"));
-		tool_button[Node3DEditor::TOOL_MODE_MOVE]->set_icon(get_theme_icon("ToolMove", "EditorIcons"));
-		tool_button[Node3DEditor::TOOL_MODE_ROTATE]->set_icon(get_theme_icon("ToolRotate", "EditorIcons"));
-		tool_button[Node3DEditor::TOOL_MODE_SCALE]->set_icon(get_theme_icon("ToolScale", "EditorIcons"));
-		tool_button[Node3DEditor::TOOL_MODE_LIST_SELECT]->set_icon(get_theme_icon("ListSelect", "EditorIcons"));
-		tool_button[Node3DEditor::TOOL_LOCK_SELECTED]->set_icon(get_theme_icon("Lock", "EditorIcons"));
-		tool_button[Node3DEditor::TOOL_UNLOCK_SELECTED]->set_icon(get_theme_icon("Unlock", "EditorIcons"));
-		tool_button[Node3DEditor::TOOL_GROUP_SELECTED]->set_icon(get_theme_icon("Group", "EditorIcons"));
-		tool_button[Node3DEditor::TOOL_UNGROUP_SELECTED]->set_icon(get_theme_icon("Ungroup", "EditorIcons"));
+		tool_button[Node3DEditor::TOOL_MODE_SELECT]->set_icon(get_theme_icon(SNAME("ToolSelect"), SNAME("EditorIcons")));
+		tool_button[Node3DEditor::TOOL_MODE_MOVE]->set_icon(get_theme_icon(SNAME("ToolMove"), SNAME("EditorIcons")));
+		tool_button[Node3DEditor::TOOL_MODE_ROTATE]->set_icon(get_theme_icon(SNAME("ToolRotate"), SNAME("EditorIcons")));
+		tool_button[Node3DEditor::TOOL_MODE_SCALE]->set_icon(get_theme_icon(SNAME("ToolScale"), SNAME("EditorIcons")));
+		tool_button[Node3DEditor::TOOL_MODE_LIST_SELECT]->set_icon(get_theme_icon(SNAME("ListSelect"), SNAME("EditorIcons")));
+		tool_button[Node3DEditor::TOOL_LOCK_SELECTED]->set_icon(get_theme_icon(SNAME("Lock"), SNAME("EditorIcons")));
+		tool_button[Node3DEditor::TOOL_UNLOCK_SELECTED]->set_icon(get_theme_icon(SNAME("Unlock"), SNAME("EditorIcons")));
+		tool_button[Node3DEditor::TOOL_GROUP_SELECTED]->set_icon(get_theme_icon(SNAME("Group"), SNAME("EditorIcons")));
+		tool_button[Node3DEditor::TOOL_UNGROUP_SELECTED]->set_icon(get_theme_icon(SNAME("Ungroup"), SNAME("EditorIcons")));
 
-		tool_option_button[Node3DEditor::TOOL_OPT_LOCAL_COORDS]->set_icon(get_theme_icon("Object", "EditorIcons"));
-		tool_option_button[Node3DEditor::TOOL_OPT_USE_SNAP]->set_icon(get_theme_icon("Snap", "EditorIcons"));
-		tool_option_button[Node3DEditor::TOOL_OPT_OVERRIDE_CAMERA]->set_icon(get_theme_icon("Camera3D", "EditorIcons"));
+		tool_option_button[Node3DEditor::TOOL_OPT_LOCAL_COORDS]->set_icon(get_theme_icon(SNAME("Object"), SNAME("EditorIcons")));
+		tool_option_button[Node3DEditor::TOOL_OPT_USE_SNAP]->set_icon(get_theme_icon(SNAME("Snap"), SNAME("EditorIcons")));
+		tool_option_button[Node3DEditor::TOOL_OPT_OVERRIDE_CAMERA]->set_icon(get_theme_icon(SNAME("Camera3D"), SNAME("EditorIcons")));
 
-		view_menu->get_popup()->set_item_icon(view_menu->get_popup()->get_item_index(MENU_VIEW_USE_1_VIEWPORT), get_theme_icon("Panels1", "EditorIcons"));
-		view_menu->get_popup()->set_item_icon(view_menu->get_popup()->get_item_index(MENU_VIEW_USE_2_VIEWPORTS), get_theme_icon("Panels2", "EditorIcons"));
-		view_menu->get_popup()->set_item_icon(view_menu->get_popup()->get_item_index(MENU_VIEW_USE_2_VIEWPORTS_ALT), get_theme_icon("Panels2Alt", "EditorIcons"));
-		view_menu->get_popup()->set_item_icon(view_menu->get_popup()->get_item_index(MENU_VIEW_USE_3_VIEWPORTS), get_theme_icon("Panels3", "EditorIcons"));
-		view_menu->get_popup()->set_item_icon(view_menu->get_popup()->get_item_index(MENU_VIEW_USE_3_VIEWPORTS_ALT), get_theme_icon("Panels3Alt", "EditorIcons"));
-		view_menu->get_popup()->set_item_icon(view_menu->get_popup()->get_item_index(MENU_VIEW_USE_4_VIEWPORTS), get_theme_icon("Panels4", "EditorIcons"));
+		view_menu->get_popup()->set_item_icon(view_menu->get_popup()->get_item_index(MENU_VIEW_USE_1_VIEWPORT), get_theme_icon(SNAME("Panels1"), SNAME("EditorIcons")));
+		view_menu->get_popup()->set_item_icon(view_menu->get_popup()->get_item_index(MENU_VIEW_USE_2_VIEWPORTS), get_theme_icon(SNAME("Panels2"), SNAME("EditorIcons")));
+		view_menu->get_popup()->set_item_icon(view_menu->get_popup()->get_item_index(MENU_VIEW_USE_2_VIEWPORTS_ALT), get_theme_icon(SNAME("Panels2Alt"), SNAME("EditorIcons")));
+		view_menu->get_popup()->set_item_icon(view_menu->get_popup()->get_item_index(MENU_VIEW_USE_3_VIEWPORTS), get_theme_icon(SNAME("Panels3"), SNAME("EditorIcons")));
+		view_menu->get_popup()->set_item_icon(view_menu->get_popup()->get_item_index(MENU_VIEW_USE_3_VIEWPORTS_ALT), get_theme_icon(SNAME("Panels3Alt"), SNAME("EditorIcons")));
+		view_menu->get_popup()->set_item_icon(view_menu->get_popup()->get_item_index(MENU_VIEW_USE_4_VIEWPORTS), get_theme_icon(SNAME("Panels4"), SNAME("EditorIcons")));
 
 		_menu_item_pressed(MENU_VIEW_USE_1_VIEWPORT);
 
@@ -6292,13 +6330,13 @@ void Node3DEditor::_notification(int p_what) {
 		editor->connect("stop_pressed", callable_mp(this, &Node3DEditor::_update_camera_override_button), make_binds(false));
 		editor->connect("play_pressed", callable_mp(this, &Node3DEditor::_update_camera_override_button), make_binds(true));
 
-		sun_button->set_icon(get_theme_icon("DirectionalLight3D", "EditorIcons"));
-		environ_button->set_icon(get_theme_icon("WorldEnvironment", "EditorIcons"));
-		sun_environ_settings->set_icon(get_theme_icon("GuiTabMenuHl", "EditorIcons"));
+		sun_button->set_icon(get_theme_icon(SNAME("DirectionalLight3D"), SNAME("EditorIcons")));
+		environ_button->set_icon(get_theme_icon(SNAME("WorldEnvironment"), SNAME("EditorIcons")));
+		sun_environ_settings->set_icon(get_theme_icon(SNAME("GuiTabMenuHl"), SNAME("EditorIcons")));
 
 		_update_preview_environment();
-		sun_title->add_theme_font_override("font", get_theme_font("title_font", "Window"));
-		environ_title->add_theme_font_override("font", get_theme_font("title_font", "Window"));
+		sun_title->add_theme_font_override("font", get_theme_font(SNAME("title_font"), SNAME("Window")));
+		environ_title->add_theme_font_override("font", get_theme_font(SNAME("title_font"), SNAME("Window")));
 
 		sun_state->set_custom_minimum_size(sun_vb->get_combined_minimum_size());
 		environ_state->set_custom_minimum_size(environ_vb->get_combined_minimum_size());
@@ -6308,30 +6346,30 @@ void Node3DEditor::_notification(int p_what) {
 		_init_indicators();
 	} else if (p_what == NOTIFICATION_THEME_CHANGED) {
 		_update_gizmos_menu_theme();
-		sun_title->add_theme_font_override("font", get_theme_font("title_font", "Window"));
-		environ_title->add_theme_font_override("font", get_theme_font("title_font", "Window"));
+		sun_title->add_theme_font_override("font", get_theme_font(SNAME("title_font"), SNAME("Window")));
+		environ_title->add_theme_font_override("font", get_theme_font(SNAME("title_font"), SNAME("Window")));
 	} else if (p_what == NOTIFICATION_EXIT_TREE) {
 		_finish_indicators();
 	} else if (p_what == EditorSettings::NOTIFICATION_EDITOR_SETTINGS_CHANGED) {
-		tool_button[Node3DEditor::TOOL_MODE_SELECT]->set_icon(get_theme_icon("ToolSelect", "EditorIcons"));
-		tool_button[Node3DEditor::TOOL_MODE_MOVE]->set_icon(get_theme_icon("ToolMove", "EditorIcons"));
-		tool_button[Node3DEditor::TOOL_MODE_ROTATE]->set_icon(get_theme_icon("ToolRotate", "EditorIcons"));
-		tool_button[Node3DEditor::TOOL_MODE_SCALE]->set_icon(get_theme_icon("ToolScale", "EditorIcons"));
-		tool_button[Node3DEditor::TOOL_MODE_LIST_SELECT]->set_icon(get_theme_icon("ListSelect", "EditorIcons"));
-		tool_button[Node3DEditor::TOOL_LOCK_SELECTED]->set_icon(get_theme_icon("Lock", "EditorIcons"));
-		tool_button[Node3DEditor::TOOL_UNLOCK_SELECTED]->set_icon(get_theme_icon("Unlock", "EditorIcons"));
-		tool_button[Node3DEditor::TOOL_GROUP_SELECTED]->set_icon(get_theme_icon("Group", "EditorIcons"));
-		tool_button[Node3DEditor::TOOL_UNGROUP_SELECTED]->set_icon(get_theme_icon("Ungroup", "EditorIcons"));
+		tool_button[Node3DEditor::TOOL_MODE_SELECT]->set_icon(get_theme_icon(SNAME("ToolSelect"), SNAME("EditorIcons")));
+		tool_button[Node3DEditor::TOOL_MODE_MOVE]->set_icon(get_theme_icon(SNAME("ToolMove"), SNAME("EditorIcons")));
+		tool_button[Node3DEditor::TOOL_MODE_ROTATE]->set_icon(get_theme_icon(SNAME("ToolRotate"), SNAME("EditorIcons")));
+		tool_button[Node3DEditor::TOOL_MODE_SCALE]->set_icon(get_theme_icon(SNAME("ToolScale"), SNAME("EditorIcons")));
+		tool_button[Node3DEditor::TOOL_MODE_LIST_SELECT]->set_icon(get_theme_icon(SNAME("ListSelect"), SNAME("EditorIcons")));
+		tool_button[Node3DEditor::TOOL_LOCK_SELECTED]->set_icon(get_theme_icon(SNAME("Lock"), SNAME("EditorIcons")));
+		tool_button[Node3DEditor::TOOL_UNLOCK_SELECTED]->set_icon(get_theme_icon(SNAME("Unlock"), SNAME("EditorIcons")));
+		tool_button[Node3DEditor::TOOL_GROUP_SELECTED]->set_icon(get_theme_icon(SNAME("Group"), SNAME("EditorIcons")));
+		tool_button[Node3DEditor::TOOL_UNGROUP_SELECTED]->set_icon(get_theme_icon(SNAME("Ungroup"), SNAME("EditorIcons")));
 
-		tool_option_button[Node3DEditor::TOOL_OPT_LOCAL_COORDS]->set_icon(get_theme_icon("Object", "EditorIcons"));
-		tool_option_button[Node3DEditor::TOOL_OPT_USE_SNAP]->set_icon(get_theme_icon("Snap", "EditorIcons"));
+		tool_option_button[Node3DEditor::TOOL_OPT_LOCAL_COORDS]->set_icon(get_theme_icon(SNAME("Object"), SNAME("EditorIcons")));
+		tool_option_button[Node3DEditor::TOOL_OPT_USE_SNAP]->set_icon(get_theme_icon(SNAME("Snap"), SNAME("EditorIcons")));
 
-		view_menu->get_popup()->set_item_icon(view_menu->get_popup()->get_item_index(MENU_VIEW_USE_1_VIEWPORT), get_theme_icon("Panels1", "EditorIcons"));
-		view_menu->get_popup()->set_item_icon(view_menu->get_popup()->get_item_index(MENU_VIEW_USE_2_VIEWPORTS), get_theme_icon("Panels2", "EditorIcons"));
-		view_menu->get_popup()->set_item_icon(view_menu->get_popup()->get_item_index(MENU_VIEW_USE_2_VIEWPORTS_ALT), get_theme_icon("Panels2Alt", "EditorIcons"));
-		view_menu->get_popup()->set_item_icon(view_menu->get_popup()->get_item_index(MENU_VIEW_USE_3_VIEWPORTS), get_theme_icon("Panels3", "EditorIcons"));
-		view_menu->get_popup()->set_item_icon(view_menu->get_popup()->get_item_index(MENU_VIEW_USE_3_VIEWPORTS_ALT), get_theme_icon("Panels3Alt", "EditorIcons"));
-		view_menu->get_popup()->set_item_icon(view_menu->get_popup()->get_item_index(MENU_VIEW_USE_4_VIEWPORTS), get_theme_icon("Panels4", "EditorIcons"));
+		view_menu->get_popup()->set_item_icon(view_menu->get_popup()->get_item_index(MENU_VIEW_USE_1_VIEWPORT), get_theme_icon(SNAME("Panels1"), SNAME("EditorIcons")));
+		view_menu->get_popup()->set_item_icon(view_menu->get_popup()->get_item_index(MENU_VIEW_USE_2_VIEWPORTS), get_theme_icon(SNAME("Panels2"), SNAME("EditorIcons")));
+		view_menu->get_popup()->set_item_icon(view_menu->get_popup()->get_item_index(MENU_VIEW_USE_2_VIEWPORTS_ALT), get_theme_icon(SNAME("Panels2Alt"), SNAME("EditorIcons")));
+		view_menu->get_popup()->set_item_icon(view_menu->get_popup()->get_item_index(MENU_VIEW_USE_3_VIEWPORTS), get_theme_icon(SNAME("Panels3"), SNAME("EditorIcons")));
+		view_menu->get_popup()->set_item_icon(view_menu->get_popup()->get_item_index(MENU_VIEW_USE_3_VIEWPORTS_ALT), get_theme_icon(SNAME("Panels3Alt"), SNAME("EditorIcons")));
+		view_menu->get_popup()->set_item_icon(view_menu->get_popup()->get_item_index(MENU_VIEW_USE_4_VIEWPORTS), get_theme_icon(SNAME("Panels4"), SNAME("EditorIcons")));
 
 		// Update grid color by rebuilding grid.
 		_finish_grid();
@@ -6731,7 +6769,7 @@ Node3DEditor::Node3DEditor(EditorNode *p_editor) {
 	tool_button[TOOL_MODE_SELECT]->connect("pressed", callable_mp(this, &Node3DEditor::_menu_item_pressed), button_binds);
 	tool_button[TOOL_MODE_SELECT]->set_shortcut(ED_SHORTCUT("spatial_editor/tool_select", TTR("Select Mode"), KEY_Q));
 	tool_button[TOOL_MODE_SELECT]->set_shortcut_context(this);
-	tool_button[TOOL_MODE_SELECT]->set_tooltip(keycode_get_string(KEY_MASK_CMD) + TTR("Drag: Rotate\nAlt+Drag: Move\nAlt+RMB: Depth list selection"));
+	tool_button[TOOL_MODE_SELECT]->set_tooltip(keycode_get_string(KEY_MASK_CMD) + TTR("Drag: Rotate\nAlt+Drag: Move\nAlt+RMB: Show list of all nodes at position clicked, including locked."));
 
 	hbc_menu->add_child(memnew(VSeparator));
 
@@ -6770,14 +6808,14 @@ Node3DEditor::Node3DEditor(EditorNode *p_editor) {
 	tool_button[TOOL_MODE_LIST_SELECT]->set_flat(true);
 	button_binds.write[0] = MENU_TOOL_LIST_SELECT;
 	tool_button[TOOL_MODE_LIST_SELECT]->connect("pressed", callable_mp(this, &Node3DEditor::_menu_item_pressed), button_binds);
-	tool_button[TOOL_MODE_LIST_SELECT]->set_tooltip(TTR("Show a list of all objects at the position clicked\n(same as Alt+RMB in select mode)."));
+	tool_button[TOOL_MODE_LIST_SELECT]->set_tooltip(TTR("Show list of selectable nodes at position clicked."));
 
 	tool_button[TOOL_LOCK_SELECTED] = memnew(Button);
 	hbc_menu->add_child(tool_button[TOOL_LOCK_SELECTED]);
 	tool_button[TOOL_LOCK_SELECTED]->set_flat(true);
 	button_binds.write[0] = MENU_LOCK_SELECTED;
 	tool_button[TOOL_LOCK_SELECTED]->connect("pressed", callable_mp(this, &Node3DEditor::_menu_item_pressed), button_binds);
-	tool_button[TOOL_LOCK_SELECTED]->set_tooltip(TTR("Lock the selected object in place (can't be moved)."));
+	tool_button[TOOL_LOCK_SELECTED]->set_tooltip(TTR("Lock selected node, preventing selection and movement."));
 	// Define the shortcut globally (without a context) so that it works if the Scene tree dock is currently focused.
 	tool_button[TOOL_LOCK_SELECTED]->set_shortcut(ED_SHORTCUT("editor/lock_selected_nodes", TTR("Lock Selected Node(s)"), KEY_MASK_CMD | KEY_L));
 
@@ -6786,7 +6824,7 @@ Node3DEditor::Node3DEditor(EditorNode *p_editor) {
 	tool_button[TOOL_UNLOCK_SELECTED]->set_flat(true);
 	button_binds.write[0] = MENU_UNLOCK_SELECTED;
 	tool_button[TOOL_UNLOCK_SELECTED]->connect("pressed", callable_mp(this, &Node3DEditor::_menu_item_pressed), button_binds);
-	tool_button[TOOL_UNLOCK_SELECTED]->set_tooltip(TTR("Unlock the selected object (can be moved)."));
+	tool_button[TOOL_UNLOCK_SELECTED]->set_tooltip(TTR("Unlock selected node, allowing selection and movement."));
 	// Define the shortcut globally (without a context) so that it works if the Scene tree dock is currently focused.
 	tool_button[TOOL_UNLOCK_SELECTED]->set_shortcut(ED_SHORTCUT("editor/unlock_selected_nodes", TTR("Unlock Selected Node(s)"), KEY_MASK_CMD | KEY_MASK_SHIFT | KEY_L));
 
@@ -7109,6 +7147,7 @@ Node3DEditor::Node3DEditor(EditorNode *p_editor) {
 		sun_vb->hide();
 
 		sun_title = memnew(Label);
+		sun_title->set_theme_type_variation("HeaderSmall");
 		sun_vb->add_child(sun_title);
 		sun_title->set_text(TTR("Preview Sun"));
 		sun_title->set_align(Label::ALIGN_CENTER);
@@ -7122,9 +7161,21 @@ Node3DEditor::Node3DEditor(EditorNode *p_editor) {
 		sun_direction->connect("draw", callable_mp(this, &Node3DEditor::_sun_direction_draw));
 		sun_direction->set_default_cursor_shape(CURSOR_MOVE);
 
-		String sun_dir_shader_code = "shader_type canvas_item; uniform vec3 sun_direction; uniform vec3 sun_color; void fragment() { vec3 n; n.xy = UV * 2.0 - 1.0; n.z = sqrt(max(0.0, 1.0 - dot(n.xy, n.xy))); COLOR.rgb = dot(n,sun_direction) * sun_color; COLOR.a = 1.0 - smoothstep(0.99,1.0,length(n.xy)); }";
 		sun_direction_shader.instantiate();
-		sun_direction_shader->set_code(sun_dir_shader_code);
+		sun_direction_shader->set_code(R"(
+shader_type canvas_item;
+
+uniform vec3 sun_direction;
+uniform vec3 sun_color;
+
+void fragment() {
+	vec3 n;
+	n.xy = UV * 2.0 - 1.0;
+	n.z = sqrt(max(0.0, 1.0 - dot(n.xy, n.xy)));
+	COLOR.rgb = dot(n, sun_direction) * sun_color;
+	COLOR.a = 1.0 - smoothstep(0.99, 1.0, length(n.xy));
+}
+)");
 		sun_direction_material.instantiate();
 		sun_direction_material->set_shader(sun_direction_shader);
 		sun_direction_material->set_shader_param("sun_direction", Vector3(0, 0, 1));
@@ -7178,7 +7229,8 @@ Node3DEditor::Node3DEditor(EditorNode *p_editor) {
 
 		sun_add_to_scene = memnew(Button);
 		sun_add_to_scene->set_text(TTR("Add Sun to Scene"));
-		sun_add_to_scene->connect("pressed", callable_mp(this, &Node3DEditor::_add_sun_to_scene));
+		sun_add_to_scene->set_tooltip(TTR("Adds a DirectionalLight3D node matching the preview sun settings to the current scene.\nHold Shift while clicking to also add the preview environment to the current scene."));
+		sun_add_to_scene->connect("pressed", callable_mp(this, &Node3DEditor::_add_sun_to_scene), varray(false));
 		sun_vb->add_spacer();
 		sun_vb->add_child(sun_add_to_scene);
 
@@ -7199,6 +7251,8 @@ Node3DEditor::Node3DEditor(EditorNode *p_editor) {
 		environ_vb->hide();
 
 		environ_title = memnew(Label);
+		environ_title->set_theme_type_variation("HeaderSmall");
+
 		environ_vb->add_child(environ_title);
 		environ_title->set_text(TTR("Preview Environment"));
 		environ_title->set_align(Label::ALIGN_CENTER);
@@ -7242,7 +7296,8 @@ Node3DEditor::Node3DEditor(EditorNode *p_editor) {
 
 		environ_add_to_scene = memnew(Button);
 		environ_add_to_scene->set_text(TTR("Add Environment to Scene"));
-		environ_add_to_scene->connect("pressed", callable_mp(this, &Node3DEditor::_add_environment_to_scene));
+		environ_add_to_scene->set_tooltip(TTR("Adds a WorldEnvironment node matching the preview environment settings to the current scene.\nHold Shift while clicking to also add the preview sun to the current scene."));
+		environ_add_to_scene->connect("pressed", callable_mp(this, &Node3DEditor::_add_environment_to_scene), varray(false));
 		environ_vb->add_spacer();
 		environ_vb->add_child(environ_add_to_scene);
 
@@ -7477,7 +7532,7 @@ void EditorNode3DGizmoPlugin::create_handle_material(const String &p_name, bool 
 
 	handle_material->set_shading_mode(StandardMaterial3D::SHADING_MODE_UNSHADED);
 	handle_material->set_flag(StandardMaterial3D::FLAG_USE_POINT_SIZE, true);
-	Ref<Texture2D> handle_t = p_icon != nullptr ? p_icon : Node3DEditor::get_singleton()->get_theme_icon("Editor3DHandle", "EditorIcons");
+	Ref<Texture2D> handle_t = p_icon != nullptr ? p_icon : Node3DEditor::get_singleton()->get_theme_icon(SNAME("Editor3DHandle"), SNAME("EditorIcons"));
 	handle_material->set_point_size(handle_t->get_width());
 	handle_material->set_texture(StandardMaterial3D::TEXTURE_ALBEDO, handle_t);
 	handle_material->set_albedo(Color(1, 1, 1));

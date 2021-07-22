@@ -44,13 +44,13 @@
 #include "core/variant/callable_bind.h"
 #include "core/variant/variant.h"
 
-#define VARIANT_ARG_LIST const Variant &p_arg1 = Variant(), const Variant &p_arg2 = Variant(), const Variant &p_arg3 = Variant(), const Variant &p_arg4 = Variant(), const Variant &p_arg5 = Variant()
-#define VARIANT_ARG_PASS p_arg1, p_arg2, p_arg3, p_arg4, p_arg5
-#define VARIANT_ARG_DECLARE const Variant &p_arg1, const Variant &p_arg2, const Variant &p_arg3, const Variant &p_arg4, const Variant &p_arg5
-#define VARIANT_ARG_MAX 5
-#define VARIANT_ARGPTRS const Variant *argptr[5] = { &p_arg1, &p_arg2, &p_arg3, &p_arg4, &p_arg5 };
-#define VARIANT_ARGPTRS_PASS *argptr[0], *argptr[1], *argptr[2], *argptr[3], *argptr[4]
-#define VARIANT_ARGS_FROM_ARRAY(m_arr) m_arr[0], m_arr[1], m_arr[2], m_arr[3], m_arr[4]
+#define VARIANT_ARG_LIST const Variant &p_arg1 = Variant(), const Variant &p_arg2 = Variant(), const Variant &p_arg3 = Variant(), const Variant &p_arg4 = Variant(), const Variant &p_arg5 = Variant(), const Variant &p_arg6 = Variant(), const Variant &p_arg7 = Variant(), const Variant &p_arg8 = Variant()
+#define VARIANT_ARG_PASS p_arg1, p_arg2, p_arg3, p_arg4, p_arg5, p_arg6, p_arg7, p_arg8
+#define VARIANT_ARG_DECLARE const Variant &p_arg1, const Variant &p_arg2, const Variant &p_arg3, const Variant &p_arg4, const Variant &p_arg5, const Variant &p_arg6, const Variant &p_arg7, const Variant &p_arg8
+#define VARIANT_ARG_MAX 8
+#define VARIANT_ARGPTRS const Variant *argptr[8] = { &p_arg1, &p_arg2, &p_arg3, &p_arg4, &p_arg5, &p_arg6, &p_arg7, &p_arg8 };
+#define VARIANT_ARGPTRS_PASS *argptr[0], *argptr[1], *argptr[2], *argptr[3], *argptr[4], *argptr[5], *argptr[6]], *argptr[7]
+#define VARIANT_ARGS_FROM_ARRAY(m_arr) m_arr[0], m_arr[1], m_arr[2], m_arr[3], m_arr[4], m_arr[5], m_arr[6], m_arr[7]
 
 /**
 @author Juan Linietsky <reduzio@gmail.com>
@@ -60,6 +60,7 @@ enum PropertyHint {
 	PROPERTY_HINT_NONE, ///< no hint provided.
 	PROPERTY_HINT_RANGE, ///< hint_text = "min,max[,step][,or_greater][,or_lesser][,noslider][,radians][,degrees][,exp][,suffix:<keyword>] range.
 	PROPERTY_HINT_ENUM, ///< hint_text= "val1,val2,val3,etc"
+	PROPERTY_HINT_ENUM_SUGGESTION, ///< hint_text= "val1,val2,val3,etc"
 	PROPERTY_HINT_EXP_EASING, /// exponential easing function (Math::ease) use "attenuation" hint string to revert (flip h), "full" to also include in/out. (ie: "attenuation,inout")
 	PROPERTY_HINT_LENGTH, ///< hint_text= "length" (as integer)
 	PROPERTY_HINT_KEY_ACCEL, ///< hint_text= "length" (as integer)
@@ -480,10 +481,6 @@ public:
 	};
 
 private:
-	enum {
-		MAX_SCRIPT_INSTANCE_BINDINGS = 8
-	};
-
 #ifdef DEBUG_ENABLED
 	friend struct _ObjectDebugLock;
 #endif
@@ -542,12 +539,35 @@ private:
 
 	friend class RefCounted;
 	bool type_is_reference = false;
-	SafeNumeric<uint32_t> instance_binding_count;
-	void *_script_instance_bindings[MAX_SCRIPT_INSTANCE_BINDINGS];
+
+	std::mutex _instance_binding_mutex;
+	struct InstanceBinding {
+		void *binding;
+		void *token;
+		GDNativeInstanceBindingFreeCallback free_callback = nullptr;
+		GDNativeInstanceBindingReferenceCallback reference_callback = nullptr;
+	};
+	InstanceBinding *_instance_bindings = nullptr;
+	uint32_t _instance_binding_count = 0;
 
 	Object(bool p_reference);
 
 protected:
+	_FORCE_INLINE_ bool _instance_binding_reference(bool p_reference) {
+		bool can_die = true;
+		if (_instance_bindings) {
+			_instance_binding_mutex.lock();
+			for (uint32_t i = 0; i < _instance_binding_count; i++) {
+				if (_instance_bindings[i].reference_callback) {
+					if (!_instance_bindings[i].reference_callback(_instance_bindings[i].token, _instance_bindings[i].binding, p_reference)) {
+						can_die = false;
+					}
+				}
+			}
+			_instance_binding_mutex.unlock();
+		}
+		return can_die;
+	}
 	friend class NativeExtensionMethodBind;
 	_ALWAYS_INLINE_ const ObjectNativeExtension *_get_extension() const { return _extension; }
 	_ALWAYS_INLINE_ GDExtensionClassInstancePtr _get_extension_instance() const { return _extension_instance; }
@@ -784,10 +804,10 @@ public:
 
 #endif
 
-	//used by script languages to store binding data
-	void *get_script_instance_binding(int p_script_language_index);
-	bool has_script_instance_binding(int p_script_language_index);
-	void set_script_instance_binding(int p_script_language_index, void *p_data);
+	// Used by script languages to store binding data.
+	void *get_instance_binding(void *p_token, const GDNativeInstanceBindingCallbacks *p_callbacks);
+	// Used on creation by binding only.
+	void set_instance_binding(void *p_token, void *p_binding, const GDNativeInstanceBindingCallbacks *p_callbacks);
 
 	void clear_internal_resource_paths();
 

@@ -506,9 +506,9 @@ Error VariantParser::parse_value(Token &token, Variant &value, Stream *p_stream,
 		} else if (id == "null" || id == "nil") {
 			value = Variant();
 		} else if (id == "inf") {
-			value = Math_INF;
+			value = INFINITY;
 		} else if (id == "nan") {
-			value = Math_NAN;
+			value = NAN;
 		} else if (id == "Vector2") {
 			Vector<real_t> args;
 			Error err = _parse_construct<real_t>(p_stream, args, line, r_err_str);
@@ -1204,16 +1204,32 @@ Error VariantParser::_parse_tag(Token &token, Stream *p_stream, int &line, Strin
 		r_tag.name = "";
 		r_tag.fields.clear();
 
-		while (true) {
-			char32_t c = p_stream->get_char();
-			if (p_stream->is_eof()) {
-				r_err_str = "Unexpected EOF while parsing simple tag";
-				return ERR_PARSE_ERROR;
+		if (p_stream->is_utf8()) {
+			CharString cs;
+			while (true) {
+				char c = p_stream->get_char();
+				if (p_stream->is_eof()) {
+					r_err_str = "Unexpected EOF while parsing simple tag";
+					return ERR_PARSE_ERROR;
+				}
+				if (c == ']') {
+					break;
+				}
+				cs += c;
 			}
-			if (c == ']') {
-				break;
+			r_tag.name.parse_utf8(cs.get_data(), cs.length());
+		} else {
+			while (true) {
+				char32_t c = p_stream->get_char();
+				if (p_stream->is_eof()) {
+					r_err_str = "Unexpected EOF while parsing simple tag";
+					return ERR_PARSE_ERROR;
+				}
+				if (c == ']') {
+					break;
+				}
+				r_tag.name += String::chr(c);
 			}
-			r_tag.name += String::chr(c);
 		}
 
 		r_tag.name = r_tag.name.strip_edges();

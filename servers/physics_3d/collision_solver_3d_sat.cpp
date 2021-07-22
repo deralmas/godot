@@ -629,9 +629,7 @@ public:
 	_FORCE_INLINE_ bool test_axis(const Vector3 &p_axis, bool p_directional = false) {
 		Vector3 axis = p_axis;
 
-		if (Math::abs(axis.x) < CMP_EPSILON &&
-				Math::abs(axis.y) < CMP_EPSILON &&
-				Math::abs(axis.z) < CMP_EPSILON) {
+		if (axis.is_equal_approx(Vector3())) {
 			// strange case, try an upwards separator
 			axis = Vector3(0.0, 1.0, 0.0);
 		}
@@ -1024,7 +1022,7 @@ static void _collision_sphere_face(const Shape3DSW *p_a, const Transform3D &p_tr
 			n1 *= -1.0;
 		}
 
-		if (!separator.test_axis(n1.normalized(), !face_B->backface_collision)) {
+		if (!separator.test_axis(n1.normalized())) {
 			return;
 		}
 
@@ -1035,7 +1033,7 @@ static void _collision_sphere_face(const Shape3DSW *p_a, const Transform3D &p_tr
 			axis *= -1.0;
 		}
 
-		if (!separator.test_axis(axis, !face_B->backface_collision)) {
+		if (!separator.test_axis(axis)) {
 			return;
 		}
 	}
@@ -1493,7 +1491,7 @@ static void _collision_box_face(const Shape3DSW *p_a, const Transform3D &p_trans
 			axis *= -1.0;
 		}
 
-		if (!separator.test_axis(axis, !face_B->backface_collision)) {
+		if (!separator.test_axis(axis)) {
 			return;
 		}
 	}
@@ -1509,7 +1507,7 @@ static void _collision_box_face(const Shape3DSW *p_a, const Transform3D &p_trans
 				axis *= -1.0;
 			}
 
-			if (!separator.test_axis(axis, !face_B->backface_collision)) {
+			if (!separator.test_axis(axis)) {
 				return;
 			}
 		}
@@ -1533,7 +1531,7 @@ static void _collision_box_face(const Shape3DSW *p_a, const Transform3D &p_trans
 				axis_ab *= -1.0;
 			}
 
-			if (!separator.test_axis(axis_ab.normalized(), !face_B->backface_collision)) {
+			if (!separator.test_axis(axis_ab.normalized())) {
 				return;
 			}
 
@@ -1548,7 +1546,7 @@ static void _collision_box_face(const Shape3DSW *p_a, const Transform3D &p_trans
 					axis *= -1.0;
 				}
 
-				if (!separator.test_axis(axis, !face_B->backface_collision)) {
+				if (!separator.test_axis(axis)) {
 					return;
 				}
 			}
@@ -1578,7 +1576,7 @@ static void _collision_box_face(const Shape3DSW *p_a, const Transform3D &p_trans
 							axis *= -1.0;
 						}
 
-						if (!separator.test_axis(axis, !face_B->backface_collision)) {
+						if (!separator.test_axis(axis)) {
 							return;
 						}
 					}
@@ -1812,7 +1810,7 @@ static void _collision_capsule_face(const Shape3DSW *p_a, const Transform3D &p_t
 			axis *= -1.0;
 		}
 
-		if (!separator.test_axis(axis, !face_B->backface_collision)) {
+		if (!separator.test_axis(axis)) {
 			return;
 		}
 
@@ -1821,7 +1819,7 @@ static void _collision_capsule_face(const Shape3DSW *p_a, const Transform3D &p_t
 			dir_axis *= -1.0;
 		}
 
-		if (!separator.test_axis(dir_axis, !face_B->backface_collision)) {
+		if (!separator.test_axis(dir_axis)) {
 			return;
 		}
 
@@ -1834,7 +1832,7 @@ static void _collision_capsule_face(const Shape3DSW *p_a, const Transform3D &p_t
 				n1 *= -1.0;
 			}
 
-			if (!separator.test_axis(n1.normalized(), !face_B->backface_collision)) {
+			if (!separator.test_axis(n1.normalized())) {
 				return;
 			}
 
@@ -1845,7 +1843,7 @@ static void _collision_capsule_face(const Shape3DSW *p_a, const Transform3D &p_t
 				axis *= -1.0;
 			}
 
-			if (!separator.test_axis(axis.normalized(), !face_B->backface_collision)) {
+			if (!separator.test_axis(axis.normalized())) {
 				return;
 			}
 		}
@@ -1955,7 +1953,7 @@ static void _collision_cylinder_face(const Shape3DSW *p_a, const Transform3D &p_
 	}
 
 	// Cylinder end caps.
-	if (!separator.test_axis(cyl_axis, !face_B->backface_collision)) {
+	if (!separator.test_axis(cyl_axis)) {
 		return;
 	}
 
@@ -1971,7 +1969,7 @@ static void _collision_cylinder_face(const Shape3DSW *p_a, const Transform3D &p_
 			axis *= -1.0;
 		}
 
-		if (!separator.test_axis(axis.normalized(), !face_B->backface_collision)) {
+		if (!separator.test_axis(axis.normalized())) {
 			return;
 		}
 	}
@@ -1984,7 +1982,7 @@ static void _collision_cylinder_face(const Shape3DSW *p_a, const Transform3D &p_
 			axis *= -1.0;
 		}
 
-		if (!separator.test_axis(axis, !face_B->backface_collision)) {
+		if (!separator.test_axis(axis)) {
 			return;
 		}
 	}
@@ -2021,7 +2019,7 @@ static void _collision_cylinder_face(const Shape3DSW *p_a, const Transform3D &p_
 				axis *= -1.0;
 			}
 
-			if (!separator.test_axis(axis.normalized(), !face_B->backface_collision)) {
+			if (!separator.test_axis(axis.normalized())) {
 				return;
 			}
 		}
@@ -2175,7 +2173,7 @@ static void _collision_convex_polygon_face(const Shape3DSW *p_a, const Transform
 			axis *= -1.0;
 		}
 
-		if (!separator.test_axis(axis, !face_B->backface_collision)) {
+		if (!separator.test_axis(axis)) {
 			return;
 		}
 	}
@@ -2192,7 +2190,7 @@ static void _collision_convex_polygon_face(const Shape3DSW *p_a, const Transform
 				axis *= -1.0;
 			}
 
-			if (!separator.test_axis(axis, !face_B->backface_collision)) {
+			if (!separator.test_axis(axis)) {
 				return;
 			}
 		}
@@ -2209,7 +2207,7 @@ static void _collision_convex_polygon_face(const Shape3DSW *p_a, const Transform
 					axis *= -1.0;
 				}
 
-				if (!separator.test_axis(axis, !face_B->backface_collision)) {
+				if (!separator.test_axis(axis)) {
 					return;
 				}
 			}
@@ -2229,7 +2227,7 @@ static void _collision_convex_polygon_face(const Shape3DSW *p_a, const Transform
 					axis *= -1.0;
 				}
 
-				if (!separator.test_axis(axis, !face_B->backface_collision)) {
+				if (!separator.test_axis(axis)) {
 					return;
 				}
 			}
@@ -2248,7 +2246,7 @@ static void _collision_convex_polygon_face(const Shape3DSW *p_a, const Transform
 					axis *= -1.0;
 				}
 
-				if (!separator.test_axis(axis, !face_B->backface_collision)) {
+				if (!separator.test_axis(axis)) {
 					return;
 				}
 			}

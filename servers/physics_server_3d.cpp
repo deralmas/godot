@@ -365,38 +365,93 @@ void PhysicsDirectSpaceState3D::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_rest_info", "shape"), &PhysicsDirectSpaceState3D::_get_rest_info);
 }
 
-int PhysicsShapeQueryResult3D::get_result_count() const {
-	return result.size();
+///////////////////////////////
+
+Vector3 PhysicsTestMotionResult3D::get_motion() const {
+	return result.motion;
 }
 
-RID PhysicsShapeQueryResult3D::get_result_rid(int p_idx) const {
-	return result[p_idx].rid;
+Vector3 PhysicsTestMotionResult3D::get_motion_remainder() const {
+	return result.remainder;
 }
 
-ObjectID PhysicsShapeQueryResult3D::get_result_object_id(int p_idx) const {
-	return result[p_idx].collider_id;
+Vector3 PhysicsTestMotionResult3D::get_collision_point() const {
+	return result.collision_point;
 }
 
-Object *PhysicsShapeQueryResult3D::get_result_object(int p_idx) const {
-	return result[p_idx].collider;
+Vector3 PhysicsTestMotionResult3D::get_collision_normal() const {
+	return result.collision_normal;
 }
 
-int PhysicsShapeQueryResult3D::get_result_object_shape(int p_idx) const {
-	return result[p_idx].shape;
+Vector3 PhysicsTestMotionResult3D::get_collider_velocity() const {
+	return result.collider_velocity;
 }
 
-PhysicsShapeQueryResult3D::PhysicsShapeQueryResult3D() {
+ObjectID PhysicsTestMotionResult3D::get_collider_id() const {
+	return result.collider_id;
 }
 
-void PhysicsShapeQueryResult3D::_bind_methods() {
-	ClassDB::bind_method(D_METHOD("get_result_count"), &PhysicsShapeQueryResult3D::get_result_count);
-	ClassDB::bind_method(D_METHOD("get_result_rid", "idx"), &PhysicsShapeQueryResult3D::get_result_rid);
-	ClassDB::bind_method(D_METHOD("get_result_object_id", "idx"), &PhysicsShapeQueryResult3D::get_result_object_id);
-	ClassDB::bind_method(D_METHOD("get_result_object", "idx"), &PhysicsShapeQueryResult3D::get_result_object);
-	ClassDB::bind_method(D_METHOD("get_result_object_shape", "idx"), &PhysicsShapeQueryResult3D::get_result_object_shape);
+RID PhysicsTestMotionResult3D::get_collider_rid() const {
+	return result.collider;
+}
+
+Object *PhysicsTestMotionResult3D::get_collider() const {
+	return ObjectDB::get_instance(result.collider_id);
+}
+
+int PhysicsTestMotionResult3D::get_collider_shape() const {
+	return result.collider_shape;
+}
+
+real_t PhysicsTestMotionResult3D::get_collision_depth() const {
+	return result.collision_depth;
+}
+
+real_t PhysicsTestMotionResult3D::get_collision_safe_fraction() const {
+	return result.collision_safe_fraction;
+}
+
+real_t PhysicsTestMotionResult3D::get_collision_unsafe_fraction() const {
+	return result.collision_unsafe_fraction;
+}
+
+void PhysicsTestMotionResult3D::_bind_methods() {
+	ClassDB::bind_method(D_METHOD("get_motion"), &PhysicsTestMotionResult3D::get_motion);
+	ClassDB::bind_method(D_METHOD("get_motion_remainder"), &PhysicsTestMotionResult3D::get_motion_remainder);
+	ClassDB::bind_method(D_METHOD("get_collision_point"), &PhysicsTestMotionResult3D::get_collision_point);
+	ClassDB::bind_method(D_METHOD("get_collision_normal"), &PhysicsTestMotionResult3D::get_collision_normal);
+	ClassDB::bind_method(D_METHOD("get_collider_velocity"), &PhysicsTestMotionResult3D::get_collider_velocity);
+	ClassDB::bind_method(D_METHOD("get_collider_id"), &PhysicsTestMotionResult3D::get_collider_id);
+	ClassDB::bind_method(D_METHOD("get_collider_rid"), &PhysicsTestMotionResult3D::get_collider_rid);
+	ClassDB::bind_method(D_METHOD("get_collider"), &PhysicsTestMotionResult3D::get_collider);
+	ClassDB::bind_method(D_METHOD("get_collider_shape"), &PhysicsTestMotionResult3D::get_collider_shape);
+	ClassDB::bind_method(D_METHOD("get_collision_depth"), &PhysicsTestMotionResult3D::get_collision_depth);
+	ClassDB::bind_method(D_METHOD("get_collision_safe_fraction"), &PhysicsTestMotionResult3D::get_collision_safe_fraction);
+	ClassDB::bind_method(D_METHOD("get_collision_unsafe_fraction"), &PhysicsTestMotionResult3D::get_collision_unsafe_fraction);
+
+	ADD_PROPERTY(PropertyInfo(Variant::VECTOR3, "motion"), "", "get_motion");
+	ADD_PROPERTY(PropertyInfo(Variant::VECTOR3, "motion_remainder"), "", "get_motion_remainder");
+	ADD_PROPERTY(PropertyInfo(Variant::VECTOR3, "collision_point"), "", "get_collision_point");
+	ADD_PROPERTY(PropertyInfo(Variant::VECTOR3, "collision_normal"), "", "get_collision_normal");
+	ADD_PROPERTY(PropertyInfo(Variant::VECTOR3, "collider_velocity"), "", "get_collider_velocity");
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "collider_id", PROPERTY_HINT_OBJECT_ID), "", "get_collider_id");
+	ADD_PROPERTY(PropertyInfo(Variant::RID, "collider_rid"), "", "get_collider_rid");
+	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "collider"), "", "get_collider");
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "collider_shape"), "", "get_collider_shape");
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "collision_depth"), "", "get_collision_depth");
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "collision_safe_fraction"), "", "get_collision_safe_fraction");
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "collision_unsafe_fraction"), "", "get_collision_unsafe_fraction");
 }
 
 ///////////////////////////////////////
+
+bool PhysicsServer3D::_body_test_motion(RID p_body, const Transform3D &p_from, const Vector3 &p_motion, bool p_infinite_inertia, real_t p_margin, const Ref<PhysicsTestMotionResult3D> &p_result) {
+	MotionResult *r = nullptr;
+	if (p_result.is_valid()) {
+		r = p_result->get_result_ptr();
+	}
+	return body_test_motion(p_body, p_from, p_motion, p_infinite_inertia, p_margin, r);
+}
 
 RID PhysicsServer3D::shape_create(ShapeType p_shape) {
 	switch (p_shape) {
@@ -551,6 +606,8 @@ void PhysicsServer3D::_bind_methods() {
 
 	ClassDB::bind_method(D_METHOD("body_set_ray_pickable", "body", "enable"), &PhysicsServer3D::body_set_ray_pickable);
 
+	ClassDB::bind_method(D_METHOD("body_test_motion", "body", "from", "motion", "infinite_inertia", "margin", "result"), &PhysicsServer3D::_body_test_motion, DEFVAL(0.001), DEFVAL(Variant()));
+
 	ClassDB::bind_method(D_METHOD("body_get_direct_state", "body"), &PhysicsServer3D::body_get_direct_state);
 
 	/* SOFT BODY API */
@@ -682,6 +739,8 @@ void PhysicsServer3D::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("free_rid", "rid"), &PhysicsServer3D::free);
 
 	ClassDB::bind_method(D_METHOD("set_active", "active"), &PhysicsServer3D::set_active);
+
+	ClassDB::bind_method(D_METHOD("set_collision_iterations", "iterations"), &PhysicsServer3D::set_collision_iterations);
 
 	ClassDB::bind_method(D_METHOD("get_process_info", "process_info"), &PhysicsServer3D::get_process_info);
 

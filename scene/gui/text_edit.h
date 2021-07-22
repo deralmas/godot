@@ -44,8 +44,8 @@ class TextEdit : public Control {
 public:
 	enum GutterType {
 		GUTTER_TYPE_STRING,
-		GUTTER_TPYE_ICON,
-		GUTTER_TPYE_CUSTOM
+		GUTTER_TYPE_ICON,
+		GUTTER_TYPE_CUSTOM
 	};
 
 	enum SelectionMode {
@@ -258,7 +258,6 @@ private:
 	uint32_t version = 0;
 	uint32_t saved_version = 0;
 
-	int max_chars = 0;
 	bool readonly = true; // Initialise to opposite first, so we get past the early-out in set_readonly.
 
 	Timer *caret_blink_timer;
@@ -337,8 +336,6 @@ private:
 	bool shortcut_keys_enabled = true;
 	bool virtual_keyboard_enabled = true;
 
-	void _generate_context_menu();
-
 	int get_visible_rows() const;
 	int get_total_visible_rows() const;
 
@@ -411,9 +408,11 @@ private:
 
 	Dictionary _search_bind(const String &p_key, uint32_t p_search_flags, int p_from_line, int p_from_column) const;
 
-	PopupMenu *menu;
-	PopupMenu *menu_dir;
-	PopupMenu *menu_ctl;
+	PopupMenu *menu = nullptr;
+	PopupMenu *menu_dir = nullptr;
+	PopupMenu *menu_ctl = nullptr;
+
+	void _ensure_menu();
 
 	void _clear();
 
@@ -678,9 +677,6 @@ public:
 	void set_readonly(bool p_readonly);
 	bool is_readonly() const;
 
-	void set_max_chars(int p_max_chars);
-	int get_max_chars() const;
-
 	void set_wrap_enabled(bool p_wrap_enabled);
 	bool is_wrap_enabled() const;
 	bool line_wraps(int line) const;
@@ -785,6 +781,7 @@ public:
 	void set_virtual_keyboard_enabled(bool p_enable);
 	bool is_virtual_keyboard_enabled() const;
 
+	bool is_menu_visible() const;
 	PopupMenu *get_menu() const;
 
 	String get_text_for_lookup_completion();

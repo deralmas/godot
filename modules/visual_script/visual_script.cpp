@@ -46,7 +46,7 @@ bool VisualScriptNode::is_breakpoint() const {
 }
 
 void VisualScriptNode::ports_changed_notify() {
-	emit_signal("ports_changed");
+	emit_signal(SNAME("ports_changed"));
 }
 
 void VisualScriptNode::set_default_input_value(int p_port, const Variant &p_value) {
@@ -264,7 +264,7 @@ void VisualScript::_node_ports_changed(int p_id) {
 
 #ifdef TOOLS_ENABLED
 	set_edited(true); // Something changed, let's set as edited.
-	emit_signal("node_ports_changed", p_id);
+	emit_signal(SNAME("node_ports_changed"), p_id);
 #endif
 }
 
@@ -1025,7 +1025,7 @@ void VisualScript::_set_data(const Dictionary &p_data) {
 					MultiplayerAPI::RPCConfig nd;
 					nd.name = E->get();
 					nd.rpc_mode = vsf->get_rpc_mode();
-					nd.transfer_mode = NetworkedMultiplayerPeer::TRANSFER_MODE_RELIABLE; // TODO
+					nd.transfer_mode = MultiplayerPeer::TRANSFER_MODE_RELIABLE; // TODO
 					if (rpc_functions.find(nd) == -1) {
 						rpc_functions.push_back(nd);
 					}
