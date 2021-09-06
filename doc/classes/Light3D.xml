@@ -12,21 +12,16 @@
 	</tutorials>
 	<methods>
 		<method name="get_param" qualifiers="const">
-			<return type="float">
-			</return>
-			<argument index="0" name="param" type="int" enum="Light3D.Param">
-			</argument>
+			<return type="float" />
+			<argument index="0" name="param" type="int" enum="Light3D.Param" />
 			<description>
 				Returns the value of the specified [enum Light3D.Param] parameter.
 			</description>
 		</method>
 		<method name="set_param">
-			<return type="void">
-			</return>
-			<argument index="0" name="param" type="int" enum="Light3D.Param">
-			</argument>
-			<argument index="1" name="value" type="float">
-			</argument>
+			<return type="void" />
+			<argument index="0" name="param" type="int" enum="Light3D.Param" />
+			<argument index="1" name="value" type="float" />
 			<description>
 				Sets the value of the specified [enum Light3D.Param] parameter.
 			</description>
@@ -66,7 +61,7 @@
 		<member name="light_specular" type="float" setter="set_param" getter="get_param" default="0.5">
 			The intensity of the specular blob in objects affected by the light. At [code]0[/code], the light becomes a pure diffuse light. When not baking emission, this can be used to avoid unrealistic reflections when placing lights above an emissive surface.
 		</member>
-		<member name="shadow_bias" type="float" setter="set_param" getter="get_param" default="0.1">
+		<member name="shadow_bias" type="float" setter="set_param" getter="get_param" default="0.2">
 			Used to adjust shadow appearance. Too small a value results in self-shadowing ("shadow acne"), while too large a value causes shadows to separate from casters ("peter-panning"). Adjust as needed.
 		</member>
 		<member name="shadow_blur" type="float" setter="set_param" getter="get_param" default="1.0">
@@ -80,7 +75,7 @@
 		</member>
 		<member name="shadow_fog_fade" type="float" setter="set_param" getter="get_param" default="0.1">
 		</member>
-		<member name="shadow_normal_bias" type="float" setter="set_param" getter="get_param" default="2.0">
+		<member name="shadow_normal_bias" type="float" setter="set_param" getter="get_param" default="1.0">
 			Offsets the lookup into the shadow map by the object's normal. This can be used to reduce self-shadowing artifacts without using [member shadow_bias]. In practice, this value should be tweaked along with [member shadow_bias] to reduce artifacts as much as possible.
 		</member>
 		<member name="shadow_reverse_cull_face" type="bool" setter="set_shadow_reverse_cull_face" getter="get_shadow_reverse_cull_face" default="false">

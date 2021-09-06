@@ -150,7 +150,7 @@ void PluginConfigDialog::_on_required_text_changed(const String &) {
 	if (script_edit->get_text().get_extension() != ext) {
 		is_valid = false;
 		script_validation->set_texture(invalid_icon);
-		script_validation->set_tooltip(vformat(TTR("Script extension must match chosen langauge extension (.%s)."), ext));
+		script_validation->set_tooltip(vformat(TTR("Script extension must match chosen language extension (.%s)."), ext));
 	}
 	if (script_edit->get_text().get_basename().is_empty()) {
 		is_valid = false;
@@ -282,7 +282,7 @@ PluginConfigDialog::PluginConfigDialog() {
 
 	desc_edit = memnew(TextEdit);
 	desc_edit->set_custom_minimum_size(Size2(400, 80) * EDSCALE);
-	desc_edit->set_wrap_enabled(true);
+	desc_edit->set_line_wrapping_mode(TextEdit::LineWrappingMode::LINE_WRAPPING_BOUNDARY);
 	grid->add_child(desc_edit);
 
 	// Author

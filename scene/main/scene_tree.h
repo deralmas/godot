@@ -52,18 +52,22 @@ class Tween;
 class SceneTreeTimer : public RefCounted {
 	GDCLASS(SceneTreeTimer, RefCounted);
 
-	float time_left = 0.0;
+	double time_left = 0.0;
 	bool process_always = true;
+	bool ignore_time_scale = false;
 
 protected:
 	static void _bind_methods();
 
 public:
-	void set_time_left(float p_time);
-	float get_time_left() const;
+	void set_time_left(double p_time);
+	double get_time_left() const;
 
 	void set_process_always(bool p_process_always);
 	bool is_process_always();
+
+	void set_ignore_time_scale(bool p_ignore);
+	bool is_ignore_time_scale();
 
 	void release_connections();
 
@@ -87,8 +91,8 @@ private:
 	Window *root = nullptr;
 
 	uint64_t tree_version = 1;
-	float physics_process_time = 1.0;
-	float process_time = 1.0;
+	double physics_process_time = 1.0;
+	double process_time = 1.0;
 	bool accept_quit = true;
 	bool quit_on_go_back = true;
 
@@ -200,8 +204,14 @@ private:
 	void _main_window_close();
 	void _main_window_go_back();
 
+	enum CallInputType {
+		CALL_INPUT_TYPE_INPUT,
+		CALL_INPUT_TYPE_UNHANDLED_INPUT,
+		CALL_INPUT_TYPE_UNHANDLED_KEY_INPUT,
+	};
+
 	//used by viewport
-	void _call_input_pause(const StringName &p_group, const StringName &p_method, const Ref<InputEvent> &p_input, Viewport *p_viewport);
+	void _call_input_pause(const StringName &p_group, CallInputType p_call_type, const Ref<InputEvent> &p_input, Viewport *p_viewport);
 
 protected:
 	void _notification(int p_notification);
@@ -233,8 +243,8 @@ public:
 
 	virtual void initialize() override;
 
-	virtual bool physics_process(float p_time) override;
-	virtual bool process(float p_time) override;
+	virtual bool physics_process(double p_time) override;
+	virtual bool process(double p_time) override;
 
 	virtual void finalize() override;
 
@@ -243,8 +253,8 @@ public:
 
 	void quit(int p_exit_code = EXIT_SUCCESS);
 
-	_FORCE_INLINE_ float get_physics_process_time() const { return physics_process_time; }
-	_FORCE_INLINE_ float get_process_time() const { return process_time; }
+	_FORCE_INLINE_ double get_physics_process_time() const { return physics_process_time; }
+	_FORCE_INLINE_ double get_process_time() const { return process_time; }
 
 #ifdef TOOLS_ENABLED
 	bool is_node_being_edited(const Node *p_node) const;
@@ -313,7 +323,7 @@ public:
 	Error change_scene_to(const Ref<PackedScene> &p_scene);
 	Error reload_current_scene();
 
-	Ref<SceneTreeTimer> create_timer(float p_delay_sec, bool p_process_always = true);
+	Ref<SceneTreeTimer> create_timer(double p_delay_sec, bool p_process_always = true);
 	Ref<Tween> create_tween();
 	Array get_processed_tweens();
 

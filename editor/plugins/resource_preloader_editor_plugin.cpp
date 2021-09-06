@@ -35,9 +35,6 @@
 #include "editor/editor_scale.h"
 #include "editor/editor_settings.h"
 
-void ResourcePreloaderEditor::_gui_input(Ref<InputEvent> p_event) {
-}
-
 void ResourcePreloaderEditor::_notification(int p_what) {
 	if (p_what == NOTIFICATION_ENTER_TREE) {
 		load->set_icon(get_theme_icon(SNAME("Folder"), SNAME("EditorIcons")));
@@ -181,21 +178,21 @@ void ResourcePreloaderEditor::_update_library() {
 	preloader->get_resource_list(&rnames);
 
 	List<String> names;
-	for (List<StringName>::Element *E = rnames.front(); E; E = E->next()) {
-		names.push_back(E->get());
+	for (const StringName &E : rnames) {
+		names.push_back(E);
 	}
 
 	names.sort();
 
-	for (List<String>::Element *E = names.front(); E; E = E->next()) {
+	for (const String &E : names) {
 		TreeItem *ti = tree->create_item(root);
 		ti->set_cell_mode(0, TreeItem::CELL_MODE_STRING);
 		ti->set_editable(0, true);
 		ti->set_selectable(0, true);
-		ti->set_text(0, E->get());
-		ti->set_metadata(0, E->get());
+		ti->set_text(0, E);
+		ti->set_metadata(0, E);
 
-		RES r = preloader->get_resource(E->get());
+		RES r = preloader->get_resource(E);
 
 		ERR_CONTINUE(r.is_null());
 
@@ -335,7 +332,6 @@ void ResourcePreloaderEditor::drop_data_fw(const Point2 &p_point, const Variant 
 }
 
 void ResourcePreloaderEditor::_bind_methods() {
-	ClassDB::bind_method(D_METHOD("_gui_input"), &ResourcePreloaderEditor::_gui_input);
 	ClassDB::bind_method(D_METHOD("_update_library"), &ResourcePreloaderEditor::_update_library);
 	ClassDB::bind_method(D_METHOD("_remove_resource", "to_remove"), &ResourcePreloaderEditor::_remove_resource);
 

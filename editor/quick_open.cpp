@@ -118,6 +118,11 @@ void EditorQuickOpen::_update_search() {
 float EditorQuickOpen::_score_path(const String &p_search, const String &p_path) {
 	float score = 0.9f + .1f * (p_search.length() / (float)p_path.length());
 
+	// Exact match.
+	if (p_search == p_path) {
+		return 1.2f;
+	}
+
 	// Positive bias for matches close to the beginning of the file name.
 	String file = p_path.get_file();
 	int pos = file.findn(p_search);
@@ -125,14 +130,8 @@ float EditorQuickOpen::_score_path(const String &p_search, const String &p_path)
 		return score * (1.0f - 0.1f * (float(pos) / file.length()));
 	}
 
-	// Positive bias for matches close to the end of the path.
-	pos = p_path.rfindn(p_search);
-	if (pos != -1) {
-		return score * (0.8f - 0.1f * (float(p_path.length() - pos) / p_path.length()));
-	}
-
-	// Remaining results belong to the same class of results.
-	return score * 0.69f;
+	// Similarity
+	return p_path.to_lower().similarity(p_search.to_lower());
 }
 
 void EditorQuickOpen::_confirmed() {
@@ -165,7 +164,7 @@ void EditorQuickOpen::_sbox_input(const Ref<InputEvent> &p_ie) {
 			case KEY_DOWN:
 			case KEY_PAGEUP:
 			case KEY_PAGEDOWN: {
-				search_options->call("_gui_input", k);
+				search_options->gui_input(k);
 				search_box->accept_event();
 
 				if (allow_multi_select) {
@@ -185,6 +184,8 @@ void EditorQuickOpen::_sbox_input(const Ref<InputEvent> &p_ie) {
 					current->set_as_cursor(0);
 				}
 			} break;
+			default:
+				break;
 		}
 	}
 }

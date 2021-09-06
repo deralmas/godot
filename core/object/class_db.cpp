@@ -359,9 +359,9 @@ uint64_t ClassDB::get_api_hash(APIType p_api) {
 	//must be alphabetically sorted for hash to compute
 	names.sort_custom<StringName::AlphCompare>();
 
-	for (List<StringName>::Element *E = names.front(); E; E = E->next()) {
-		ClassInfo *t = classes.getptr(E->get());
-		ERR_FAIL_COND_V_MSG(!t, 0, "Cannot get class '" + String(E->get()) + "'.");
+	for (const StringName &E : names) {
+		ClassInfo *t = classes.getptr(E);
+		ERR_FAIL_COND_V_MSG(!t, 0, "Cannot get class '" + String(E) + "'.");
 		if (t->api != p_api || !t->exposed) {
 			continue;
 		}
@@ -388,8 +388,8 @@ uint64_t ClassDB::get_api_hash(APIType p_api) {
 
 			snames.sort_custom<StringName::AlphCompare>();
 
-			for (List<StringName>::Element *F = snames.front(); F; F = F->next()) {
-				MethodBind *mb = t->method_map[F->get()];
+			for (const StringName &F : snames) {
+				MethodBind *mb = t->method_map[F];
 				hash = hash_djb2_one_64(mb->get_name().hash(), hash);
 				hash = hash_djb2_one_64(mb->get_argument_count(), hash);
 				hash = hash_djb2_one_64(mb->get_argument_type(-1), hash); //return
@@ -426,9 +426,9 @@ uint64_t ClassDB::get_api_hash(APIType p_api) {
 
 			snames.sort_custom<StringName::AlphCompare>();
 
-			for (List<StringName>::Element *F = snames.front(); F; F = F->next()) {
-				hash = hash_djb2_one_64(F->get().hash(), hash);
-				hash = hash_djb2_one_64(t->constant_map[F->get()], hash);
+			for (const StringName &F : snames) {
+				hash = hash_djb2_one_64(F.hash(), hash);
+				hash = hash_djb2_one_64(t->constant_map[F], hash);
 			}
 		}
 
@@ -444,9 +444,9 @@ uint64_t ClassDB::get_api_hash(APIType p_api) {
 
 			snames.sort_custom<StringName::AlphCompare>();
 
-			for (List<StringName>::Element *F = snames.front(); F; F = F->next()) {
-				MethodInfo &mi = t->signal_map[F->get()];
-				hash = hash_djb2_one_64(F->get().hash(), hash);
+			for (const StringName &F : snames) {
+				MethodInfo &mi = t->signal_map[F];
+				hash = hash_djb2_one_64(F.hash(), hash);
 				for (int i = 0; i < mi.arguments.size(); i++) {
 					hash = hash_djb2_one_64(mi.arguments[i].type, hash);
 				}
@@ -465,23 +465,23 @@ uint64_t ClassDB::get_api_hash(APIType p_api) {
 
 			snames.sort_custom<StringName::AlphCompare>();
 
-			for (List<StringName>::Element *F = snames.front(); F; F = F->next()) {
-				PropertySetGet *psg = t->property_setget.getptr(F->get());
+			for (const StringName &F : snames) {
+				PropertySetGet *psg = t->property_setget.getptr(F);
 				ERR_FAIL_COND_V(!psg, 0);
 
-				hash = hash_djb2_one_64(F->get().hash(), hash);
+				hash = hash_djb2_one_64(F.hash(), hash);
 				hash = hash_djb2_one_64(psg->setter.hash(), hash);
 				hash = hash_djb2_one_64(psg->getter.hash(), hash);
 			}
 		}
 
 		//property list
-		for (List<PropertyInfo>::Element *F = t->property_list.front(); F; F = F->next()) {
-			hash = hash_djb2_one_64(F->get().name.hash(), hash);
-			hash = hash_djb2_one_64(F->get().type, hash);
-			hash = hash_djb2_one_64(F->get().hint, hash);
-			hash = hash_djb2_one_64(F->get().hint_string.hash(), hash);
-			hash = hash_djb2_one_64(F->get().usage, hash);
+		for (const PropertyInfo &F : t->property_list) {
+			hash = hash_djb2_one_64(F.name.hash(), hash);
+			hash = hash_djb2_one_64(F.type, hash);
+			hash = hash_djb2_one_64(F.hint, hash);
+			hash = hash_djb2_one_64(F.hint_string.hash(), hash);
+			hash = hash_djb2_one_64(F.usage, hash);
 		}
 	}
 
@@ -505,11 +505,12 @@ thread_local bool initializing_with_extension = false;
 thread_local ObjectNativeExtension *initializing_extension = nullptr;
 thread_local GDExtensionClassInstancePtr initializing_extension_instance = nullptr;
 
-void ClassDB::instance_get_native_extension_data(ObjectNativeExtension **r_extension, GDExtensionClassInstancePtr *r_extension_instance) {
+void ClassDB::instance_get_native_extension_data(ObjectNativeExtension **r_extension, GDExtensionClassInstancePtr *r_extension_instance, Object *p_base) {
 	if (initializing_with_extension) {
 		*r_extension = initializing_extension;
 		*r_extension_instance = initializing_extension_instance;
 		initializing_with_extension = false;
+		initializing_extension->set_object_instance(*r_extension_instance, p_base);
 	} else {
 		*r_extension = nullptr;
 		*r_extension_instance = nullptr;
@@ -619,16 +620,16 @@ void ClassDB::get_method_list(const StringName &p_class, List<MethodInfo> *p_met
 
 #ifdef DEBUG_METHODS_ENABLED
 
-		for (List<MethodInfo>::Element *E = type->virtual_methods.front(); E; E = E->next()) {
-			p_methods->push_back(E->get());
+		for (const MethodInfo &E : type->virtual_methods) {
+			p_methods->push_back(E);
 		}
 
-		for (List<StringName>::Element *E = type->method_order.front(); E; E = E->next()) {
-			if (p_exclude_from_properties && type->methods_in_properties.has(E->get())) {
+		for (const StringName &E : type->method_order) {
+			if (p_exclude_from_properties && type->methods_in_properties.has(E)) {
 				continue;
 			}
 
-			MethodBind *method = type->method_map.get(E->get());
+			MethodBind *method = type->method_map.get(E);
 			MethodInfo minfo = info_from_bind(method);
 
 			p_methods->push_back(minfo);
@@ -763,8 +764,8 @@ void ClassDB::get_integer_constant_list(const StringName &p_class, List<String> 
 
 	while (type) {
 #ifdef DEBUG_METHODS_ENABLED
-		for (List<StringName>::Element *E = type->constant_order.front(); E; E = E->next()) {
-			p_constants->push_back(E->get());
+		for (const StringName &E : type->constant_order) {
+			p_constants->push_back(E);
 		}
 #else
 		const StringName *K = nullptr;
@@ -889,6 +890,32 @@ void ClassDB::get_enum_constants(const StringName &p_class, const StringName &p_
 
 		type = type->inherits_ptr;
 	}
+}
+
+void ClassDB::set_method_error_return_values(const StringName &p_class, const StringName &p_method, const Vector<Error> &p_values) {
+	OBJTYPE_RLOCK;
+#ifdef DEBUG_METHODS_ENABLED
+	ClassInfo *type = classes.getptr(p_class);
+
+	ERR_FAIL_COND(!type);
+
+	type->method_error_values[p_method] = p_values;
+#endif
+}
+
+Vector<Error> ClassDB::get_method_error_return_values(const StringName &p_class, const StringName &p_method) {
+#ifdef DEBUG_METHODS_ENABLED
+	ClassInfo *type = classes.getptr(p_class);
+
+	ERR_FAIL_COND_V(!type, Vector<Error>());
+
+	if (!type->method_error_values.has(p_method)) {
+		return Vector<Error>();
+	}
+	return type->method_error_values[p_method];
+#else
+	return Vector<Error>();
+#endif
 }
 
 bool ClassDB::has_enum(const StringName &p_class, const StringName &p_name, bool p_no_inheritance) {
@@ -1067,19 +1094,34 @@ void ClassDB::set_property_default_value(const StringName &p_class, const String
 	default_values[p_class][p_name] = p_default;
 }
 
+void ClassDB::add_linked_property(const StringName &p_class, const String &p_property, const String &p_linked_property) {
+#ifdef TOOLS_ENABLED
+	OBJTYPE_WLOCK;
+	ClassInfo *type = classes.getptr(p_class);
+	ERR_FAIL_COND(!type);
+
+	ERR_FAIL_COND(!type->property_map.has(p_property));
+	ERR_FAIL_COND(!type->property_map.has(p_linked_property));
+
+	PropertyInfo &pinfo = type->property_map[p_property];
+	pinfo.linked_properties.push_back(p_linked_property);
+#endif
+}
+
 void ClassDB::get_property_list(const StringName &p_class, List<PropertyInfo> *p_list, bool p_no_inheritance, const Object *p_validator) {
 	OBJTYPE_RLOCK;
 
 	ClassInfo *type = classes.getptr(p_class);
 	ClassInfo *check = type;
 	while (check) {
-		for (List<PropertyInfo>::Element *E = check->property_list.front(); E; E = E->next()) {
+		for (const PropertyInfo &pi : check->property_list) {
 			if (p_validator) {
-				PropertyInfo pi = E->get();
-				p_validator->_validate_property(pi);
-				p_list->push_back(pi);
+				// Making a copy as we may modify it.
+				PropertyInfo pi_mut = pi;
+				p_validator->_validate_property(pi_mut);
+				p_list->push_back(pi_mut);
 			} else {
-				p_list->push_back(E->get());
+				p_list->push_back(pi);
 			}
 		}
 
@@ -1405,7 +1447,7 @@ MethodBind *ClassDB::bind_methodfi(uint32_t p_flags, MethodBind *p_bind, const c
 	return p_bind;
 }
 
-void ClassDB::add_virtual_method(const StringName &p_class, const MethodInfo &p_method, bool p_virtual) {
+void ClassDB::add_virtual_method(const StringName &p_class, const MethodInfo &p_method, bool p_virtual, const Vector<String> &p_arg_names, bool p_object_core) {
 	ERR_FAIL_COND_MSG(!classes.has(p_class), "Request for nonexistent class '" + p_class + "'.");
 
 	OBJTYPE_WLOCK;
@@ -1415,6 +1457,19 @@ void ClassDB::add_virtual_method(const StringName &p_class, const MethodInfo &p_
 	if (p_virtual) {
 		mi.flags |= METHOD_FLAG_VIRTUAL;
 	}
+	if (p_object_core) {
+		mi.flags |= METHOD_FLAG_OBJECT_CORE;
+	}
+	if (p_arg_names.size()) {
+		if (p_arg_names.size() != mi.arguments.size()) {
+			WARN_PRINT("Mismatch argument name count for virtual function: " + String(p_class) + "::" + p_method.name);
+		} else {
+			for (int i = 0; i < p_arg_names.size(); i++) {
+				mi.arguments[i].name = p_arg_names[i];
+			}
+		}
+	}
+
 	classes[p_class].virtual_methods.push_back(mi);
 	classes[p_class].virtual_methods_map[p_method.name] = mi;
 
@@ -1429,8 +1484,8 @@ void ClassDB::get_virtual_methods(const StringName &p_class, List<MethodInfo> *p
 	ClassInfo *type = classes.getptr(p_class);
 	ClassInfo *check = type;
 	while (check) {
-		for (List<MethodInfo>::Element *E = check->virtual_methods.front(); E; E = E->next()) {
-			p_methods->push_back(E->get());
+		for (const MethodInfo &E : check->virtual_methods) {
+			p_methods->push_back(E);
 		}
 
 		if (p_no_inheritance) {
@@ -1496,6 +1551,10 @@ void ClassDB::get_resource_base_extensions(List<String> *p_extensions) {
 	}
 }
 
+bool ClassDB::is_resource_extension(const StringName &p_extension) {
+	return resource_base_extensions.has(p_extension);
+}
+
 void ClassDB::get_extensions_for_type(const StringName &p_class, List<String> *p_extensions) {
 	const StringName *K = nullptr;
 
@@ -1530,11 +1589,11 @@ Variant ClassDB::class_get_default_property_value(const StringName &p_class, con
 		if (c) {
 			List<PropertyInfo> plist;
 			c->get_property_list(&plist);
-			for (List<PropertyInfo>::Element *E = plist.front(); E; E = E->next()) {
-				if (E->get().usage & (PROPERTY_USAGE_STORAGE | PROPERTY_USAGE_EDITOR)) {
-					if (!default_values[p_class].has(E->get().name)) {
-						Variant v = c->get(E->get().name);
-						default_values[p_class][E->get().name] = v;
+			for (const PropertyInfo &E : plist) {
+				if (E.usage & (PROPERTY_USAGE_STORAGE | PROPERTY_USAGE_EDITOR)) {
+					if (!default_values[p_class].has(E.name)) {
+						Variant v = c->get(E.name);
+						default_values[p_class][E.name] = v;
 					}
 				}
 			}
@@ -1587,7 +1646,7 @@ void ClassDB::register_extension_class(ObjectNativeExtension *p_extension) {
 	GLOBAL_LOCK_FUNCTION;
 
 	ERR_FAIL_COND_MSG(classes.has(p_extension->class_name), "Class already registered: " + String(p_extension->class_name));
-	ERR_FAIL_COND_MSG(classes.has(p_extension->parent_class_name), "Parent class name for extension class not found: " + String(p_extension->parent_class_name));
+	ERR_FAIL_COND_MSG(!classes.has(p_extension->parent_class_name), "Parent class name for extension class not found: " + String(p_extension->parent_class_name));
 
 	ClassInfo *parent = classes.getptr(p_extension->parent_class_name);
 
@@ -1599,6 +1658,7 @@ void ClassDB::register_extension_class(ObjectNativeExtension *p_extension) {
 	c.inherits = parent->name;
 	c.class_ptr = parent->class_ptr;
 	c.inherits_ptr = parent;
+	c.exposed = true;
 
 	classes[p_extension->class_name] = c;
 }

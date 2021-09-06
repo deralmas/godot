@@ -163,7 +163,7 @@ void VisualScriptFunction::_get_property_list(List<PropertyInfo> *p_list) const 
 		p_list->push_back(PropertyInfo(Variant::INT, "stack/size", PROPERTY_HINT_RANGE, "1,100000"));
 	}
 	p_list->push_back(PropertyInfo(Variant::BOOL, "stack/stackless"));
-	p_list->push_back(PropertyInfo(Variant::INT, "rpc/mode", PROPERTY_HINT_ENUM, "Disabled,Remote,Master,Puppet,Remote Sync,Master Sync,Puppet Sync"));
+	p_list->push_back(PropertyInfo(Variant::INT, "rpc/mode", PROPERTY_HINT_ENUM, "Disabled,Any,Authority"));
 }
 
 int VisualScriptFunction::get_output_sequence_port_count() const {
@@ -1306,12 +1306,12 @@ void VisualScriptVariableGet::_validate_property(PropertyInfo &property) const {
 		vs->get_variable_list(&vars);
 
 		String vhint;
-		for (List<StringName>::Element *E = vars.front(); E; E = E->next()) {
+		for (const StringName &E : vars) {
 			if (vhint != String()) {
 				vhint += ",";
 			}
 
-			vhint += E->get().operator String();
+			vhint += E.operator String();
 		}
 
 		property.hint = PROPERTY_HINT_ENUM;
@@ -1416,12 +1416,12 @@ void VisualScriptVariableSet::_validate_property(PropertyInfo &property) const {
 		vs->get_variable_list(&vars);
 
 		String vhint;
-		for (List<StringName>::Element *E = vars.front(); E; E = E->next()) {
+		for (const StringName &E : vars) {
 			if (vhint != String()) {
 				vhint += ",";
 			}
 
-			vhint += E->get().operator String();
+			vhint += E.operator String();
 		}
 
 		property.hint = PROPERTY_HINT_ENUM;
@@ -1944,8 +1944,8 @@ void VisualScriptClassConstant::set_base_type(const StringName &p_which) {
 	ClassDB::get_integer_constant_list(base_type, &constants, true);
 	if (constants.size() > 0) {
 		bool found_name = false;
-		for (List<String>::Element *E = constants.front(); E; E = E->next()) {
-			if (E->get() == name) {
+		for (const String &E : constants) {
+			if (E == name) {
 				found_name = true;
 				break;
 			}
@@ -1993,11 +1993,11 @@ void VisualScriptClassConstant::_validate_property(PropertyInfo &property) const
 		ClassDB::get_integer_constant_list(base_type, &constants, true);
 
 		property.hint_string = "";
-		for (List<String>::Element *E = constants.front(); E; E = E->next()) {
+		for (const String &E : constants) {
 			if (property.hint_string != String()) {
 				property.hint_string += ",";
 			}
-			property.hint_string += E->get();
+			property.hint_string += E;
 		}
 	}
 }
@@ -2078,8 +2078,8 @@ void VisualScriptBasicTypeConstant::set_basic_type(Variant::Type p_which) {
 	Variant::get_constants_for_type(type, &constants);
 	if (constants.size() > 0) {
 		bool found_name = false;
-		for (List<StringName>::Element *E = constants.front(); E; E = E->next()) {
-			if (E->get() == name) {
+		for (const StringName &E : constants) {
+			if (E == name) {
 				found_name = true;
 				break;
 			}
@@ -2131,11 +2131,11 @@ void VisualScriptBasicTypeConstant::_validate_property(PropertyInfo &property) c
 			return;
 		}
 		property.hint_string = "";
-		for (List<StringName>::Element *E = constants.front(); E; E = E->next()) {
+		for (const StringName &E : constants) {
 			if (property.hint_string != String()) {
 				property.hint_string += ",";
 			}
-			property.hint_string += String(E->get());
+			property.hint_string += String(E);
 		}
 	}
 }
@@ -2358,15 +2358,15 @@ void VisualScriptEngineSingleton::_validate_property(PropertyInfo &property) con
 
 	Engine::get_singleton()->get_singletons(&singletons);
 
-	for (List<Engine::Singleton>::Element *E = singletons.front(); E; E = E->next()) {
-		if (E->get().name == "VS" || E->get().name == "PS" || E->get().name == "PS2D" || E->get().name == "AS" || E->get().name == "TS" || E->get().name == "SS" || E->get().name == "SS2D") {
+	for (const Engine::Singleton &E : singletons) {
+		if (E.name == "VS" || E.name == "PS" || E.name == "PS2D" || E.name == "AS" || E.name == "TS" || E.name == "SS" || E.name == "SS2D") {
 			continue; //skip these, too simple named
 		}
 
 		if (cc != String()) {
 			cc += ",";
 		}
-		cc += E->get().name;
+		cc += E.name;
 	}
 
 	property.hint = PROPERTY_HINT_ENUM;
@@ -2825,36 +2825,41 @@ VisualScriptSelf::VisualScriptSelf() {
 //////////////////////////////////////////
 
 int VisualScriptCustomNode::get_output_sequence_port_count() const {
-	if (get_script_instance() && get_script_instance()->has_method("_get_output_sequence_port_count")) {
-		return get_script_instance()->call("_get_output_sequence_port_count");
+	int ret;
+	if (GDVIRTUAL_CALL(_get_output_sequence_port_count, ret)) {
+		return ret;
 	}
 	return 0;
 }
 
 bool VisualScriptCustomNode::has_input_sequence_port() const {
-	if (get_script_instance() && get_script_instance()->has_method("_has_input_sequence_port")) {
-		return get_script_instance()->call("_has_input_sequence_port");
+	bool ret;
+	if (GDVIRTUAL_CALL(_has_input_sequence_port, ret)) {
+		return ret;
 	}
 	return false;
 }
 
 int VisualScriptCustomNode::get_input_value_port_count() const {
-	if (get_script_instance() && get_script_instance()->has_method("_get_input_value_port_count")) {
-		return get_script_instance()->call("_get_input_value_port_count");
+	int ret;
+	if (GDVIRTUAL_CALL(_get_input_value_port_count, ret)) {
+		return ret;
 	}
 	return 0;
 }
 
 int VisualScriptCustomNode::get_output_value_port_count() const {
-	if (get_script_instance() && get_script_instance()->has_method("_get_output_value_port_count")) {
-		return get_script_instance()->call("_get_output_value_port_count");
+	int ret;
+	if (GDVIRTUAL_CALL(_get_output_value_port_count, ret)) {
+		return ret;
 	}
 	return 0;
 }
 
 String VisualScriptCustomNode::get_output_sequence_port_text(int p_port) const {
-	if (get_script_instance() && get_script_instance()->has_method("_get_output_sequence_port_text")) {
-		return get_script_instance()->call("_get_output_sequence_port_text", p_port);
+	String ret;
+	if (GDVIRTUAL_CALL(_get_output_sequence_port_text, p_port, ret)) {
+		return ret;
 	}
 
 	return String();
@@ -2862,34 +2867,61 @@ String VisualScriptCustomNode::get_output_sequence_port_text(int p_port) const {
 
 PropertyInfo VisualScriptCustomNode::get_input_value_port_info(int p_idx) const {
 	PropertyInfo info;
-	if (get_script_instance() && get_script_instance()->has_method("_get_input_value_port_type")) {
-		info.type = Variant::Type(int(get_script_instance()->call("_get_input_value_port_type", p_idx)));
+	{
+		int type;
+		if (GDVIRTUAL_CALL(_get_input_value_port_type, p_idx, type)) {
+			info.type = Variant::Type(type);
+		}
 	}
-	if (get_script_instance() && get_script_instance()->has_method("_get_input_value_port_name")) {
-		info.name = get_script_instance()->call("_get_input_value_port_name", p_idx);
+	{
+		String name;
+		if (GDVIRTUAL_CALL(_get_input_value_port_name, p_idx, name)) {
+			info.name = name;
+		}
 	}
-	if (get_script_instance() && get_script_instance()->has_method("_get_input_value_port_hint")) {
-		info.hint = PropertyHint(int(get_script_instance()->call("_get_input_value_port_hint", p_idx)));
+	{
+		int hint;
+		if (GDVIRTUAL_CALL(_get_input_value_port_hint, p_idx, hint)) {
+			info.hint = PropertyHint(hint);
+		}
 	}
-	if (get_script_instance() && get_script_instance()->has_method("_get_input_value_port_hint_string")) {
-		info.hint_string = get_script_instance()->call("_get_input_value_port_hint_string", p_idx);
+
+	{
+		String hint_string;
+		if (GDVIRTUAL_CALL(_get_input_value_port_hint_string, p_idx, hint_string)) {
+			info.hint_string = hint_string;
+		}
 	}
+
 	return info;
 }
 
 PropertyInfo VisualScriptCustomNode::get_output_value_port_info(int p_idx) const {
 	PropertyInfo info;
-	if (get_script_instance() && get_script_instance()->has_method("_get_output_value_port_type")) {
-		info.type = Variant::Type(int(get_script_instance()->call("_get_output_value_port_type", p_idx)));
+	{
+		int type;
+		if (GDVIRTUAL_CALL(_get_output_value_port_type, p_idx, type)) {
+			info.type = Variant::Type(type);
+		}
 	}
-	if (get_script_instance() && get_script_instance()->has_method("_get_output_value_port_name")) {
-		info.name = get_script_instance()->call("_get_output_value_port_name", p_idx);
+	{
+		String name;
+		if (GDVIRTUAL_CALL(_get_output_value_port_name, p_idx, name)) {
+			info.name = name;
+		}
 	}
-	if (get_script_instance() && get_script_instance()->has_method("_get_output_value_port_hint")) {
-		info.hint = PropertyHint(int(get_script_instance()->call("_get_output_value_port_hint", p_idx)));
+	{
+		int hint;
+		if (GDVIRTUAL_CALL(_get_output_value_port_hint, p_idx, hint)) {
+			info.hint = PropertyHint(hint);
+		}
 	}
-	if (get_script_instance() && get_script_instance()->has_method("_get_output_value_port_hint_string")) {
-		info.hint_string = get_script_instance()->call("_get_output_value_port_hint_string", p_idx);
+
+	{
+		String hint_string;
+		if (GDVIRTUAL_CALL(_get_output_value_port_hint_string, p_idx, hint_string)) {
+			info.hint_string = hint_string;
+		}
 	}
 	return info;
 }
@@ -2911,22 +2943,25 @@ VisualScriptCustomNode::TypeGuess VisualScriptCustomNode::guess_output_type(Type
 }
 
 String VisualScriptCustomNode::get_caption() const {
-	if (get_script_instance() && get_script_instance()->has_method("_get_caption")) {
-		return get_script_instance()->call("_get_caption");
+	String ret;
+	if (GDVIRTUAL_CALL(_get_caption, ret)) {
+		return ret;
 	}
 	return "CustomNode";
 }
 
 String VisualScriptCustomNode::get_text() const {
-	if (get_script_instance() && get_script_instance()->has_method("_get_text")) {
-		return get_script_instance()->call("_get_text");
+	String ret;
+	if (GDVIRTUAL_CALL(_get_text, ret)) {
+		return ret;
 	}
 	return "";
 }
 
 String VisualScriptCustomNode::get_category() const {
-	if (get_script_instance() && get_script_instance()->has_method("_get_category")) {
-		return get_script_instance()->call("_get_category");
+	String ret;
+	if (GDVIRTUAL_CALL(_get_category, ret)) {
+		return ret;
 	}
 	return "Custom";
 }
@@ -2941,14 +2976,7 @@ public:
 
 	virtual int get_working_memory_size() const { return work_mem_size; }
 	virtual int step(const Variant **p_inputs, Variant **p_outputs, StartMode p_start_mode, Variant *p_working_mem, Callable::CallError &r_error, String &r_error_str) {
-		if (node->get_script_instance()) {
-#ifdef DEBUG_ENABLED
-			if (!node->get_script_instance()->has_method(VisualScriptLanguage::singleton->_step)) {
-				r_error_str = RTR("Custom node has no _step() method, can't process graph.");
-				r_error.error = Callable::CallError::CALL_ERROR_INVALID_METHOD;
-				return 0;
-			}
-#endif
+		if (GDVIRTUAL_IS_OVERRIDDEN_PTR(node, _step)) {
 			Array in_values;
 			Array out_values;
 			Array work_mem;
@@ -2969,7 +2997,8 @@ public:
 
 			int ret_out;
 
-			Variant ret = node->get_script_instance()->call(VisualScriptLanguage::singleton->_step, in_values, out_values, p_start_mode, work_mem);
+			Variant ret;
+			GDVIRTUAL_CALL_PTR(node, _step, in_values, out_values, p_start_mode, work_mem, ret);
 			if (ret.get_type() == Variant::STRING) {
 				r_error_str = ret;
 				r_error.error = Callable::CallError::CALL_ERROR_INVALID_METHOD;
@@ -2995,6 +3024,9 @@ public:
 			}
 
 			return ret_out;
+		} else {
+			r_error_str = RTR("Custom node has no _step() method, can't process graph.");
+			r_error.error = Callable::CallError::CALL_ERROR_INVALID_METHOD;
 		}
 
 		return 0;
@@ -3008,11 +3040,8 @@ VisualScriptNodeInstance *VisualScriptCustomNode::instantiate(VisualScriptInstan
 	instance->in_count = get_input_value_port_count();
 	instance->out_count = get_output_value_port_count();
 
-	if (get_script_instance() && get_script_instance()->has_method("_get_working_memory_size")) {
-		instance->work_mem_size = get_script_instance()->call("_get_working_memory_size");
-	} else {
-		instance->work_mem_size = 0;
-	}
+	instance->work_mem_size = 0;
+	GDVIRTUAL_CALL(_get_working_memory_size, instance->work_mem_size);
 
 	return instance;
 }
@@ -3022,32 +3051,29 @@ void VisualScriptCustomNode::_script_changed() {
 }
 
 void VisualScriptCustomNode::_bind_methods() {
-	BIND_VMETHOD(MethodInfo(Variant::INT, "_get_output_sequence_port_count"));
-	BIND_VMETHOD(MethodInfo(Variant::BOOL, "_has_input_sequence_port"));
+	GDVIRTUAL_BIND(_get_output_sequence_port_count);
+	GDVIRTUAL_BIND(_has_input_sequence_port);
+	GDVIRTUAL_BIND(_get_output_sequence_port_text, "seq_idx");
 
-	BIND_VMETHOD(MethodInfo(Variant::STRING, "_get_output_sequence_port_text", PropertyInfo(Variant::INT, "idx")));
-	BIND_VMETHOD(MethodInfo(Variant::INT, "_get_input_value_port_count"));
-	BIND_VMETHOD(MethodInfo(Variant::INT, "_get_output_value_port_count"));
+	GDVIRTUAL_BIND(_get_input_value_port_count);
+	GDVIRTUAL_BIND(_get_input_value_port_type, "input_idx");
+	GDVIRTUAL_BIND(_get_input_value_port_name, "input_idx");
+	GDVIRTUAL_BIND(_get_input_value_port_hint, "input_idx");
+	GDVIRTUAL_BIND(_get_input_value_port_hint_string, "input_idx");
 
-	BIND_VMETHOD(MethodInfo(Variant::INT, "_get_input_value_port_type", PropertyInfo(Variant::INT, "idx")));
-	BIND_VMETHOD(MethodInfo(Variant::STRING, "_get_input_value_port_name", PropertyInfo(Variant::INT, "idx")));
-	BIND_VMETHOD(MethodInfo(Variant::INT, "_get_input_value_port_hint", PropertyInfo(Variant::INT, "idx")));
-	BIND_VMETHOD(MethodInfo(Variant::STRING, "_get_input_value_port_hint_string", PropertyInfo(Variant::INT, "idx")));
+	GDVIRTUAL_BIND(_get_output_value_port_count);
+	GDVIRTUAL_BIND(_get_output_value_port_type, "output_idx");
+	GDVIRTUAL_BIND(_get_output_value_port_name, "output_idx");
+	GDVIRTUAL_BIND(_get_output_value_port_hint, "output_idx");
+	GDVIRTUAL_BIND(_get_output_value_port_hint_string, "output_idx");
 
-	BIND_VMETHOD(MethodInfo(Variant::INT, "_get_output_value_port_type", PropertyInfo(Variant::INT, "idx")));
-	BIND_VMETHOD(MethodInfo(Variant::STRING, "_get_output_value_port_name", PropertyInfo(Variant::INT, "idx")));
-	BIND_VMETHOD(MethodInfo(Variant::INT, "_get_output_value_port_hint", PropertyInfo(Variant::INT, "idx")));
-	BIND_VMETHOD(MethodInfo(Variant::STRING, "_get_output_value_port_hint_string", PropertyInfo(Variant::INT, "idx")));
+	GDVIRTUAL_BIND(_get_caption);
+	GDVIRTUAL_BIND(_get_text);
+	GDVIRTUAL_BIND(_get_category);
 
-	BIND_VMETHOD(MethodInfo(Variant::STRING, "_get_caption"));
-	BIND_VMETHOD(MethodInfo(Variant::STRING, "_get_text"));
-	BIND_VMETHOD(MethodInfo(Variant::STRING, "_get_category"));
+	GDVIRTUAL_BIND(_get_working_memory_size);
 
-	BIND_VMETHOD(MethodInfo(Variant::INT, "_get_working_memory_size"));
-
-	MethodInfo stepmi(Variant::NIL, "_step", PropertyInfo(Variant::ARRAY, "inputs"), PropertyInfo(Variant::ARRAY, "outputs"), PropertyInfo(Variant::INT, "start_mode"), PropertyInfo(Variant::ARRAY, "working_mem"));
-	stepmi.return_val.usage |= PROPERTY_USAGE_NIL_IS_VARIANT;
-	BIND_VMETHOD(stepmi);
+	GDVIRTUAL_BIND(_step, "inputs", "outputs", "start_mode", "working_mem");
 
 	BIND_ENUM_CONSTANT(START_MODE_BEGIN_SEQUENCE);
 	BIND_ENUM_CONSTANT(START_MODE_CONTINUE_SEQUENCE);
@@ -3170,9 +3196,7 @@ VisualScriptNodeInstance *VisualScriptSubCall::instantiate(VisualScriptInstance 
 }
 
 void VisualScriptSubCall::_bind_methods() {
-	MethodInfo scmi(Variant::NIL, "_subcall", PropertyInfo(Variant::NIL, "arguments"));
-	scmi.return_val.usage |= PROPERTY_USAGE_NIL_IS_VARIANT;
-	BIND_VMETHOD(scmi);
+	// Since this is script only, registering virtual function is no longer valid. Will have to go in docs.
 }
 
 VisualScriptSubCall::VisualScriptSubCall() {
@@ -3749,9 +3773,7 @@ void VisualScriptInputAction::_validate_property(PropertyInfo &property) const {
 		ProjectSettings::get_singleton()->get_property_list(&pinfo);
 		Vector<String> al;
 
-		for (List<PropertyInfo>::Element *E = pinfo.front(); E; E = E->next()) {
-			const PropertyInfo &pi = E->get();
-
+		for (const PropertyInfo &pi : pinfo) {
 			if (!pi.name.begins_with("input/")) {
 				continue;
 			}
@@ -3844,10 +3866,10 @@ void VisualScriptDeconstruct::_update_elements() {
 	List<PropertyInfo> pinfo;
 	v.get_property_list(&pinfo);
 
-	for (List<PropertyInfo>::Element *E = pinfo.front(); E; E = E->next()) {
+	for (const PropertyInfo &E : pinfo) {
 		Element e;
-		e.name = E->get().name;
-		e.type = E->get().type;
+		e.name = E.name;
+		e.type = E.type;
 		elements.push_back(e);
 	}
 }
@@ -4025,24 +4047,24 @@ void register_visual_script_nodes() {
 		List<MethodInfo> constructors;
 		Variant::get_constructor_list(Variant::Type(i), &constructors);
 
-		for (List<MethodInfo>::Element *E = constructors.front(); E; E = E->next()) {
-			if (E->get().arguments.size() > 0) {
+		for (const MethodInfo &E : constructors) {
+			if (E.arguments.size() > 0) {
 				String name = "functions/constructors/" + Variant::get_type_name(Variant::Type(i)) + "(";
-				for (int j = 0; j < E->get().arguments.size(); j++) {
+				for (int j = 0; j < E.arguments.size(); j++) {
 					if (j > 0) {
 						name += ", ";
 					}
-					if (E->get().arguments.size() == 1) {
-						name += Variant::get_type_name(E->get().arguments[j].type);
+					if (E.arguments.size() == 1) {
+						name += Variant::get_type_name(E.arguments[j].type);
 					} else {
-						name += E->get().arguments[j].name;
+						name += E.arguments[j].name;
 					}
 				}
 				name += ")";
 				VisualScriptLanguage::singleton->add_register_func(name, create_constructor_node);
 				Pair<Variant::Type, MethodInfo> pair;
 				pair.first = Variant::Type(i);
-				pair.second = E->get();
+				pair.second = E;
 				constructor_map[name] = pair;
 			}
 		}

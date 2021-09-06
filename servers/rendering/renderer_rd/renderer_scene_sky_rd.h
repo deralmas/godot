@@ -64,6 +64,7 @@ public:
 
 private:
 	RendererStorageRD *storage;
+	RD::DataFormat texture_format = RD::DATA_FORMAT_R16G16B16A16_SFLOAT;
 
 	RID index_buffer;
 	RID index_array;
@@ -99,7 +100,8 @@ private:
 		float position[3]; // 12 - 92
 		float multiplier; // 4 - 96
 		float time; // 4 - 100
-		float pad[3]; // 12 - 112 // Using pad to align on 16 bytes
+		float luminance_multiplier; // 4 - 104
+		float pad[2]; // 8 - 112 // Using pad to align on 16 bytes
 		// 128 is the max size of a push constant. We can replace "pad" but we can't add any more.
 	};
 
@@ -137,7 +139,7 @@ private:
 		virtual ~SkyShaderData();
 	};
 
-	void _render_sky(RD::DrawListID p_list, float p_time, RID p_fb, PipelineCacheRD *p_pipeline, RID p_uniform_set, RID p_texture_set, uint32_t p_view_count, const CameraMatrix *p_projections, const Basis &p_orientation, float p_multiplier, const Vector3 &p_position);
+	void _render_sky(RD::DrawListID p_list, float p_time, RID p_fb, PipelineCacheRD *p_pipeline, RID p_uniform_set, RID p_texture_set, uint32_t p_view_count, const CameraMatrix *p_projections, const Basis &p_orientation, float p_multiplier, const Vector3 &p_position, float p_luminance_multiplier);
 
 public:
 	struct SkySceneState {
@@ -190,6 +192,10 @@ public:
 			struct Mipmap {
 				RID view;
 				Size2i size;
+
+				// for mobile only
+				RID views[6];
+				RID framebuffers[6];
 			};
 			Vector<Mipmap> mipmaps;
 		};
@@ -204,7 +210,7 @@ public:
 		Vector<Layer> layers;
 
 		void clear_reflection_data();
-		void update_reflection_data(int p_size, int p_mipmaps, bool p_use_array, RID p_base_cube, int p_base_layer, bool p_low_quality, int p_roughness_layers);
+		void update_reflection_data(RendererStorageRD *p_storage, int p_size, int p_mipmaps, bool p_use_array, RID p_base_cube, int p_base_layer, bool p_low_quality, int p_roughness_layers, RD::DataFormat p_texture_format);
 		void create_reflection_fast_filter(RendererStorageRD *p_storage, bool p_use_arrays);
 		void create_reflection_importance_sample(RendererStorageRD *p_storage, bool p_use_arrays, int p_cube_side, int p_base_layer, uint32_t p_sky_ggx_samples_quality);
 		void update_reflection_mipmaps(RendererStorageRD *p_storage, int p_start, int p_end);
@@ -284,11 +290,14 @@ public:
 
 	RendererSceneSkyRD();
 	void init(RendererStorageRD *p_storage);
+	void set_texture_format(RD::DataFormat p_texture_format);
 	~RendererSceneSkyRD();
 
 	void setup(RendererSceneEnvironmentRD *p_env, RID p_render_buffers, const CameraMatrix &p_projection, const Transform3D &p_transform, const Size2i p_screen_size, RendererSceneRenderRD *p_scene_render);
-	void update(RendererSceneEnvironmentRD *p_env, const CameraMatrix &p_projection, const Transform3D &p_transform, double p_time);
-	void draw(RendererSceneEnvironmentRD *p_env, bool p_can_continue_color, bool p_can_continue_depth, RID p_fb, uint32_t p_view_count, const CameraMatrix *p_projections, const Transform3D &p_transform, double p_time);
+	void update(RendererSceneEnvironmentRD *p_env, const CameraMatrix &p_projection, const Transform3D &p_transform, double p_time, float p_luminance_multiplier = 1.0);
+	void draw(RendererSceneEnvironmentRD *p_env, bool p_can_continue_color, bool p_can_continue_depth, RID p_fb, uint32_t p_view_count, const CameraMatrix *p_projections, const Transform3D &p_transform, double p_time); // only called by clustered renderer
+	void update_res_buffers(RendererSceneEnvironmentRD *p_env, uint32_t p_view_count, const CameraMatrix *p_projections, const Transform3D &p_transform, double p_time, float p_luminance_multiplier = 1.0);
+	void draw(RD::DrawListID p_draw_list, RendererSceneEnvironmentRD *p_env, RID p_fb, uint32_t p_view_count, const CameraMatrix *p_projections, const Transform3D &p_transform, double p_time, float p_luminance_multiplier = 1.0);
 
 	void invalidate_sky(Sky *p_sky);
 	void update_dirty_skys();

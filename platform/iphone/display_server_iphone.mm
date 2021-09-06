@@ -254,7 +254,7 @@ void DisplayServerIPhone::touches_cancelled(int p_idx) {
 
 // MARK: Keyboard
 
-void DisplayServerIPhone::key(uint32_t p_key, bool p_pressed) {
+void DisplayServerIPhone::key(Key p_key, bool p_pressed) {
 	Ref<InputEventKey> ev;
 	ev.instantiate();
 	ev->set_echo(false);
@@ -318,12 +318,6 @@ bool DisplayServerIPhone::has_feature(Feature p_feature) const {
 
 String DisplayServerIPhone::get_name() const {
 	return "iPhone";
-}
-
-void DisplayServerIPhone::alert(const String &p_alert, const String &p_title) {
-	const CharString utf8_alert = p_alert.utf8();
-	const CharString utf8_title = p_title.utf8();
-	iOS::alert(utf8_alert.get_data(), utf8_title.get_data());
 }
 
 int DisplayServerIPhone::get_screen_count() const {

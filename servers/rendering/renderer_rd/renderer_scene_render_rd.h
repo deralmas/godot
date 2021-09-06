@@ -95,7 +95,7 @@ protected:
 	double time_step = 0;
 
 	struct RenderBufferData {
-		virtual void configure(RID p_color_buffer, RID p_depth_buffer, int p_width, int p_height, RS::ViewportMSAA p_msaa, uint32_t p_view_count) = 0;
+		virtual void configure(RID p_color_buffer, RID p_depth_buffer, RID p_target_buffer, int p_width, int p_height, RS::ViewportMSAA p_msaa, uint32_t p_view_count) = 0;
 		virtual ~RenderBufferData() {}
 	};
 	virtual RenderBufferData *_create_render_buffer_data() = 0;
@@ -117,6 +117,7 @@ protected:
 	virtual void _render_particle_collider_heightfield(RID p_fb, const Transform3D &p_cam_transform, const CameraMatrix &p_cam_projection, const PagedArray<GeometryInstance *> &p_instances) = 0;
 
 	void _debug_sdfgi_probes(RID p_render_buffers, RD::DrawListID p_draw_list, RID p_framebuffer, const CameraMatrix &p_camera_with_transform);
+	void _debug_draw_cluster(RID p_render_buffers);
 
 	RenderBufferData *render_buffers_get_data(RID p_render_buffers);
 
@@ -133,6 +134,12 @@ protected:
 
 	void _pre_opaque_render(RenderDataRD *p_render_data, bool p_use_ssao, bool p_use_gi, RID p_normal_roughness_buffer, RID p_voxel_gi_buffer);
 
+	void _render_buffers_copy_screen_texture(const RenderDataRD *p_render_data);
+	void _render_buffers_copy_depth_texture(const RenderDataRD *p_render_data);
+	void _render_buffers_post_process_and_tonemap(const RenderDataRD *p_render_data);
+	void _post_process_subpass(RID p_source_texture, RID p_framebuffer, const RenderDataRD *p_render_data);
+	void _disable_clear_request(const RenderDataRD *p_render_data);
+
 	// needed for a single argument calls (material and uv2)
 	PagedArrayPool<GeometryInstance *> cull_argument_pool;
 	PagedArray<GeometryInstance *> cull_argument; //need this to exist
@@ -146,7 +153,7 @@ protected:
 		} else {
 			return nullptr;
 		}
-	}
+	};
 
 	//used for mobile renderer mostly
 
@@ -248,7 +255,8 @@ private:
 	struct ShadowAtlas {
 		enum {
 			QUADRANT_SHIFT = 27,
-			SHADOW_INDEX_MASK = (1 << QUADRANT_SHIFT) - 1,
+			OMNI_LIGHT_FLAG = 1 << 26,
+			SHADOW_INDEX_MASK = OMNI_LIGHT_FLAG - 1,
 			SHADOW_INVALID = 0xFFFFFFFF
 		};
 
@@ -292,7 +300,9 @@ private:
 
 	void _update_shadow_atlas(ShadowAtlas *shadow_atlas);
 
+	void _shadow_atlas_invalidate_shadow(RendererSceneRenderRD::ShadowAtlas::Quadrant::Shadow *p_shadow, RID p_atlas, RendererSceneRenderRD::ShadowAtlas *p_shadow_atlas, uint32_t p_quadrant, uint32_t p_shadow_idx);
 	bool _shadow_atlas_find_shadow(ShadowAtlas *shadow_atlas, int *p_in_quadrants, int p_quadrant_count, int p_current_subdiv, uint64_t p_tick, int &r_quadrant, int &r_shadow);
+	bool _shadow_atlas_find_omni_shadows(ShadowAtlas *shadow_atlas, int *p_in_quadrants, int p_quadrant_count, int p_current_subdiv, uint64_t p_tick, int &r_quadrant, int &r_shadow);
 
 	RS::ShadowQuality shadows_quality = RS::SHADOW_QUALITY_MAX; //So it always updates when first set
 	RS::ShadowQuality directional_shadow_quality = RS::SHADOW_QUALITY_MAX;
@@ -372,10 +382,6 @@ private:
 		uint32_t cull_mask = 0;
 		uint32_t light_directional_index = 0;
 
-		uint32_t current_shadow_atlas_key = 0;
-
-		Vector2 dp;
-
 		Rect2 directional_rect;
 
 		Set<RID> shadow_atlases; //shadow atlases where this light is registered
@@ -450,6 +456,7 @@ private:
 
 		RID texture; //main texture for rendering to, must be filled after done rendering
 		RID depth_texture; //main depth texture
+		RID texture_fb; // framebuffer for the main texture, ONLY USED FOR MOBILE RENDERER POST EFFECTS, DO NOT USE FOR RENDERING 3D!!!
 
 		RendererSceneGIRD::SDFGI *sdfgi = nullptr;
 		VolumetricFog *volumetric_fog = nullptr;
@@ -465,6 +472,11 @@ private:
 				RID texture;
 				int width;
 				int height;
+
+				// only used on mobile renderer
+				RID fb;
+				RID half_texture;
+				RID half_fb;
 			};
 
 			Vector<Mipmap> mipmaps;
@@ -472,9 +484,25 @@ private:
 
 		Blur blur[2]; //the second one starts from the first mipmap
 
+		struct WeightBuffers {
+			RID weight;
+			RID fb; // FB with both texture and weight
+		};
+
+		// 2 full size, 2 half size
+		WeightBuffers weight_buffers[4]; // Only used in raster
+		RID base_weight_fb; // base buffer for weight
+
+		RID depth_back_texture;
+		RID depth_back_fb; // only used on mobile
+
 		struct Luminance {
 			Vector<RID> reduce;
 			RID current;
+
+			// used only on mobile renderer
+			Vector<RID> fb;
+			RID current_fb;
 		} luminance;
 
 		struct SSAO {
@@ -511,10 +539,10 @@ private:
 
 	void _free_render_buffer_data(RenderBuffers *rb);
 	void _allocate_blur_textures(RenderBuffers *rb);
+	void _allocate_depth_backbuffer_textures(RenderBuffers *rb);
 	void _allocate_luminance_textures(RenderBuffers *rb);
 
 	void _render_buffers_debug_draw(RID p_render_buffers, RID p_shadow_atlas, RID p_occlusion_buffer);
-	void _render_buffers_post_process_and_tonemap(const RenderDataRD *p_render_data);
 
 	/* Cluster */
 
@@ -546,7 +574,7 @@ private:
 		struct LightData {
 			float position[3];
 			float inv_radius;
-			float direction[3];
+			float direction[3]; // in omni, x and y are used for dual paraboloid offset
 			float size;
 
 			float color[3];
@@ -913,6 +941,12 @@ public:
 	virtual void camera_effects_set_dof_blur(RID p_camera_effects, bool p_far_enable, float p_far_distance, float p_far_transition, bool p_near_enable, float p_near_distance, float p_near_transition, float p_amount) override;
 	virtual void camera_effects_set_custom_exposure(RID p_camera_effects, bool p_enable, float p_exposure) override;
 
+	bool camera_effects_uses_dof(RID p_camera_effects) {
+		CameraEffects *camfx = camera_effects_owner.getornull(p_camera_effects);
+
+		return camfx && (camfx->dof_blur_near_enabled || camfx->dof_blur_far_enabled) && camfx->dof_blur_amount > 0.0;
+	}
+
 	virtual RID light_instance_create(RID p_light) override;
 	virtual void light_instance_set_transform(RID p_light_instance, const Transform3D &p_transform) override;
 	virtual void light_instance_set_aabb(RID p_light_instance, const AABB &p_aabb) override;
@@ -929,7 +963,7 @@ public:
 		return li->transform;
 	}
 
-	_FORCE_INLINE_ Rect2 light_instance_get_shadow_atlas_rect(RID p_light_instance, RID p_shadow_atlas) {
+	_FORCE_INLINE_ Rect2 light_instance_get_shadow_atlas_rect(RID p_light_instance, RID p_shadow_atlas, Vector2i &r_omni_offset) {
 		ShadowAtlas *shadow_atlas = shadow_atlas_owner.getornull(p_shadow_atlas);
 		LightInstance *li = light_instance_owner.getornull(p_light_instance);
 		uint32_t key = shadow_atlas->shadow_owners[li->self];
@@ -948,6 +982,16 @@ public:
 		uint32_t shadow_size = (quadrant_size / shadow_atlas->quadrants[quadrant].subdivision);
 		x += (shadow % shadow_atlas->quadrants[quadrant].subdivision) * shadow_size;
 		y += (shadow / shadow_atlas->quadrants[quadrant].subdivision) * shadow_size;
+
+		if (key & ShadowAtlas::OMNI_LIGHT_FLAG) {
+			if (((shadow + 1) % shadow_atlas->quadrants[quadrant].subdivision) == 0) {
+				r_omni_offset.x = 1 - int(shadow_atlas->quadrants[quadrant].subdivision);
+				r_omni_offset.y = 1;
+			} else {
+				r_omni_offset.x = 1;
+				r_omni_offset.y = 0;
+			}
+		}
 
 		uint32_t width = shadow_size;
 		uint32_t height = shadow_size;
@@ -1055,6 +1099,7 @@ public:
 	virtual bool reflection_probe_instance_needs_redraw(RID p_instance) override;
 	virtual bool reflection_probe_instance_has_reflection(RID p_instance) override;
 	virtual bool reflection_probe_instance_begin_render(RID p_instance, RID p_reflection_atlas) override;
+	virtual RID reflection_probe_create_framebuffer(RID p_color, RID p_depth);
 	virtual bool reflection_probe_instance_postprocess_step(RID p_instance) override;
 
 	uint32_t reflection_probe_instance_get_resolution(RID p_instance);
@@ -1145,6 +1190,7 @@ public:
 
 	/* render buffers */
 
+	virtual float _render_buffers_get_luminance_multiplier();
 	virtual RD::DataFormat _render_buffers_get_color_format();
 	virtual bool _render_buffers_can_be_storage();
 	virtual RID render_buffers_create() override;
@@ -1153,6 +1199,7 @@ public:
 
 	RID render_buffers_get_ao_texture(RID p_render_buffers);
 	RID render_buffers_get_back_buffer_texture(RID p_render_buffers);
+	RID render_buffers_get_back_depth_texture(RID p_render_buffers);
 	RID render_buffers_get_voxel_gi_buffer(RID p_render_buffers);
 	RID render_buffers_get_default_voxel_gi_buffer();
 	RID render_buffers_get_gi_ambient_texture(RID p_render_buffers);
@@ -1252,6 +1299,8 @@ public:
 	virtual bool is_clustered_enabled() const;
 	virtual bool is_volumetric_supported() const;
 	virtual uint32_t get_max_elements() const;
+
+	void init();
 
 	RendererSceneRenderRD(RendererStorageRD *p_storage);
 	~RendererSceneRenderRD();

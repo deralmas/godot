@@ -40,14 +40,23 @@ class UndoRedo;
 class EditorPropertyRevert {
 public:
 	static bool may_node_be_in_instance(Node *p_node);
-	static bool get_instantiated_node_original_property(Node *p_node, const StringName &p_prop, Variant &value);
+	static bool get_instantiated_node_original_property(Node *p_node, const StringName &p_prop, Variant &value, bool p_check_class_default = true);
 	static bool is_node_property_different(Node *p_node, const Variant &p_current, const Variant &p_orig);
+	static bool is_property_value_different(const Variant &p_a, const Variant &p_b);
+	static Variant get_property_revert_value(Object *p_object, const StringName &p_property);
 
 	static bool can_property_revert(Object *p_object, const StringName &p_property);
 };
 
 class EditorProperty : public Container {
 	GDCLASS(EditorProperty, Container);
+
+public:
+	enum MenuItems {
+		MENU_COPY_PROPERTY,
+		MENU_PASTE_PROPERTY,
+		MENU_COPY_PROPERTY_PATH,
+	};
 
 private:
 	String label;
@@ -82,6 +91,7 @@ private:
 	bool use_folding;
 	bool draw_top_bg;
 
+	void _ensure_popup();
 	bool _is_property_different(const Variant &p_current, const Variant &p_orig);
 	bool _get_instantiated_node_original_property(const StringName &p_prop, Variant &value);
 	void _focusable_focused(int p_index);
@@ -95,16 +105,20 @@ private:
 	Vector<Control *> focusables;
 	Control *label_reference;
 	Control *bottom_editor;
+	PopupMenu *menu;
 
 	mutable String tooltip_text;
 
 	Map<StringName, Variant> cache;
 
+	GDVIRTUAL0(_update_property)
 protected:
 	void _notification(int p_what);
 	static void _bind_methods();
+	virtual void _set_read_only(bool p_read_only);
 
-	void _gui_input(const Ref<InputEvent> &p_event);
+	virtual void gui_input(const Ref<InputEvent> &p_event) override;
+	virtual void unhandled_key_input(const Ref<InputEvent> &p_event) override;
 
 public:
 	void emit_changed(const StringName &p_property, const Variant &p_value, const StringName &p_field = StringName(), bool p_changing = false);
@@ -172,6 +186,8 @@ public:
 
 	bool can_revert_to_default() const { return can_revert; }
 
+	void menu_option(int p_option);
+
 	EditorProperty();
 };
 
@@ -189,6 +205,12 @@ class EditorInspectorPlugin : public RefCounted {
 
 protected:
 	static void _bind_methods();
+
+	GDVIRTUAL1RC(bool, _can_handle, Variant)
+	GDVIRTUAL0(_parse_begin)
+	GDVIRTUAL2(_parse_category, Object *, String)
+	GDVIRTUAL7R(bool, _parse_property, Object *, int, String, int, String, int, bool)
+	GDVIRTUAL0(_parse_end)
 
 public:
 	void add_custom_control(Control *control);
@@ -243,7 +265,7 @@ class EditorInspectorSection : public Container {
 protected:
 	void _notification(int p_what);
 	static void _bind_methods();
-	void _gui_input(const Ref<InputEvent> &p_event);
+	virtual void gui_input(const Ref<InputEvent> &p_event) override;
 
 public:
 	virtual Size2 get_minimum_size() const override;
@@ -312,6 +334,7 @@ class EditorInspector : public ScrollContainer {
 
 	String property_prefix; //used for sectioned inspector
 	String object_class;
+	Variant property_clipboard;
 
 	bool restrict_to_basic = false;
 
@@ -403,6 +426,8 @@ public:
 	void set_use_deletable_properties(bool p_enabled);
 
 	void set_restrict_to_basic_settings(bool p_restrict);
+	void set_property_clipboard(const Variant &p_value);
+	Variant get_property_clipboard() const;
 
 	EditorInspector();
 };

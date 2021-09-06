@@ -71,6 +71,13 @@ public:
 	virtual ~AndroidLogger() {}
 };
 
+void OS_Android::alert(const String &p_alert, const String &p_title) {
+	GodotJavaWrapper *godot_java = OS_Android::get_singleton()->get_godot_java();
+	ERR_FAIL_COND(!godot_java);
+
+	godot_java->alert(p_alert, p_title);
+}
+
 void OS_Android::initialize_core() {
 	OS_Unix::initialize_core();
 
@@ -181,10 +188,6 @@ void OS_Android::main_loop_focusin() {
 	audio_driver_android.set_pause(false);
 }
 
-void OS_Android::main_loop_request_go_back() {
-	DisplayServerAndroid::get_singleton()->send_window_event(DisplayServer::WINDOW_EVENT_GO_BACK_REQUEST);
-}
-
 Error OS_Android::shell_open(String p_uri) {
 	return godot_io_java->open_uri(p_uri);
 }
@@ -210,6 +213,10 @@ String OS_Android::get_model_name() const {
 	return OS_Unix::get_model_name();
 }
 
+String OS_Android::get_data_path() const {
+	return get_user_data_dir();
+}
+
 String OS_Android::get_user_data_dir() const {
 	if (data_dir_cache != String())
 		return data_dir_cache;
@@ -222,11 +229,11 @@ String OS_Android::get_user_data_dir() const {
 	return ".";
 }
 
-String OS_Android::get_external_data_dir() const {
-	String data_dir = godot_io_java->get_external_data_dir();
-	if (data_dir != "") {
-		data_dir = _remove_symlink(data_dir);
-		return data_dir;
+String OS_Android::get_cache_path() const {
+	String cache_dir = godot_io_java->get_cache_dir();
+	if (cache_dir != "") {
+		cache_dir = _remove_symlink(cache_dir);
+		return cache_dir;
 	}
 	return ".";
 }
@@ -239,8 +246,8 @@ String OS_Android::get_unique_id() const {
 	return OS::get_unique_id();
 }
 
-String OS_Android::get_system_dir(SystemDir p_dir) const {
-	return godot_io_java->get_system_dir(p_dir);
+String OS_Android::get_system_dir(SystemDir p_dir, bool p_shared_storage) const {
+	return godot_io_java->get_system_dir(p_dir, p_shared_storage);
 }
 
 void OS_Android::set_display_size(const Size2i &p_size) {

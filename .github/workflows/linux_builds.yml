@@ -7,6 +7,10 @@ env:
   SCONSFLAGS: platform=linuxbsd verbose=yes warnings=extra werror=yes debug_symbols=no --jobs=2 module_text_server_fb_enabled=yes
   SCONS_CACHE_LIMIT: 4096
 
+concurrency:
+  group: ci-${{github.actor}}-${{github.head_ref || github.run_number}}-${{github.ref}}-linux
+  cancel-in-progress: true
+
 jobs:
   linux-editor:
     runs-on: "ubuntu-20.04"
@@ -39,6 +43,7 @@ jobs:
             ${{github.job}}-${{env.GODOT_BASE_BRANCH}}-${{github.ref}}-${{github.sha}}
             ${{github.job}}-${{env.GODOT_BASE_BRANCH}}-${{github.ref}}
             ${{github.job}}-${{env.GODOT_BASE_BRANCH}}
+        continue-on-error: true
 
       # Use python 3.x release (works cross platform; best to keep self contained in it's own step)
       - name: Set up Python 3.x
@@ -70,12 +75,12 @@ jobs:
         run: |
           ./bin/godot.linuxbsd.opt.tools.64 --test
 
-      # Download, unzip and setup SwiftShader library [d4550ab8d3f]
+      # Download, unzip and setup SwiftShader library [4466040]
       - name: Download SwiftShader
         run: |
-          wget https://github.com/qarmin/gtk_library_store/releases/download/3.24.0/swiftshader.zip
-          unzip swiftshader.zip
-          rm swiftshader.zip
+          wget https://github.com/qarmin/gtk_library_store/releases/download/3.24.0/swiftshader2.zip
+          unzip swiftshader2.zip
+          rm swiftshader2.zip
           curr="$(pwd)/libvk_swiftshader.so"
           sed -i "s|PATH_TO_CHANGE|$curr|" vk_swiftshader_icd.json
 
@@ -125,6 +130,7 @@ jobs:
             ${{github.job}}-${{env.GODOT_BASE_BRANCH}}-${{github.ref}}-${{github.sha}}
             ${{github.job}}-${{env.GODOT_BASE_BRANCH}}-${{github.ref}}
             ${{github.job}}-${{env.GODOT_BASE_BRANCH}}
+        continue-on-error: true
 
       # Use python 3.x release (works cross platform; best to keep self contained in it's own step)
       - name: Set up Python 3.x
@@ -144,12 +150,10 @@ jobs:
           scons --version
 
       # We should always be explicit with our flags usage here since it's gonna be sure to always set those flags
-      # [Workaround] SwiftShader doesn't support tessellation, so we skip Godot check about it
       - name: Compilation
         env:
           SCONS_CACHE: ${{github.workspace}}/.scons_cache/
         run: |
-          sed -i "s|ERR_FAIL_COND_V(p_rasterization_state.patch_control_points|//ERR_FAIL_COND_V(p_rasterization_state.patch_control_points|" drivers/vulkan/rendering_device_vulkan.cpp
           scons tools=yes tests=yes target=debug debug_symbols=no use_asan=yes use_ubsan=yes
           ls -l bin/
 
@@ -158,12 +162,12 @@ jobs:
         run: |
           ./bin/godot.linuxbsd.tools.64s --test
 
-      # Download, unzip and setup SwiftShader library [d4550ab8d3f]
+      # Download, unzip and setup SwiftShader library [4466040]
       - name: Download SwiftShader
         run: |
-          wget https://github.com/qarmin/gtk_library_store/releases/download/3.24.0/swiftshader.zip
-          unzip swiftshader.zip
-          rm swiftshader.zip
+          wget https://github.com/qarmin/gtk_library_store/releases/download/3.24.0/swiftshader2.zip
+          unzip swiftshader2.zip
+          rm swiftshader2.zip
           curr="$(pwd)/libvk_swiftshader.so"
           sed -i "s|PATH_TO_CHANGE|$curr|" vk_swiftshader_icd.json
 
@@ -217,6 +221,7 @@ jobs:
             ${{github.job}}-${{env.GODOT_BASE_BRANCH}}-${{github.ref}}-${{github.sha}}
             ${{github.job}}-${{env.GODOT_BASE_BRANCH}}-${{github.ref}}
             ${{github.job}}-${{env.GODOT_BASE_BRANCH}}
+        continue-on-error: true
 
       # Use python 3.x release (works cross platform)
       - name: Set up Python 3.x

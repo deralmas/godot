@@ -44,7 +44,7 @@ class VisualShader : public Shader {
 
 	friend class VisualShaderNodeVersionChecker;
 
-	String version = "";
+	Dictionary engine_version;
 
 public:
 	enum Type {
@@ -137,10 +137,12 @@ public: // internal methods
 	Type get_shader_type() const;
 
 public:
-	void set_version(const String &p_version);
-	String get_version() const;
+	void set_engine_version(const Dictionary &p_version);
+	Dictionary get_engine_version() const;
 
-	void update_version(const String &p_new_version);
+#ifndef DISABLE_DEPRECATED
+	void update_engine_version(const Dictionary &p_new_version);
+#endif /* DISABLE_DEPRECATED */
 
 	enum {
 		NODE_ID_INVALID = -1,
@@ -312,6 +314,20 @@ protected:
 	virtual void remove_input_port_default_value(int p_port) override;
 	virtual void clear_default_input_values() override;
 
+	GDVIRTUAL0RC(String, _get_name)
+	GDVIRTUAL0RC(String, _get_description)
+	GDVIRTUAL0RC(String, _get_category)
+	GDVIRTUAL0RC(int, _get_return_icon_type)
+	GDVIRTUAL0RC(int, _get_input_port_count)
+	GDVIRTUAL1RC(int, _get_input_port_type, int)
+	GDVIRTUAL1RC(String, _get_input_port_name, int)
+	GDVIRTUAL0RC(int, _get_output_port_count)
+	GDVIRTUAL1RC(int, _get_output_port_type, int)
+	GDVIRTUAL1RC(String, _get_output_port_name, int)
+	GDVIRTUAL4RC(String, _get_code, Vector<String>, TypedArray<String>, int, int)
+	GDVIRTUAL1RC(String, _get_global_code, int)
+	GDVIRTUAL0RC(bool, _is_highend)
+
 protected:
 	void _set_input_port_default_value(int p_port, const Variant &p_value);
 
@@ -433,6 +449,7 @@ public:
 		QUAL_NONE,
 		QUAL_GLOBAL,
 		QUAL_INSTANCE,
+		QUAL_MAX,
 	};
 
 private:

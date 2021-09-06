@@ -53,12 +53,14 @@ protected:
 		return rid;
 	}
 
-	static uint64_t _gen_id() {
-		return base_id.increment();
-	}
-
 	static RID _gen_rid() {
 		return _make_from_id(_gen_id());
+	}
+
+	friend struct VariantUtilityFunctions;
+
+	static uint64_t _gen_id() {
+		return base_id.increment();
 	}
 
 public:
@@ -101,7 +103,7 @@ class RID_Alloc : public RID_AllocBase {
 
 			//initialize
 			for (uint32_t i = 0; i < elements_in_chunk; i++) {
-				//dont initialize chunk
+				// Don't initialize chunk.
 				validator_chunks[chunk_count][i] = 0xFFFFFFFF;
 				free_list_chunks[chunk_count][i] = alloc_count + i;
 			}

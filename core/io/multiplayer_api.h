@@ -32,7 +32,10 @@
 #define MULTIPLAYER_API_H
 
 #include "core/io/multiplayer_peer.h"
+#include "core/io/resource_uid.h"
 #include "core/object/ref_counted.h"
+
+class MultiplayerReplicator;
 
 class MultiplayerAPI : public RefCounted {
 	GDCLASS(MultiplayerAPI, RefCounted);
@@ -40,9 +43,8 @@ class MultiplayerAPI : public RefCounted {
 public:
 	enum RPCMode {
 		RPC_MODE_DISABLED, // No rpc for this method, calls to this will be blocked (default)
-		RPC_MODE_REMOTE, // Using rpc() on it will call method in all remote peers
-		RPC_MODE_MASTER, // Using rpc() on it will call method on wherever the master is, be it local or remote
-		RPC_MODE_PUPPET, // Using rpc() on it will call method for all puppets
+		RPC_MODE_ANY, // Any peer can call this rpc()
+		RPC_MODE_AUTHORITY, // Only the node's network authority (server by default) can call this rpc()
 	};
 
 	struct RPCConfig {
@@ -62,6 +64,33 @@ public:
 		bool operator()(const RPCConfig &p_a, const RPCConfig &p_b) const {
 			return compare(p_a.name, p_b.name);
 		}
+	};
+
+	enum NetworkCommands {
+		NETWORK_COMMAND_REMOTE_CALL = 0,
+		NETWORK_COMMAND_SIMPLIFY_PATH,
+		NETWORK_COMMAND_CONFIRM_PATH,
+		NETWORK_COMMAND_RAW,
+		NETWORK_COMMAND_SPAWN,
+		NETWORK_COMMAND_DESPAWN,
+		NETWORK_COMMAND_SYNC, // This is the max we can have. We should optmize simplify/confirm, possibly spawn/despawn.
+	};
+
+	enum NetworkNodeIdCompression {
+		NETWORK_NODE_ID_COMPRESSION_8 = 0,
+		NETWORK_NODE_ID_COMPRESSION_16,
+		NETWORK_NODE_ID_COMPRESSION_32,
+	};
+
+	enum NetworkNameIdCompression {
+		NETWORK_NAME_ID_COMPRESSION_8 = 0,
+		NETWORK_NAME_ID_COMPRESSION_16,
+	};
+
+	enum {
+		NODE_ID_COMPRESSION_SHIFT = 3,
+		NAME_ID_COMPRESSION_SHIFT = 5,
+		BYTE_ONLY_OR_NO_ARGS_SHIFT = 6,
 	};
 
 private:
@@ -90,6 +119,7 @@ private:
 	Vector<uint8_t> packet_cache;
 	Node *root_node = nullptr;
 	bool allow_object_decoding = false;
+	MultiplayerReplicator *replicator = nullptr;
 
 protected:
 	static void _bind_methods();
@@ -104,38 +134,25 @@ protected:
 	void _send_rpc(Node *p_from, int p_to, uint16_t p_rpc_id, const RPCConfig &p_config, const StringName &p_name, const Variant **p_arg, int p_argcount);
 	bool _send_confirm_path(Node *p_node, NodePath p_path, PathSentCache *psc, int p_target);
 
-	Error _encode_and_compress_variant(const Variant &p_variant, uint8_t *p_buffer, int &r_len);
-	Error _decode_and_decompress_variant(Variant &r_variant, const uint8_t *p_buffer, int p_len, int *r_len);
-
 public:
-	enum NetworkCommands {
-		NETWORK_COMMAND_REMOTE_CALL = 0,
-		NETWORK_COMMAND_SIMPLIFY_PATH,
-		NETWORK_COMMAND_CONFIRM_PATH,
-		NETWORK_COMMAND_RAW,
-	};
-
-	enum NetworkNodeIdCompression {
-		NETWORK_NODE_ID_COMPRESSION_8 = 0,
-		NETWORK_NODE_ID_COMPRESSION_16,
-		NETWORK_NODE_ID_COMPRESSION_32,
-	};
-
-	enum NetworkNameIdCompression {
-		NETWORK_NAME_ID_COMPRESSION_8 = 0,
-		NETWORK_NAME_ID_COMPRESSION_16,
-	};
-
 	void poll();
 	void clear();
 	void set_root_node(Node *p_node);
 	Node *get_root_node();
 	void set_network_peer(const Ref<MultiplayerPeer> &p_peer);
 	Ref<MultiplayerPeer> get_network_peer() const;
-	Error send_bytes(Vector<uint8_t> p_data, int p_to = MultiplayerPeer::TARGET_PEER_BROADCAST, MultiplayerPeer::TransferMode p_mode = MultiplayerPeer::TRANSFER_MODE_RELIABLE);
+	Error send_bytes(Vector<uint8_t> p_data, int p_to = MultiplayerPeer::TARGET_PEER_BROADCAST, MultiplayerPeer::TransferMode p_mode = MultiplayerPeer::TRANSFER_MODE_RELIABLE, int p_channel = 0);
+
+	Error encode_and_compress_variant(const Variant &p_variant, uint8_t *p_buffer, int &r_len);
+	Error decode_and_decompress_variant(Variant &r_variant, const uint8_t *p_buffer, int p_len, int *r_len);
 
 	// Called by Node.rpc
 	void rpcp(Node *p_node, int p_peer_id, bool p_unreliable, const StringName &p_method, const Variant **p_arg, int p_argcount);
+	// Called by Node._notification
+	void scene_enter_exit_notify(const String &p_scene, Node *p_node, bool p_enter);
+	// Called by replicator
+	bool send_confirm_path(Node *p_node, NodePath p_path, int p_target, int &p_id);
+	Node *get_cached_node(int p_from, uint32_t p_node_id);
 
 	void _add_peer(int p_id);
 	void _del_peer(int p_id);
@@ -153,6 +170,8 @@ public:
 
 	void set_allow_object_decoding(bool p_enable);
 	bool is_object_decoding_allowed() const;
+
+	MultiplayerReplicator *get_replicator() const;
 
 	MultiplayerAPI();
 	~MultiplayerAPI();

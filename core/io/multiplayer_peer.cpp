@@ -30,7 +30,32 @@
 
 #include "multiplayer_peer.h"
 
+#include "core/os/os.h"
+
+uint32_t MultiplayerPeer::generate_unique_id() const {
+	uint32_t hash = 0;
+
+	while (hash == 0 || hash == 1) {
+		hash = hash_djb2_one_32(
+				(uint32_t)OS::get_singleton()->get_ticks_usec());
+		hash = hash_djb2_one_32(
+				(uint32_t)OS::get_singleton()->get_unix_time(), hash);
+		hash = hash_djb2_one_32(
+				(uint32_t)OS::get_singleton()->get_user_data_dir().hash64(), hash);
+		hash = hash_djb2_one_32(
+				(uint32_t)((uint64_t)this), hash); // Rely on ASLR heap
+		hash = hash_djb2_one_32(
+				(uint32_t)((uint64_t)&hash), hash); // Rely on ASLR stack
+
+		hash = hash & 0x7FFFFFFF; // Make it compatible with unsigned, since negative ID is used for exclusion
+	}
+
+	return hash;
+}
+
 void MultiplayerPeer::_bind_methods() {
+	ClassDB::bind_method(D_METHOD("set_transfer_channel", "channel"), &MultiplayerPeer::set_transfer_channel);
+	ClassDB::bind_method(D_METHOD("get_transfer_channel"), &MultiplayerPeer::get_transfer_channel);
 	ClassDB::bind_method(D_METHOD("set_transfer_mode", "mode"), &MultiplayerPeer::set_transfer_mode);
 	ClassDB::bind_method(D_METHOD("get_transfer_mode"), &MultiplayerPeer::get_transfer_mode);
 	ClassDB::bind_method(D_METHOD("set_target_peer", "id"), &MultiplayerPeer::set_target_peer);
@@ -41,12 +66,14 @@ void MultiplayerPeer::_bind_methods() {
 
 	ClassDB::bind_method(D_METHOD("get_connection_status"), &MultiplayerPeer::get_connection_status);
 	ClassDB::bind_method(D_METHOD("get_unique_id"), &MultiplayerPeer::get_unique_id);
+	ClassDB::bind_method(D_METHOD("generate_unique_id"), &MultiplayerPeer::generate_unique_id);
 
 	ClassDB::bind_method(D_METHOD("set_refuse_new_connections", "enable"), &MultiplayerPeer::set_refuse_new_connections);
 	ClassDB::bind_method(D_METHOD("is_refusing_new_connections"), &MultiplayerPeer::is_refusing_new_connections);
 
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "refuse_new_connections"), "set_refuse_new_connections", "is_refusing_new_connections");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "transfer_mode", PROPERTY_HINT_ENUM, "Unreliable,Unreliable Ordered,Reliable"), "set_transfer_mode", "get_transfer_mode");
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "transfer_channel", PROPERTY_HINT_RANGE, "0,255,1"), "set_transfer_channel", "get_transfer_channel");
 
 	BIND_ENUM_CONSTANT(TRANSFER_MODE_UNRELIABLE);
 	BIND_ENUM_CONSTANT(TRANSFER_MODE_UNRELIABLE_ORDERED);

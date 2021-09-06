@@ -48,15 +48,15 @@ class CanvasItemEditorSelectedItem : public Object {
 
 public:
 	Transform2D prev_xform;
-	float prev_rot = 0;
+	real_t prev_rot = 0;
 	Rect2 prev_rect;
 	Vector2 prev_pivot;
-	float prev_anchors[4] = { 0.0f };
+	real_t prev_anchors[4] = { (real_t)0.0 };
 
 	Transform2D pre_drag_xform;
 	Rect2 pre_drag_rect;
 
-	List<float> pre_drag_bones_length;
+	List<real_t> pre_drag_bones_length;
 	List<Dictionary> pre_drag_bones_undo_state;
 
 	Dictionary undo_state;
@@ -230,6 +230,10 @@ private:
 	HScrollBar *h_scroll;
 	VScrollBar *v_scroll;
 	HBoxContainer *hb;
+	// Used for secondary menu items which are displayed depending on the currently selected node
+	// (such as MeshInstance's "Mesh" menu).
+	PanelContainer *context_menu_container;
+	HBoxContainer *hbc_context_menu;
 
 	Map<Control *, Timer *> popup_temporarily_timers;
 
@@ -246,7 +250,7 @@ private:
 	bool show_edit_locks;
 	bool show_transformation_gizmos;
 
-	float zoom;
+	real_t zoom;
 	Point2 view_offset;
 	Point2 previous_update_view_offset;
 
@@ -258,9 +262,9 @@ private:
 	int primary_grid_steps;
 	int grid_step_multiplier;
 
-	float snap_rotation_step;
-	float snap_rotation_offset;
-	float snap_scale_step;
+	real_t snap_rotation_step;
+	real_t snap_rotation_offset;
+	real_t snap_scale_step;
 	bool smart_snap_active;
 	bool grid_snap_active;
 
@@ -288,7 +292,7 @@ private:
 
 	struct _SelectResult {
 		CanvasItem *item = nullptr;
-		float z_index = 0;
+		real_t z_index = 0;
 		bool has_z = true;
 		_FORCE_INLINE_ bool operator<(const _SelectResult &p_rr) const {
 			return has_z && p_rr.has_z ? p_rr.z_index < z_index : p_rr.has_z;
@@ -305,7 +309,7 @@ private:
 
 	struct BoneList {
 		Transform2D xform;
-		float length = 0.f;
+		real_t length = 0;
 		uint64_t last_pass = 0;
 	};
 
@@ -328,7 +332,7 @@ private:
 	struct PoseClipboard {
 		Vector2 pos;
 		Vector2 scale;
-		float rot = 0;
+		real_t rot = 0;
 		ObjectID id;
 	};
 	List<PoseClipboard> pose_clipboard;
@@ -428,7 +432,7 @@ private:
 
 	void _popup_callback(int p_op);
 	bool updating_scroll;
-	void _update_scroll(float);
+	void _update_scroll(real_t);
 	void _update_scrollbars();
 	void _append_canvas_item(CanvasItem *p_item);
 	void _snap_changed();
@@ -451,11 +455,11 @@ private:
 
 	void _keying_changed();
 
-	void _unhandled_key_input(const Ref<InputEvent> &p_ev);
+	virtual void unhandled_key_input(const Ref<InputEvent> &p_ev) override;
 
 	void _draw_text_at_position(Point2 p_position, String p_string, Side p_side);
 	void _draw_margin_at_position(int p_value, Point2 p_position, Side p_side);
-	void _draw_percentage_at_position(float p_value, Point2 p_position, Side p_side);
+	void _draw_percentage_at_position(real_t p_value, Point2 p_position, Side p_side);
 	void _draw_straight_line(Point2 p_from, Point2 p_to, Color p_color);
 
 	void _draw_smart_snapping();
@@ -497,16 +501,16 @@ private:
 	SnapTarget snap_target[2];
 	Transform2D snap_transform;
 	void _snap_if_closer_float(
-			float p_value,
-			float &r_current_snap, SnapTarget &r_current_snap_target,
-			float p_target_value, SnapTarget p_snap_target,
-			float p_radius = 10.0);
+			const real_t p_value,
+			real_t &r_current_snap, SnapTarget &r_current_snap_target,
+			const real_t p_target_value, const SnapTarget p_snap_target,
+			const real_t p_radius = 10.0);
 	void _snap_if_closer_point(
 			Point2 p_value,
 			Point2 &r_current_snap, SnapTarget (&r_current_snap_target)[2],
-			Point2 p_target_value, SnapTarget p_snap_target,
-			real_t rotation = 0.0,
-			float p_radius = 10.0);
+			Point2 p_target_value, const SnapTarget p_snap_target,
+			const real_t rotation = 0.0,
+			const real_t p_radius = 10.0);
 	void _snap_other_nodes(
 			const Point2 p_value,
 			const Transform2D p_transform_to_snap,
@@ -523,8 +527,8 @@ private:
 
 	VBoxContainer *controls_vb;
 	EditorZoomWidget *zoom_widget;
-	void _update_zoom(float p_zoom);
-	void _zoom_on_position(float p_zoom, Point2 p_position = Point2());
+	void _update_zoom(real_t p_zoom);
+	void _zoom_on_position(real_t p_zoom, Point2 p_position = Point2());
 	void _button_toggle_smart_snap(bool p_status);
 	void _button_toggle_grid_snap(bool p_status);
 	void _button_override_camera(bool p_pressed);
@@ -535,7 +539,8 @@ private:
 	HSplitContainer *palette_split;
 	VSplitContainer *bottom_split;
 
-	void _popup_warning_temporarily(Control *p_control, const float p_duration);
+	void _update_context_menu_stylebox();
+	void _popup_warning_temporarily(Control *p_control, const double p_duration);
 	void _popup_warning_depop(Control *p_control);
 
 	void _set_owner_for_node_and_children(Node *p_node, Node *p_owner);
@@ -551,28 +556,6 @@ protected:
 	bool box_selection_end();
 
 	HBoxContainer *get_panel_hb() { return hb; }
-
-	struct compare_items_x {
-		bool operator()(const CanvasItem *a, const CanvasItem *b) const {
-			return a->get_global_transform().elements[2].x < b->get_global_transform().elements[2].x;
-		}
-	};
-
-	struct compare_items_y {
-		bool operator()(const CanvasItem *a, const CanvasItem *b) const {
-			return a->get_global_transform().elements[2].y < b->get_global_transform().elements[2].y;
-		}
-	};
-
-	struct proj_vector2_x {
-		float get(const Vector2 &v) { return v.x; }
-		void set(Vector2 &v, float f) { v.x = f; }
-	};
-
-	struct proj_vector2_y {
-		float get(const Vector2 &v) { return v.y; }
-		void set(Vector2 &v, float f) { v.y = f; }
-	};
 
 	template <class P, class C>
 	void space_selected_items();
@@ -594,7 +577,7 @@ public:
 	};
 
 	Point2 snap_point(Point2 p_target, unsigned int p_modes = SNAP_DEFAULT, unsigned int p_forced_modes = 0, const CanvasItem *p_self_canvas_item = nullptr, List<CanvasItem *> p_other_nodes_exceptions = List<CanvasItem *>());
-	float snap_angle(float p_target, float p_start = 0) const;
+	real_t snap_angle(real_t p_target, real_t p_start = 0) const;
 
 	Transform2D get_canvas_transform() const { return transform; }
 
@@ -656,8 +639,10 @@ public:
 class CanvasItemEditorViewport : public Control {
 	GDCLASS(CanvasItemEditorViewport, Control);
 
-	String default_type;
-	Vector<String> types;
+	// The type of node that will be created when dropping texture into the viewport.
+	String default_texture_node_type;
+	// Node types that are available to select from when dropping texture into viewport.
+	Vector<String> texture_node_types;
 
 	Vector<String> selected_files;
 	Node *target_node;
@@ -666,7 +651,7 @@ class CanvasItemEditorViewport : public Control {
 	EditorNode *editor;
 	EditorData *editor_data;
 	CanvasItemEditor *canvas_item_editor;
-	Node2D *preview_node;
+	Control *preview_node;
 	AcceptDialog *accept;
 	AcceptDialog *selector;
 	Label *selector_label;
@@ -679,6 +664,7 @@ class CanvasItemEditorViewport : public Control {
 	void _on_select_type(Object *selected);
 	void _on_change_type_confirmed();
 	void _on_change_type_closed();
+	Node *_make_texture_node_type(String texture_node_type);
 
 	void _create_preview(const Vector<String> &files) const;
 	void _remove_preview();

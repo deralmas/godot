@@ -32,6 +32,7 @@
 
 #include "core/config/project_settings.h"
 #include "core/crypto/crypto_core.h"
+#include "core/extension/native_extension.h"
 #include "core/io/config_file.h"
 #include "core/io/dir_access.h"
 #include "core/io/file_access.h"
@@ -80,9 +81,9 @@ bool EditorExportPreset::_get(const StringName &p_name, Variant &r_ret) const {
 }
 
 void EditorExportPreset::_get_property_list(List<PropertyInfo> *p_list) const {
-	for (const List<PropertyInfo>::Element *E = properties.front(); E; E = E->next()) {
-		if (platform->get_option_visibility(E->get().name, values)) {
-			p_list->push_back(E->get());
+	for (const PropertyInfo &E : properties) {
+		if (platform->get_option_visibility(E.name, values)) {
+			p_list->push_back(E);
 		}
 	}
 }
@@ -436,9 +437,9 @@ Ref<EditorExportPreset> EditorExportPlatform::create_preset() {
 	List<ExportOption> options;
 	get_export_options(&options);
 
-	for (List<ExportOption>::Element *E = options.front(); E; E = E->next()) {
-		preset->properties.push_back(E->get().option);
-		preset->values[E->get().option.name] = E->get().default_value;
+	for (const ExportOption &E : options) {
+		preset->properties.push_back(E.option);
+		preset->values[E.option.name] = E.default_value;
 	}
 
 	return preset;
@@ -624,21 +625,15 @@ Vector<String> EditorExportPlugin::get_ios_project_static_libs() const {
 }
 
 void EditorExportPlugin::_export_file_script(const String &p_path, const String &p_type, const Vector<String> &p_features) {
-	if (get_script_instance()) {
-		get_script_instance()->call("_export_file", p_path, p_type, p_features);
-	}
+	GDVIRTUAL_CALL(_export_file, p_path, p_type, p_features);
 }
 
 void EditorExportPlugin::_export_begin_script(const Vector<String> &p_features, bool p_debug, const String &p_path, int p_flags) {
-	if (get_script_instance()) {
-		get_script_instance()->call("_export_begin", p_features, p_debug, p_path, p_flags);
-	}
+	GDVIRTUAL_CALL(_export_begin, p_features, p_debug, p_path, p_flags);
 }
 
 void EditorExportPlugin::_export_end_script() {
-	if (get_script_instance()) {
-		get_script_instance()->call("_export_end");
-	}
+	GDVIRTUAL_CALL(_export_end);
 }
 
 void EditorExportPlugin::_export_file(const String &p_path, const String &p_type, const Set<String> &p_features) {
@@ -663,9 +658,9 @@ void EditorExportPlugin::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("add_ios_cpp_code", "code"), &EditorExportPlugin::add_ios_cpp_code);
 	ClassDB::bind_method(D_METHOD("skip"), &EditorExportPlugin::skip);
 
-	BIND_VMETHOD(MethodInfo("_export_file", PropertyInfo(Variant::STRING, "path"), PropertyInfo(Variant::STRING, "type"), PropertyInfo(Variant::PACKED_STRING_ARRAY, "features")));
-	BIND_VMETHOD(MethodInfo("_export_begin", PropertyInfo(Variant::PACKED_STRING_ARRAY, "features"), PropertyInfo(Variant::BOOL, "is_debug"), PropertyInfo(Variant::STRING, "path"), PropertyInfo(Variant::INT, "flags")));
-	BIND_VMETHOD(MethodInfo("_export_end"));
+	GDVIRTUAL_BIND(_export_file, "path", "type", "features");
+	GDVIRTUAL_BIND(_export_begin, "features", "is_debug", "path", "flags");
+	GDVIRTUAL_BIND(_export_end);
 }
 
 EditorExportPlugin::EditorExportPlugin() {
@@ -679,9 +674,9 @@ EditorExportPlatform::FeatureContainers EditorExportPlatform::get_feature_contai
 	platform->get_preset_features(p_preset, &feature_list);
 
 	FeatureContainers result;
-	for (List<String>::Element *E = feature_list.front(); E; E = E->next()) {
-		result.features.insert(E->get());
-		result.features_pv.push_back(E->get());
+	for (const String &E : feature_list) {
+		result.features.insert(E);
+		result.features_pv.push_back(E);
 	}
 
 	if (p_preset->get_custom_features() != String()) {
@@ -752,9 +747,7 @@ Error EditorExportPlatform::export_project_files(const Ref<EditorExportPreset> &
 		List<PropertyInfo> props;
 		ProjectSettings::get_singleton()->get_property_list(&props);
 
-		for (List<PropertyInfo>::Element *E = props.front(); E; E = E->next()) {
-			const PropertyInfo &pi = E->get();
-
+		for (const PropertyInfo &pi : props) {
 			if (!pi.name.begins_with("autoload/")) {
 				continue;
 			}
@@ -899,8 +892,8 @@ Error EditorExportPlatform::export_project_files(const Ref<EditorExportPreset> &
 
 			Set<String> remap_features;
 
-			for (List<String>::Element *F = remaps.front(); F; F = F->next()) {
-				String remap = F->get();
+			for (const String &F : remaps) {
+				String remap = F;
 				String feature = remap.get_slice(".", 1);
 				if (features.has(feature)) {
 					remap_features.insert(feature);
@@ -913,8 +906,8 @@ Error EditorExportPlatform::export_project_files(const Ref<EditorExportPreset> &
 
 			err = OK;
 
-			for (List<String>::Element *F = remaps.front(); F; F = F->next()) {
-				String remap = F->get();
+			for (const String &F : remaps) {
+				String remap = F;
 				if (remap == "path") {
 					String remapped_path = config->get_value("remap", remap);
 					Vector<uint8_t> array = FileAccess::get_file_as_array(remapped_path);
@@ -1046,6 +1039,21 @@ Error EditorExportPlatform::export_project_files(const Ref<EditorExportPreset> &
 	if (splash != String() && FileAccess::exists(splash) && icon != splash) {
 		Vector<uint8_t> array = FileAccess::get_file_as_array(splash);
 		err = p_func(p_udata, splash, array, idx, total, enc_in_filters, enc_ex_filters, key);
+		if (err != OK) {
+			return err;
+		}
+	}
+	if (FileAccess::exists(ResourceUID::CACHE_FILE)) {
+		Vector<uint8_t> array = FileAccess::get_file_as_array(ResourceUID::CACHE_FILE);
+		err = p_func(p_udata, ResourceUID::CACHE_FILE, array, idx, total, enc_in_filters, enc_ex_filters, key);
+		if (err != OK) {
+			return err;
+		}
+	}
+
+	if (FileAccess::exists(NativeExtension::EXTENSION_LIST_CONFIG_FILE)) {
+		Vector<uint8_t> array = FileAccess::get_file_as_array(NativeExtension::EXTENSION_LIST_CONFIG_FILE);
+		err = p_func(p_udata, NativeExtension::EXTENSION_LIST_CONFIG_FILE, array, idx, total, enc_in_filters, enc_ex_filters, key);
 		if (err != OK) {
 			return err;
 		}
@@ -1362,7 +1370,7 @@ void EditorExportPlatform::gen_export_flags(Vector<String> &r_flags, int p_flags
 		if (breakpoints.size()) {
 			r_flags.push_back("--breakpoints");
 			String bpoints;
-			for (const List<String>::Element *E = breakpoints.front(); E; E = E->next()) {
+			for (List<String>::Element *E = breakpoints.front(); E; E = E->next()) {
 				bpoints += E->get().replace(" ", "%20");
 				if (E->next()) {
 					bpoints += ",";
@@ -1436,8 +1444,8 @@ void EditorExport::_save() {
 
 		String option_section = "preset." + itos(i) + ".options";
 
-		for (const List<PropertyInfo>::Element *E = preset->get_properties().front(); E; E = E->next()) {
-			config->set_value(option_section, E->get().name, preset->get(E->get().name));
+		for (const PropertyInfo &E : preset->get_properties()) {
+			config->set_value(option_section, E.name, preset->get(E.name));
 		}
 	}
 
@@ -1642,10 +1650,10 @@ void EditorExport::load_config() {
 
 		config->get_section_keys(option_section, &options);
 
-		for (List<String>::Element *E = options.front(); E; E = E->next()) {
-			Variant value = config->get_value(option_section, E->get());
+		for (const String &E : options) {
+			Variant value = config->get_value(option_section, E);
 
-			preset->set(E->get(), value);
+			preset->set(E, value);
 		}
 
 		add_export_preset(preset);
@@ -1684,11 +1692,11 @@ void EditorExport::update_export_presets() {
 			preset->properties.clear();
 			preset->values.clear();
 
-			for (List<EditorExportPlatform::ExportOption>::Element *E = options.front(); E; E = E->next()) {
-				preset->properties.push_back(E->get().option);
+			for (const EditorExportPlatform::ExportOption &E : options) {
+				preset->properties.push_back(E.option);
 
-				StringName option_name = E->get().option.name;
-				preset->values[option_name] = previous_values.has(option_name) ? previous_values[option_name] : E->get().default_value;
+				StringName option_name = E.option.name;
+				preset->values[option_name] = previous_values.has(option_name) ? previous_values[option_name] : E.default_value;
 			}
 		}
 	}

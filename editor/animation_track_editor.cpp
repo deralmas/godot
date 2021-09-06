@@ -598,12 +598,12 @@ public:
 					if (ap) {
 						List<StringName> anims;
 						ap->get_animation_list(&anims);
-						for (List<StringName>::Element *E = anims.front(); E; E = E->next()) {
+						for (const StringName &E : anims) {
 							if (animations != String()) {
 								animations += ",";
 							}
 
-							animations += String(E->get());
+							animations += String(E);
 						}
 					}
 				}
@@ -702,8 +702,8 @@ public:
 
 		for (Map<int, List<float>>::Element *E = key_ofs_map.front(); E; E = E->next()) {
 			int key = 0;
-			for (List<float>::Element *F = E->value().front(); F; F = F->next()) {
-				float key_ofs = F->get();
+			for (float &F : E->value()) {
+				float key_ofs = F;
 				if (from != key_ofs) {
 					key++;
 					continue;
@@ -728,8 +728,8 @@ public:
 		bool change_notify_deserved = false;
 		for (Map<int, List<float>>::Element *E = key_ofs_map.front(); E; E = E->next()) {
 			int track = E->key();
-			for (List<float>::Element *F = E->value().front(); F; F = F->next()) {
-				float key_ofs = F->get();
+			for (float &F : E->value()) {
+				float key_ofs = F;
 				int key = animation->track_find_key(track, key_ofs, true);
 				ERR_FAIL_COND_V(key == -1, false);
 
@@ -986,8 +986,8 @@ public:
 	bool _get(const StringName &p_name, Variant &r_ret) const {
 		for (Map<int, List<float>>::Element *E = key_ofs_map.front(); E; E = E->next()) {
 			int track = E->key();
-			for (List<float>::Element *F = E->value().front(); F; F = F->next()) {
-				float key_ofs = F->get();
+			for (float &F : E->value()) {
+				float key_ofs = F;
 				int key = animation->track_find_key(track, key_ofs, true);
 				ERR_CONTINUE(key == -1);
 
@@ -1137,8 +1137,8 @@ public:
 					same_key_type = false;
 				}
 
-				for (List<float>::Element *F = E->value().front(); F; F = F->next()) {
-					int key = animation->track_find_key(track, F->get(), true);
+				for (float &F : E->value()) {
+					int key = animation->track_find_key(track, F, true);
 					ERR_FAIL_COND(key == -1);
 					if (first_key < 0) {
 						first_key = key;
@@ -1642,7 +1642,7 @@ void AnimationTimelineEdit::_play_position_draw() {
 	}
 }
 
-void AnimationTimelineEdit::_gui_input(const Ref<InputEvent> &p_event) {
+void AnimationTimelineEdit::gui_input(const Ref<InputEvent> &p_event) {
 	ERR_FAIL_COND(p_event.is_null());
 
 	const Ref<InputEventMouseButton> mb = p_event;
@@ -1754,8 +1754,6 @@ void AnimationTimelineEdit::_track_added(int p_track) {
 }
 
 void AnimationTimelineEdit::_bind_methods() {
-	ClassDB::bind_method("_gui_input", &AnimationTimelineEdit::_gui_input);
-
 	ADD_SIGNAL(MethodInfo("zoom_changed"));
 	ADD_SIGNAL(MethodInfo("name_limit_changed"));
 	ADD_SIGNAL(MethodInfo("timeline_changed", PropertyInfo(Variant::FLOAT, "position"), PropertyInfo(Variant::BOOL, "drag")));
@@ -2551,21 +2549,21 @@ String AnimationTrackEdit::get_tooltip(const Point2 &p_pos) const {
 	return Control::get_tooltip(p_pos);
 }
 
-void AnimationTrackEdit::_gui_input(const Ref<InputEvent> &p_event) {
+void AnimationTrackEdit::gui_input(const Ref<InputEvent> &p_event) {
 	ERR_FAIL_COND(p_event.is_null());
 
 	if (p_event->is_pressed()) {
-		if (ED_GET_SHORTCUT("animation_editor/duplicate_selection")->is_shortcut(p_event)) {
+		if (ED_GET_SHORTCUT("animation_editor/duplicate_selection")->matches_event(p_event)) {
 			emit_signal(SNAME("duplicate_request"));
 			accept_event();
 		}
 
-		if (ED_GET_SHORTCUT("animation_editor/duplicate_selection_transposed")->is_shortcut(p_event)) {
+		if (ED_GET_SHORTCUT("animation_editor/duplicate_selection_transposed")->matches_event(p_event)) {
 			emit_signal(SNAME("duplicate_transpose_request"));
 			accept_event();
 		}
 
-		if (ED_GET_SHORTCUT("animation_editor/delete_selection")->is_shortcut(p_event)) {
+		if (ED_GET_SHORTCUT("animation_editor/delete_selection")->matches_event(p_event)) {
 			emit_signal(SNAME("delete_request"));
 			accept_event();
 		}
@@ -2965,8 +2963,6 @@ void AnimationTrackEdit::append_to_selection(const Rect2 &p_box, bool p_deselect
 }
 
 void AnimationTrackEdit::_bind_methods() {
-	ClassDB::bind_method("_gui_input", &AnimationTrackEdit::_gui_input);
-
 	ADD_SIGNAL(MethodInfo("timeline_changed", PropertyInfo(Variant::FLOAT, "position"), PropertyInfo(Variant::BOOL, "drag")));
 	ADD_SIGNAL(MethodInfo("remove_request", PropertyInfo(Variant::INT, "track")));
 	ADD_SIGNAL(MethodInfo("dropped", PropertyInfo(Variant::INT, "from_track"), PropertyInfo(Variant::INT, "to_track")));
@@ -3356,9 +3352,9 @@ void AnimationTrackEditor::_query_insert(const InsertData &p_id) {
 	}
 	insert_frame = Engine::get_singleton()->get_frames_drawn();
 
-	for (List<InsertData>::Element *E = insert_data.front(); E; E = E->next()) {
+	for (const InsertData &E : insert_data) {
 		//prevent insertion of multiple tracks
-		if (E->get().path == p_id.path) {
+		if (E.path == p_id.path) {
 			return; //already inserted a track for this on this frame
 		}
 	}
@@ -3418,6 +3414,7 @@ void AnimationTrackEditor::_query_insert(const InsertData &p_id) {
 		if (bool(EDITOR_DEF("editors/animation/confirm_insert_track", true))) {
 			//potential new key, does not exist
 			if (num_tracks == 1) {
+				// TRANSLATORS: %s will be replaced by a phrase describing the target of track.
 				insert_confirm_text->set_text(vformat(TTR("Create new track for %s and insert key?"), p_id.query));
 			} else {
 				insert_confirm_text->set_text(vformat(TTR("Create %d new tracks and insert keys?"), num_tracks));
@@ -3525,7 +3522,8 @@ void AnimationTrackEditor::insert_transform_key(Node3D *p_node, const String &p_
 	id.track_idx = track_idx;
 	id.value = p_xform;
 	id.type = Animation::TYPE_TRANSFORM3D;
-	id.query = "node '" + p_node->get_name() + "'";
+	// TRANSLATORS: This describes the target of new animation track, will be inserted into another string.
+	id.query = vformat(TTR("node '%s'"), p_node->get_name());
 	id.advance = false;
 
 	//dialog insert
@@ -3547,7 +3545,8 @@ void AnimationTrackEditor::_insert_animation_key(NodePath p_path, const Variant 
 			id.track_idx = i;
 			id.value = p_value;
 			id.type = Animation::TYPE_ANIMATION;
-			id.query = "animation";
+			// TRANSLATORS: This describes the target of new animation track, will be inserted into another string.
+			id.query = TTR("animation");
 			id.advance = false;
 			//dialog insert
 			_query_insert(id);
@@ -3560,7 +3559,7 @@ void AnimationTrackEditor::_insert_animation_key(NodePath p_path, const Variant 
 	id.track_idx = -1;
 	id.value = p_value;
 	id.type = Animation::TYPE_ANIMATION;
-	id.query = "animation";
+	id.query = TTR("animation");
 	id.advance = false;
 	//dialog insert
 	_query_insert(id);
@@ -3609,7 +3608,8 @@ void AnimationTrackEditor::insert_node_value_key(Node *p_node, const String &p_p
 			id.track_idx = i;
 			id.value = p_value;
 			id.type = Animation::TYPE_VALUE;
-			id.query = "property '" + p_property + "'";
+			// TRANSLATORS: This describes the target of new animation track, will be inserted into another string.
+			id.query = vformat(TTR("property '%s'"), p_property);
 			id.advance = false;
 			//dialog insert
 			_query_insert(id);
@@ -3639,7 +3639,7 @@ void AnimationTrackEditor::insert_node_value_key(Node *p_node, const String &p_p
 			id.track_idx = i;
 			id.value = value;
 			id.type = Animation::TYPE_BEZIER;
-			id.query = "property '" + p_property + "'";
+			id.query = vformat(TTR("property '%s'"), p_property);
 			id.advance = false;
 			//dialog insert
 			_query_insert(id);
@@ -3655,7 +3655,7 @@ void AnimationTrackEditor::insert_node_value_key(Node *p_node, const String &p_p
 	id.track_idx = -1;
 	id.value = p_value;
 	id.type = Animation::TYPE_VALUE;
-	id.query = "property '" + p_property + "'";
+	id.query = vformat(TTR("property '%s'"), p_property);
 	id.advance = false;
 	//dialog insert
 	_query_insert(id);
@@ -3708,7 +3708,7 @@ void AnimationTrackEditor::insert_value_key(const String &p_property, const Vari
 			id.track_idx = i;
 			id.value = p_value;
 			id.type = Animation::TYPE_VALUE;
-			id.query = "property '" + p_property + "'";
+			id.query = vformat(TTR("property '%s'"), p_property);
 			id.advance = p_advance;
 			//dialog insert
 			_query_insert(id);
@@ -3733,7 +3733,7 @@ void AnimationTrackEditor::insert_value_key(const String &p_property, const Vari
 			id.track_idx = i;
 			id.value = value;
 			id.type = Animation::TYPE_BEZIER;
-			id.query = "property '" + p_property + "'";
+			id.query = vformat(TTR("property '%s'"), p_property);
 			id.advance = p_advance;
 			//dialog insert
 			_query_insert(id);
@@ -3747,7 +3747,7 @@ void AnimationTrackEditor::insert_value_key(const String &p_property, const Vari
 		id.track_idx = -1;
 		id.value = p_value;
 		id.type = Animation::TYPE_VALUE;
-		id.query = "property '" + p_property + "'";
+		id.query = vformat(TTR("property '%s'"), p_property);
 		id.advance = p_advance;
 		//dialog insert
 		_query_insert(id);
@@ -3843,9 +3843,9 @@ PropertyInfo AnimationTrackEditor::_find_hint_for_track(int p_idx, NodePath &r_b
 	List<PropertyInfo> pinfo;
 	property_info_base.get_property_list(&pinfo);
 
-	for (List<PropertyInfo>::Element *E = pinfo.front(); E; E = E->next()) {
-		if (E->get().name == leftover_path[leftover_path.size() - 1]) {
-			return E->get();
+	for (const PropertyInfo &E : pinfo) {
+		if (E.name == leftover_path[leftover_path.size() - 1]) {
+			return E;
 		}
 	}
 
@@ -4675,21 +4675,21 @@ void AnimationTrackEditor::_add_method_key(const String &p_method) {
 	List<MethodInfo> minfo;
 	base->get_method_list(&minfo);
 
-	for (List<MethodInfo>::Element *E = minfo.front(); E; E = E->next()) {
-		if (E->get().name == p_method) {
+	for (const MethodInfo &E : minfo) {
+		if (E.name == p_method) {
 			Dictionary d;
 			d["method"] = p_method;
 			Array params;
-			int first_defarg = E->get().arguments.size() - E->get().default_arguments.size();
+			int first_defarg = E.arguments.size() - E.default_arguments.size();
 
-			for (int i = 0; i < E->get().arguments.size(); i++) {
+			for (int i = 0; i < E.arguments.size(); i++) {
 				if (i >= first_defarg) {
-					Variant arg = E->get().default_arguments[i - first_defarg];
+					Variant arg = E.default_arguments[i - first_defarg];
 					params.push_back(arg);
 				} else {
 					Callable::CallError ce;
 					Variant arg;
-					Variant::construct(E->get().arguments[i].type, arg, nullptr, 0, ce);
+					Variant::construct(E.arguments[i].type, arg, nullptr, 0, ce);
 					params.push_back(arg);
 				}
 			}
@@ -4936,8 +4936,7 @@ void AnimationTrackEditor::_move_selection_commit() {
 	}
 
 	// 6 - (undo) reinsert overlapped keys
-	for (List<_AnimMoveRestore>::Element *E = to_restore.front(); E; E = E->next()) {
-		_AnimMoveRestore &amr = E->get();
+	for (_AnimMoveRestore &amr : to_restore) {
 		undo_redo->add_undo_method(animation.ptr(), "track_insert_key", amr.track, amr.time, amr.key, amr.transition);
 	}
 
@@ -5151,9 +5150,9 @@ void AnimationTrackEditor::_anim_duplicate_keys(bool transpose) {
 		//reselect duplicated
 
 		Map<SelectedKey, KeyInfo> new_selection;
-		for (List<Pair<int, float>>::Element *E = new_selection_values.front(); E; E = E->next()) {
-			int track = E->get().first;
-			float time = E->get().second;
+		for (const Pair<int, float> &E : new_selection_values) {
+			int track = E.first;
+			float time = E.second;
 
 			int existing_idx = animation->track_find_key(track, time, true);
 
@@ -5462,8 +5461,7 @@ void AnimationTrackEditor::_edit_menu_pressed(int p_option) {
 			}
 
 			// 6-(undo) reinsert overlapped keys
-			for (List<_AnimMoveRestore>::Element *E = to_restore.front(); E; E = E->next()) {
-				_AnimMoveRestore &amr = E->get();
+			for (_AnimMoveRestore &amr : to_restore) {
 				undo_redo->add_undo_method(animation.ptr(), "track_insert_key", amr.track, amr.time, amr.key, amr.transition);
 			}
 
@@ -5543,8 +5541,8 @@ void AnimationTrackEditor::_edit_menu_pressed(int p_option) {
 			if (cleanup_all->is_pressed()) {
 				List<StringName> names;
 				AnimationPlayerEditor::singleton->get_player()->get_animation_list(&names);
-				for (List<StringName>::Element *E = names.front(); E; E = E->next()) {
-					_cleanup_animation(AnimationPlayerEditor::singleton->get_player()->get_animation(E->get()));
+				for (const StringName &E : names) {
+					_cleanup_animation(AnimationPlayerEditor::singleton->get_player()->get_animation(E));
 				}
 			} else {
 				_cleanup_animation(animation);
@@ -5638,6 +5636,11 @@ float AnimationTrackEditor::snap_time(float p_value, bool p_relative) {
 			snap_increment = 1.0 / step->get_value();
 		} else {
 			snap_increment = step->get_value();
+		}
+
+		if (Input::get_singleton()->is_key_pressed(KEY_SHIFT)) {
+			// Use more precise snapping when holding Shift.
+			snap_increment *= 0.25;
 		}
 
 		if (p_relative) {
@@ -5754,9 +5757,11 @@ void AnimationTrackEditor::_pick_track_filter_input(const Ref<InputEvent> &p_ie)
 			case KEY_DOWN:
 			case KEY_PAGEUP:
 			case KEY_PAGEDOWN: {
-				pick_track->get_scene_tree()->get_scene_tree()->call("_gui_input", k);
+				pick_track->get_scene_tree()->get_scene_tree()->gui_input(k);
 				pick_track->get_filter_line_edit()->accept_event();
 			} break;
+			default:
+				break;
 		}
 	}
 }

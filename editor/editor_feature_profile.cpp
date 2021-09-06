@@ -527,9 +527,8 @@ void EditorFeatureProfileManager::_fill_classes_from(TreeItem *p_parent, const S
 	ClassDB::get_direct_inheriters_from_class(p_class, &child_classes);
 	child_classes.sort_custom<StringName::AlphCompare>();
 
-	for (List<StringName>::Element *E = child_classes.front(); E; E = E->next()) {
-		String name = E->get();
-		if (name.begins_with("Editor") || ClassDB::get_api_type(name) != ClassDB::API_CORE) {
+	for (const StringName &name : child_classes) {
+		if (String(name).begins_with("Editor") || ClassDB::get_api_type(name) != ClassDB::API_CORE) {
 			continue;
 		}
 		_fill_classes_from(class_item, name, p_selected);
@@ -564,7 +563,7 @@ void EditorFeatureProfileManager::_class_list_item_selected() {
 		int feature_id = md;
 		String feature_description = EditorFeatureProfile::get_feature_description(EditorFeatureProfile::Feature(feature_id));
 
-		description_bit->set_text(feature_description);
+		description_bit->set_text(TTRGET(feature_description));
 		return;
 	} else {
 		return;
@@ -597,9 +596,9 @@ void EditorFeatureProfileManager::_class_list_item_selected() {
 		TreeItem *properties = property_list->create_item(root);
 		properties->set_text(0, TTR("Class Properties:"));
 
-		for (List<PropertyInfo>::Element *E = props.front(); E; E = E->next()) {
-			String name = E->get().name;
-			if (!(E->get().usage & PROPERTY_USAGE_EDITOR)) {
+		for (const PropertyInfo &E : props) {
+			String name = E.name;
+			if (!(E.usage & PROPERTY_USAGE_EDITOR)) {
 				continue;
 			}
 			TreeItem *property = property_list->create_item(properties);
@@ -609,7 +608,7 @@ void EditorFeatureProfileManager::_class_list_item_selected() {
 			property->set_checked(0, !edited->is_class_property_disabled(class_name, name));
 			property->set_text(0, name.capitalize());
 			property->set_metadata(0, name);
-			String icon_type = Variant::get_type_name(E->get().type);
+			String icon_type = Variant::get_type_name(E.type);
 			property->set_icon(0, EditorNode::get_singleton()->get_class_icon(icon_type));
 		}
 	}
@@ -741,7 +740,7 @@ void EditorFeatureProfileManager::_update_selected_profile() {
 
 	TreeItem *features = class_list->create_item(root);
 	TreeItem *last_feature;
-	features->set_text(0, TTR("Main Features") + ":");
+	features->set_text(0, TTR("Main Features:"));
 	for (int i = 0; i < EditorFeatureProfile::FEATURE_MAX; i++) {
 		TreeItem *feature;
 		if (i == EditorFeatureProfile::FEATURE_IMPORT_DOCK) {
@@ -765,7 +764,7 @@ void EditorFeatureProfileManager::_update_selected_profile() {
 	}
 
 	TreeItem *classes = class_list->create_item(root);
-	classes->set_text(0, TTR("Nodes and Classes") + ":");
+	classes->set_text(0, TTR("Nodes and Classes:"));
 
 	_fill_classes_from(classes, "Node", class_selected);
 	_fill_classes_from(classes, "Resource", class_selected);
@@ -918,7 +917,7 @@ EditorFeatureProfileManager::EditorFeatureProfileManager() {
 	class_list_vbc->set_h_size_flags(Control::SIZE_EXPAND_FILL);
 
 	class_list = memnew(Tree);
-	class_list_vbc->add_margin_child(TTR("Configure Selected Profile") + ":", class_list, true);
+	class_list_vbc->add_margin_child(TTR("Configure Selected Profile:"), class_list, true);
 	class_list->set_hide_root(true);
 	class_list->set_edit_checkbox_cell_only_when_checkbox_is_pressed(true);
 	class_list->connect("cell_selected", callable_mp(this, &EditorFeatureProfileManager::_class_list_item_selected));
@@ -932,11 +931,11 @@ EditorFeatureProfileManager::EditorFeatureProfileManager() {
 	property_list_vbc->set_h_size_flags(Control::SIZE_EXPAND_FILL);
 
 	description_bit = memnew(EditorHelpBit);
-	property_list_vbc->add_margin_child(TTR("Description") + ":", description_bit, false);
+	property_list_vbc->add_margin_child(TTR("Description:"), description_bit, false);
 	description_bit->set_custom_minimum_size(Size2(0, 80) * EDSCALE);
 
 	property_list = memnew(Tree);
-	property_list_vbc->add_margin_child(TTR("Extra Options") + ":", property_list, true);
+	property_list_vbc->add_margin_child(TTR("Extra Options:"), property_list, true);
 	property_list->set_hide_root(true);
 	property_list->set_hide_folding(true);
 	property_list->set_edit_checkbox_cell_only_when_checkbox_is_pressed(true);
@@ -958,7 +957,7 @@ EditorFeatureProfileManager::EditorFeatureProfileManager() {
 	VBoxContainer *new_profile_vb = memnew(VBoxContainer);
 	new_profile_dialog->add_child(new_profile_vb);
 	Label *new_profile_label = memnew(Label);
-	new_profile_label->set_text(TTR("New profile name") + ":");
+	new_profile_label->set_text(TTR("New profile name:"));
 	new_profile_vb->add_child(new_profile_label);
 	new_profile_name = memnew(LineEdit);
 	new_profile_vb->add_child(new_profile_name);

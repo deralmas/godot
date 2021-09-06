@@ -40,6 +40,8 @@
 class EditorResourcePicker : public HBoxContainer {
 	GDCLASS(EditorResourcePicker, HBoxContainer);
 
+	static HashMap<StringName, List<StringName>> allowed_types_cache;
+
 	String base_type;
 	RES edited_resource;
 
@@ -97,6 +99,8 @@ protected:
 	void _notification(int p_what);
 
 public:
+	static void clear_caches();
+
 	void set_base_type(const String &p_base_type);
 	String get_base_type() const;
 	Vector<String> get_allowed_types() const;
@@ -138,6 +142,25 @@ public:
 	Node *get_script_owner() const;
 
 	EditorScriptPicker();
+};
+
+class EditorShaderPicker : public EditorResourcePicker {
+	GDCLASS(EditorShaderPicker, EditorResourcePicker);
+
+	enum ExtraMenuOption {
+		OBJ_MENU_NEW_SHADER = 10,
+	};
+
+	ShaderMaterial *edited_material = nullptr;
+
+public:
+	virtual void set_create_options(Object *p_menu_node) override;
+	virtual bool handle_menu_selected(int p_which) override;
+
+	void set_edited_material(ShaderMaterial *p_material);
+	ShaderMaterial *get_edited_material() const;
+
+	EditorShaderPicker();
 };
 
 #endif // EDITOR_RESOURCE_PICKER_H

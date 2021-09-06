@@ -35,13 +35,17 @@ void main() {
 
 layout(location = 0) in vec2 uv_interp;
 
-#ifdef MULTIVIEW
+#ifdef SUBPASS
+layout(input_attachment_index = 0, set = 0, binding = 0) uniform subpassInput input_color;
+#elif defined(MULTIVIEW)
 layout(set = 0, binding = 0) uniform sampler2DArray source_color;
 #else
 layout(set = 0, binding = 0) uniform sampler2D source_color;
 #endif
+
 layout(set = 1, binding = 0) uniform sampler2D source_auto_exposure;
 layout(set = 2, binding = 0) uniform sampler2D source_glow;
+
 #ifdef USE_1D_LUT
 layout(set = 3, binding = 0) uniform sampler2D source_color_correction;
 #else
@@ -67,7 +71,7 @@ layout(push_constant, binding = 1, std430) uniform Params {
 	float exposure;
 	float white;
 	float auto_exposure_grey;
-	uint pad2;
+	float luminance_multiplier;
 
 	vec2 pixel_size;
 	bool use_fxaa;
@@ -180,10 +184,6 @@ vec3 tonemap_aces(vec3 color, float white) {
 }
 
 vec3 tonemap_reinhard(vec3 color, float white) {
-	// Ensure color values are positive.
-	// They can be negative in the case of negative lights, which leads to undesired behavior.
-	color = max(vec3(0.0), color);
-
 	return (white * color + color) / (color * white + white);
 }
 
@@ -207,7 +207,7 @@ vec3 apply_tonemapping(vec3 color, float white) { // inputs are LINEAR, always o
 		return tonemap_reinhard(color, white);
 	} else if (params.tonemapper == TONEMAPPER_FILMIC) {
 		return tonemap_filmic(color, white);
-	} else { //aces
+	} else { // TONEMAPPER_ACES
 		return tonemap_aces(color, white);
 	}
 }
@@ -291,21 +291,22 @@ vec3 apply_color_correction(vec3 color) {
 }
 #endif
 
+#ifndef SUBPASS
 vec3 do_fxaa(vec3 color, float exposure, vec2 uv_interp) {
 	const float FXAA_REDUCE_MIN = (1.0 / 128.0);
 	const float FXAA_REDUCE_MUL = (1.0 / 8.0);
 	const float FXAA_SPAN_MAX = 8.0;
 
 #ifdef MULTIVIEW
-	vec3 rgbNW = textureLod(source_color, vec3(uv_interp + vec2(-1.0, -1.0) * params.pixel_size, ViewIndex), 0.0).xyz * exposure;
-	vec3 rgbNE = textureLod(source_color, vec3(uv_interp + vec2(1.0, -1.0) * params.pixel_size, ViewIndex), 0.0).xyz * exposure;
-	vec3 rgbSW = textureLod(source_color, vec3(uv_interp + vec2(-1.0, 1.0) * params.pixel_size, ViewIndex), 0.0).xyz * exposure;
-	vec3 rgbSE = textureLod(source_color, vec3(uv_interp + vec2(1.0, 1.0) * params.pixel_size, ViewIndex), 0.0).xyz * exposure;
+	vec3 rgbNW = textureLod(source_color, vec3(uv_interp + vec2(-1.0, -1.0) * params.pixel_size, ViewIndex), 0.0).xyz * exposure * params.luminance_multiplier;
+	vec3 rgbNE = textureLod(source_color, vec3(uv_interp + vec2(1.0, -1.0) * params.pixel_size, ViewIndex), 0.0).xyz * exposure * params.luminance_multiplier;
+	vec3 rgbSW = textureLod(source_color, vec3(uv_interp + vec2(-1.0, 1.0) * params.pixel_size, ViewIndex), 0.0).xyz * exposure * params.luminance_multiplier;
+	vec3 rgbSE = textureLod(source_color, vec3(uv_interp + vec2(1.0, 1.0) * params.pixel_size, ViewIndex), 0.0).xyz * exposure * params.luminance_multiplier;
 #else
-	vec3 rgbNW = textureLod(source_color, uv_interp + vec2(-1.0, -1.0) * params.pixel_size, 0.0).xyz * exposure;
-	vec3 rgbNE = textureLod(source_color, uv_interp + vec2(1.0, -1.0) * params.pixel_size, 0.0).xyz * exposure;
-	vec3 rgbSW = textureLod(source_color, uv_interp + vec2(-1.0, 1.0) * params.pixel_size, 0.0).xyz * exposure;
-	vec3 rgbSE = textureLod(source_color, uv_interp + vec2(1.0, 1.0) * params.pixel_size, 0.0).xyz * exposure;
+	vec3 rgbNW = textureLod(source_color, uv_interp + vec2(-1.0, -1.0) * params.pixel_size, 0.0).xyz * exposure * params.luminance_multiplier;
+	vec3 rgbNE = textureLod(source_color, uv_interp + vec2(1.0, -1.0) * params.pixel_size, 0.0).xyz * exposure * params.luminance_multiplier;
+	vec3 rgbSW = textureLod(source_color, uv_interp + vec2(-1.0, 1.0) * params.pixel_size, 0.0).xyz * exposure * params.luminance_multiplier;
+	vec3 rgbSE = textureLod(source_color, uv_interp + vec2(1.0, 1.0) * params.pixel_size, 0.0).xyz * exposure * params.luminance_multiplier;
 #endif
 	vec3 rgbM = color;
 	vec3 luma = vec3(0.299, 0.587, 0.114);
@@ -332,11 +333,11 @@ vec3 do_fxaa(vec3 color, float exposure, vec2 uv_interp) {
 		  params.pixel_size;
 
 #ifdef MULTIVIEW
-	vec3 rgbA = 0.5 * exposure * (textureLod(source_color, vec3(uv_interp + dir * (1.0 / 3.0 - 0.5), ViewIndex), 0.0).xyz + textureLod(source_color, vec3(uv_interp + dir * (2.0 / 3.0 - 0.5), ViewIndex), 0.0).xyz);
-	vec3 rgbB = rgbA * 0.5 + 0.25 * exposure * (textureLod(source_color, vec3(uv_interp + dir * -0.5, ViewIndex), 0.0).xyz + textureLod(source_color, vec3(uv_interp + dir * 0.5, ViewIndex), 0.0).xyz);
+	vec3 rgbA = 0.5 * exposure * (textureLod(source_color, vec3(uv_interp + dir * (1.0 / 3.0 - 0.5), ViewIndex), 0.0).xyz + textureLod(source_color, vec3(uv_interp + dir * (2.0 / 3.0 - 0.5), ViewIndex), 0.0).xyz) * params.luminance_multiplier;
+	vec3 rgbB = rgbA * 0.5 + 0.25 * exposure * (textureLod(source_color, vec3(uv_interp + dir * -0.5, ViewIndex), 0.0).xyz + textureLod(source_color, vec3(uv_interp + dir * 0.5, ViewIndex), 0.0).xyz) * params.luminance_multiplier;
 #else
-	vec3 rgbA = 0.5 * exposure * (textureLod(source_color, uv_interp + dir * (1.0 / 3.0 - 0.5), 0.0).xyz + textureLod(source_color, uv_interp + dir * (2.0 / 3.0 - 0.5), 0.0).xyz);
-	vec3 rgbB = rgbA * 0.5 + 0.25 * exposure * (textureLod(source_color, uv_interp + dir * -0.5, 0.0).xyz + textureLod(source_color, uv_interp + dir * 0.5, 0.0).xyz);
+	vec3 rgbA = 0.5 * exposure * (textureLod(source_color, uv_interp + dir * (1.0 / 3.0 - 0.5), 0.0).xyz + textureLod(source_color, uv_interp + dir * (2.0 / 3.0 - 0.5), 0.0).xyz) * params.luminance_multiplier;
+	vec3 rgbB = rgbA * 0.5 + 0.25 * exposure * (textureLod(source_color, uv_interp + dir * -0.5, 0.0).xyz + textureLod(source_color, uv_interp + dir * 0.5, 0.0).xyz) * params.luminance_multiplier;
 #endif
 
 	float lumaB = dot(rgbB, luma);
@@ -346,8 +347,9 @@ vec3 do_fxaa(vec3 color, float exposure, vec2 uv_interp) {
 		return rgbB;
 	}
 }
+#endif // !SUBPASS
 
-// From http://alex.vlachos.com/graphics/Alex_Vlachos_Advanced_VR_Rendering_GDC2015.pdf
+// From https://alex.vlachos.com/graphics/Alex_Vlachos_Advanced_VR_Rendering_GDC2015.pdf
 // and https://www.shadertoy.com/view/MslGR8 (5th one starting from the bottom)
 // NOTE: `frag_coord` is in pixels (i.e. not normalized UV).
 vec3 screen_space_dither(vec2 frag_coord) {
@@ -360,45 +362,56 @@ vec3 screen_space_dither(vec2 frag_coord) {
 }
 
 void main() {
-#ifdef MULTIVIEW
-	vec3 color = textureLod(source_color, vec3(uv_interp, ViewIndex), 0.0f).rgb;
+#ifdef SUBPASS
+	// SUBPASS and MULTIVIEW can be combined but in that case we're already reading from the correct layer
+	vec3 color = subpassLoad(input_color).rgb * params.luminance_multiplier;
+#elif defined(MULTIVIEW)
+	vec3 color = textureLod(source_color, vec3(uv_interp, ViewIndex), 0.0f).rgb * params.luminance_multiplier;
 #else
-	vec3 color = textureLod(source_color, uv_interp, 0.0f).rgb;
+	vec3 color = textureLod(source_color, uv_interp, 0.0f).rgb * params.luminance_multiplier;
 #endif
 
 	// Exposure
 
 	float exposure = params.exposure;
 
+#ifndef SUBPASS
 	if (params.use_auto_exposure) {
-		exposure *= 1.0 / (texelFetch(source_auto_exposure, ivec2(0, 0), 0).r / params.auto_exposure_grey);
+		exposure *= 1.0 / (texelFetch(source_auto_exposure, ivec2(0, 0), 0).r * params.luminance_multiplier / params.auto_exposure_grey);
 	}
+#endif
 
 	color *= exposure;
 
 	// Early Tonemap & SRGB Conversion
-
+#ifndef SUBPASS
 	if (params.use_glow && params.glow_mode == GLOW_MODE_MIX) {
-		vec3 glow = gather_glow(source_glow, uv_interp);
+		vec3 glow = gather_glow(source_glow, uv_interp) * params.luminance_multiplier;
 		color.rgb = mix(color.rgb, glow, params.glow_intensity);
 	}
 
 	if (params.use_fxaa) {
 		color = do_fxaa(color, exposure, uv_interp);
 	}
+#endif
+
 	if (params.use_debanding) {
 		// For best results, debanding should be done before tonemapping.
 		// Otherwise, we're adding noise to an already-quantized image.
 		color += screen_space_dither(gl_FragCoord.xy);
 	}
-	color = apply_tonemapping(color, params.white);
+
+	// Ensure color values passed to tonemappers are positive.
+	// They can be negative in the case of negative lights, which leads to undesired behavior.
+	color = apply_tonemapping(max(vec3(0.0), color), params.white);
 
 	color = linear_to_srgb(color); // regular linear -> SRGB conversion
 
+#ifndef SUBPASS
 	// Glow
 
 	if (params.use_glow && params.glow_mode != GLOW_MODE_MIX) {
-		vec3 glow = gather_glow(source_glow, uv_interp) * params.glow_intensity;
+		vec3 glow = gather_glow(source_glow, uv_interp) * params.glow_intensity * params.luminance_multiplier;
 
 		// high dynamic range -> SRGB
 		glow = apply_tonemapping(glow, params.white);
@@ -406,6 +419,7 @@ void main() {
 
 		color = apply_glow(color, glow);
 	}
+#endif
 
 	// Additional effects
 

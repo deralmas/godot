@@ -222,7 +222,7 @@ void RendererCompositorRD::set_boot_image(const Ref<Image> &p_image, const Color
 
 	RD::get_singleton()->swap_buffers();
 
-	RD::get_singleton()->free(texture);
+	storage->free(texture);
 }
 
 RendererCompositorRD *RendererCompositorRD::singleton = nullptr;
@@ -280,6 +280,11 @@ RendererCompositorRD::RendererCompositorRD() {
 		// default to our high end renderer
 		scene = memnew(RendererSceneRenderImplementation::RenderForwardClustered(storage));
 	}
+
+	scene->init();
+
+	// now we're ready to create our effects,
+	storage->init_effects(!scene->_render_buffers_can_be_storage());
 }
 
 RendererCompositorRD::~RendererCompositorRD() {

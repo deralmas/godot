@@ -255,7 +255,7 @@ protected:
 		arr.push_back(p_normal);
 		arr.push_back(p_d);
 
-		RID plane = ps->line_shape_create();
+		RID plane = ps->world_margin_shape_create();
 		ps->shape_set_data(plane, arr);
 
 		RID plane_body = ps->body_create();
@@ -386,7 +386,7 @@ public:
 		//_add_plane(Vector2(-1,0).normalized(),-600);
 	}
 
-	virtual bool process(float p_time) override {
+	virtual bool process(double p_time) override {
 		return false;
 	}
 	virtual void finalize() override {

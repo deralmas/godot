@@ -348,6 +348,7 @@ msgstr "एनिमेशन लूप मोड बदलें"
 msgid "Remove Anim Track"
 msgstr "अनीम ट्रैक निकालें"
 
+#. TRANSLATORS: %s will be replaced by a phrase describing the target of track.
 #: editor/animation_track_editor.cpp
 msgid "Create NEW track for %s and insert key?"
 msgstr "% एस के लिए नया ट्रैक बनाएं और कुंजी डालें?"
@@ -372,9 +373,26 @@ msgstr "बनाना"
 msgid "Anim Insert"
 msgstr "अनीम डालें"
 
+#. TRANSLATORS: This describes the target of new animation track, will be inserted into another string.
+#: editor/animation_track_editor.cpp
+msgid "node '%s'"
+msgstr ""
+
+#. TRANSLATORS: This describes the target of new animation track, will be inserted into another string.
+#: editor/animation_track_editor.cpp
+#, fuzzy
+msgid "animation"
+msgstr "कार्यों:"
+
 #: editor/animation_track_editor.cpp
 msgid "AnimationPlayer can't animate itself, only other players."
 msgstr "एनिमेशनप्लेयर खुद को चेतन नहीं कर सकता, केवल अन्य खिलाड़ी।"
+
+#. TRANSLATORS: This describes the target of new animation track, will be inserted into another string.
+#: editor/animation_track_editor.cpp
+#, fuzzy
+msgid "property '%s'"
+msgstr "प्रोपर्टी"
 
 #: editor/animation_track_editor.cpp
 msgid "Anim Create & Insert"
@@ -532,7 +550,8 @@ msgstr "सेकंड"
 msgid "FPS"
 msgstr "एफपीएस"
 
-#: editor/animation_track_editor.cpp editor/editor_properties.cpp
+#: editor/animation_track_editor.cpp editor/editor_plugin_settings.cpp
+#: editor/editor_resource_picker.cpp
 #: editor/plugins/polygon_2d_editor_plugin.cpp
 #: editor/plugins/script_text_editor.cpp
 #: editor/plugins/shader_editor_plugin.cpp editor/plugins/text_editor.cpp
@@ -558,7 +577,8 @@ msgstr "स्केल चयन"
 msgid "Scale From Cursor"
 msgstr "कर्सर से स्केल"
 
-#: editor/animation_track_editor.cpp modules/gridmap/grid_map_editor_plugin.cpp
+#: editor/animation_track_editor.cpp editor/plugins/script_text_editor.cpp
+#: modules/gridmap/grid_map_editor_plugin.cpp
 msgid "Duplicate Selection"
 msgstr "डुप्लीकेट चयन"
 
@@ -579,6 +599,11 @@ msgid "Go to Previous Step"
 msgstr "पिछले चरण में जाएं"
 
 #: editor/animation_track_editor.cpp
+#, fuzzy
+msgid "Apply Reset"
+msgstr "रीसेट आकार"
+
+#: editor/animation_track_editor.cpp
 msgid "Optimize Animation"
 msgstr "एनिमेशन का अनुकूलन"
 
@@ -593,6 +618,11 @@ msgstr "एनिमेटेड हो जाएगा कि नोड उठ�
 #: editor/animation_track_editor.cpp
 msgid "Use Bezier Curves"
 msgstr "बेज़ियर कर्व्स का प्रयोग करें"
+
+#: editor/animation_track_editor.cpp
+#, fuzzy
+msgid "Create RESET Track(s)"
+msgstr "पेस्ट ट्रैक"
 
 #: editor/animation_track_editor.cpp
 msgid "Anim. Optimizer"
@@ -643,7 +673,7 @@ msgid "Select Tracks to Copy"
 msgstr "कॉपी करने के लिए ट्रैक का चयन करें"
 
 #: editor/animation_track_editor.cpp editor/editor_log.cpp
-#: editor/editor_properties.cpp
+#: editor/editor_resource_picker.cpp
 #: editor/plugins/animation_player_editor_plugin.cpp
 #: editor/plugins/script_text_editor.cpp
 #: editor/plugins/sprite_frames_editor_plugin.cpp editor/property_editor.cpp
@@ -729,12 +759,14 @@ msgid "Toggle Scripts Panel"
 msgstr "टॉगल स्क्रिप्ट पैनल"
 
 #: editor/code_editor.cpp editor/plugins/canvas_item_editor_plugin.cpp
+#: editor/plugins/sprite_frames_editor_plugin.cpp
 #: editor/plugins/texture_region_editor_plugin.cpp
 #: editor/plugins/tile_set_editor_plugin.cpp scene/gui/graph_edit.cpp
 msgid "Zoom In"
 msgstr "बड़ा करो"
 
 #: editor/code_editor.cpp editor/plugins/canvas_item_editor_plugin.cpp
+#: editor/plugins/sprite_frames_editor_plugin.cpp
 #: editor/plugins/texture_region_editor_plugin.cpp
 #: editor/plugins/tile_set_editor_plugin.cpp scene/gui/graph_edit.cpp
 msgid "Zoom Out"
@@ -789,11 +821,9 @@ msgid "Add"
 msgstr "जोड़िये"
 
 #: editor/connections_dialog.cpp editor/dependency_editor.cpp
-#: editor/editor_feature_profile.cpp editor/groups_editor.cpp
-#: editor/plugins/animation_player_editor_plugin.cpp
+#: editor/groups_editor.cpp editor/plugins/animation_player_editor_plugin.cpp
 #: editor/plugins/animation_tree_player_editor_plugin.cpp
 #: editor/plugins/resource_preloader_editor_plugin.cpp
-#: editor/plugins/theme_editor_plugin.cpp
 #: editor/plugins/visual_shader_editor_plugin.cpp editor/project_manager.cpp
 #: editor/project_settings_editor.cpp
 msgid "Remove"
@@ -845,6 +875,7 @@ msgstr "इशारा कनेक्ट नहीं कर सकते"
 #: editor/plugins/resource_preloader_editor_plugin.cpp
 #: editor/plugins/script_editor_plugin.cpp
 #: editor/plugins/sprite_frames_editor_plugin.cpp
+#: editor/plugins/theme_editor_plugin.cpp
 #: editor/plugins/version_control_editor_plugin.cpp editor/project_export.cpp
 #: editor/project_settings_editor.cpp editor/property_editor.cpp
 #: editor/run_settings_dialog.cpp editor/settings_config_dialog.cpp
@@ -914,7 +945,8 @@ msgid "Edit..."
 msgstr "संपादित करें..."
 
 #: editor/connections_dialog.cpp
-msgid "Go To Method"
+#, fuzzy
+msgid "Go to Method"
 msgstr "मेथड पे जाये"
 
 #: editor/create_dialog.cpp
@@ -928,6 +960,14 @@ msgstr "बदली"
 #: editor/create_dialog.cpp
 msgid "Create New %s"
 msgstr "नया%s बनाएं"
+
+#: editor/create_dialog.cpp editor/plugins/asset_library_editor_plugin.cpp
+msgid "No results for \"%s\"."
+msgstr ""
+
+#: editor/create_dialog.cpp editor/property_selector.cpp
+msgid "No description available for %s."
+msgstr ""
 
 #: editor/create_dialog.cpp editor/editor_file_dialog.cpp
 #: editor/filesystem_dock.cpp
@@ -950,8 +990,8 @@ msgstr "खोज:"
 msgid "Matches:"
 msgstr "एक जैसा:"
 
-#: editor/create_dialog.cpp editor/editor_plugin_settings.cpp
-#: editor/plugin_config_dialog.cpp
+#: editor/create_dialog.cpp editor/editor_feature_profile.cpp
+#: editor/editor_plugin_settings.cpp editor/plugin_config_dialog.cpp
 #: editor/plugins/asset_library_editor_plugin.cpp
 #: editor/plugins/visual_shader_editor_plugin.cpp editor/property_selector.cpp
 #: modules/visual_script/visual_script_property_selector.cpp
@@ -1027,19 +1067,23 @@ msgid "Owners Of:"
 msgstr "के स्वामी:"
 
 #: editor/dependency_editor.cpp
+#, fuzzy
 msgid ""
-"Remove selected files from the project? (no undo)\n"
-"You can find the removed files in the system trash to restore them."
+"Remove the selected files from the project? (Cannot be undone.)\n"
+"Depending on your filesystem configuration, the files will either be moved "
+"to the system trash or deleted permanently."
 msgstr ""
 "क्या आप प्रोजेक्ट से चयनित फ़ाइल को हटाना चाहते हैं? (पूर्ववत नहीं किया जा सकता है)\n"
 "आप सिस्टम रीसायकल बिन में हटाई गई फ़ाइलों को पुनर्स्थापित कर सकते हैं।"
 
 #: editor/dependency_editor.cpp
+#, fuzzy
 msgid ""
 "The files being removed are required by other resources in order for them to "
 "work.\n"
-"Remove them anyway? (no undo)\n"
-"You can find the removed files in the system trash to restore them."
+"Remove them anyway? (Cannot be undone.)\n"
+"Depending on your filesystem configuration, the files will either be moved "
+"to the system trash or deleted permanently."
 msgstr ""
 "हटाई जाने वाली फ़ाइल अन्य संसाधनों पर निर्भर है।\n"
 "क्या आप अभी भी हटाना चाहते हैं? (पूर्ववत नहीं किया जा सकता है)\n"
@@ -1087,7 +1131,7 @@ msgstr "अनाथ संसाधन एक्सप्लोरर"
 
 #: editor/dependency_editor.cpp editor/editor_audio_buses.cpp
 #: editor/editor_file_dialog.cpp editor/editor_node.cpp
-#: editor/plugins/item_list_editor_plugin.cpp
+#: editor/filesystem_dock.cpp editor/plugins/item_list_editor_plugin.cpp
 #: editor/plugins/sprite_frames_editor_plugin.cpp editor/project_export.cpp
 #: editor/project_settings_editor.cpp editor/scene_tree_dock.cpp
 msgid "Delete"
@@ -1211,28 +1255,41 @@ msgstr "अवयव"
 msgid "Licenses"
 msgstr "लाइसेंस"
 
-#: editor/editor_asset_installer.cpp editor/project_manager.cpp
-msgid "Error opening package file, not in ZIP format."
+#: editor/editor_asset_installer.cpp
+#, fuzzy
+msgid "Error opening asset file for \"%s\" (not in ZIP format)."
 msgstr "ज़िप फ़ाइल खोलने में त्रुटि, प्रारूप में नहीं।"
 
 #: editor/editor_asset_installer.cpp
-msgid "%s (Already Exists)"
+#, fuzzy
+msgid "%s (already exists)"
 msgstr "%s (पहले से मौजूद है)"
+
+#: editor/editor_asset_installer.cpp
+msgid "Contents of asset \"%s\" - %d file(s) conflict with your project:"
+msgstr ""
+
+#: editor/editor_asset_installer.cpp
+msgid "Contents of asset \"%s\" - No files conflict with your project:"
+msgstr ""
 
 #: editor/editor_asset_installer.cpp
 msgid "Uncompressing Assets"
 msgstr "असंपीड़ित संपत्तियां"
 
-#: editor/editor_asset_installer.cpp editor/project_manager.cpp
-msgid "The following files failed extraction from package:"
+#: editor/editor_asset_installer.cpp
+#, fuzzy
+msgid "The following files failed extraction from asset \"%s\":"
 msgstr "निम्न फ़ाइलों का निस्सारण नहीं हो पाया:"
 
 #: editor/editor_asset_installer.cpp
-msgid "And %s more files."
+#, fuzzy
+msgid "(and %s more files)"
 msgstr "और %s फ़ाइलें."
 
-#: editor/editor_asset_installer.cpp editor/project_manager.cpp
-msgid "Package installed successfully!"
+#: editor/editor_asset_installer.cpp
+#, fuzzy
+msgid "Asset \"%s\" installed successfully!"
 msgstr "पैकेज सफलतापूर्वक स्थापित!"
 
 #: editor/editor_asset_installer.cpp
@@ -1240,16 +1297,13 @@ msgstr "पैकेज सफलतापूर्वक स्थापित!
 msgid "Success!"
 msgstr "सफलता!"
 
-#: editor/editor_asset_installer.cpp
-msgid "Package Contents:"
-msgstr "पैकेज में है:"
-
 #: editor/editor_asset_installer.cpp editor/editor_node.cpp
 msgid "Install"
 msgstr "इंस्टॉल"
 
 #: editor/editor_asset_installer.cpp
-msgid "Package Installer"
+#, fuzzy
+msgid "Asset Installer"
 msgstr "पैकेज इंस्टॉलर"
 
 #: editor/editor_audio_buses.cpp
@@ -1313,7 +1367,8 @@ msgid "Bypass"
 msgstr "उपमार्ग"
 
 #: editor/editor_audio_buses.cpp
-msgid "Bus options"
+#, fuzzy
+msgid "Bus Options"
 msgstr "बस विकल्प"
 
 #: editor/editor_audio_buses.cpp editor/filesystem_dock.cpp
@@ -1393,7 +1448,7 @@ msgstr "बस ऐड कीजिए"
 msgid "Add a new Audio Bus to this layout."
 msgstr "लेआउट में नई ऑडियो बस ऐड कीजिए."
 
-#: editor/editor_audio_buses.cpp editor/editor_properties.cpp
+#: editor/editor_audio_buses.cpp editor/editor_resource_picker.cpp
 #: editor/plugins/animation_player_editor_plugin.cpp editor/property_editor.cpp
 #: editor/script_create_dialog.cpp
 msgid "Load"
@@ -1480,6 +1535,15 @@ msgid "Can't add autoload:"
 msgstr "औटोलोड नहीं डाल सकते:"
 
 #: editor/editor_autoload_settings.cpp
+#, fuzzy
+msgid "%s is an invalid path. File does not exist."
+msgstr "फ़ाइल नहीं मौजूद."
+
+#: editor/editor_autoload_settings.cpp
+msgid "%s is an invalid path. Not in resource path (res://)."
+msgstr ""
+
+#: editor/editor_autoload_settings.cpp
 msgid "Add AutoLoad"
 msgstr "औटोलोड ऐड कीजिए"
 
@@ -1495,16 +1559,16 @@ msgid "Node Name:"
 msgstr "नोड का नाम:"
 
 #: editor/editor_autoload_settings.cpp editor/editor_help_search.cpp
-#: editor/editor_profiler.cpp editor/project_manager.cpp
-#: editor/settings_config_dialog.cpp
+#: editor/editor_plugin_settings.cpp editor/editor_profiler.cpp
+#: editor/project_manager.cpp editor/settings_config_dialog.cpp
 msgid "Name"
 msgstr "नाम"
 
 #: editor/editor_autoload_settings.cpp
-msgid "Singleton"
-msgstr "सिन्गलटन"
+msgid "Global Variable"
+msgstr ""
 
-#: editor/editor_data.cpp editor/inspector_dock.cpp
+#: editor/editor_data.cpp
 msgid "Paste Params"
 msgstr "पैरैमिटर्स पेस्ट कीजिये"
 
@@ -1520,7 +1584,7 @@ msgstr "लोकल बदलीया स्टोर कर रहा है.
 msgid "Updating scene..."
 msgstr "सीन अपडेट कर रहा है..."
 
-#: editor/editor_data.cpp editor/editor_properties.cpp
+#: editor/editor_data.cpp editor/editor_resource_picker.cpp
 msgid "[empty]"
 msgstr "[खाली]"
 
@@ -1673,8 +1737,49 @@ msgid "Import Dock"
 msgstr "इंपोर्ट डॉक"
 
 #: editor/editor_feature_profile.cpp
-msgid "Erase profile '%s'? (no undo)"
-msgstr "प्रोफ़ाइल '%s' को मिटाएं? (इसे अंडू नहीं किया जा सकता है)"
+msgid "Allows to view and edit 3D scenes."
+msgstr ""
+
+#: editor/editor_feature_profile.cpp
+msgid "Allows to edit scripts using the integrated script editor."
+msgstr ""
+
+#: editor/editor_feature_profile.cpp
+msgid "Provides built-in access to the Asset Library."
+msgstr ""
+
+#: editor/editor_feature_profile.cpp
+msgid "Allows editing the node hierarchy in the Scene dock."
+msgstr ""
+
+#: editor/editor_feature_profile.cpp
+msgid ""
+"Allows to work with signals and groups of the node selected in the Scene "
+"dock."
+msgstr ""
+
+#: editor/editor_feature_profile.cpp
+msgid "Allows to browse the local file system via a dedicated dock."
+msgstr ""
+
+#: editor/editor_feature_profile.cpp
+msgid ""
+"Allows to configure import settings for individual assets. Requires the "
+"FileSystem dock to function."
+msgstr ""
+
+#: editor/editor_feature_profile.cpp
+#, fuzzy
+msgid "(current)"
+msgstr "(वर्तमान)"
+
+#: editor/editor_feature_profile.cpp
+msgid "(none)"
+msgstr ""
+
+#: editor/editor_feature_profile.cpp
+msgid "Remove currently selected profile, '%s'? Cannot be undone."
+msgstr ""
 
 #: editor/editor_feature_profile.cpp
 msgid "Profile must be a valid filename and must not contain '.'"
@@ -1705,15 +1810,18 @@ msgid "Enable Contextual Editor"
 msgstr "कोन्टेक्सचुअल एडीटर सक्रिय करे"
 
 #: editor/editor_feature_profile.cpp
-msgid "Enabled Properties:"
-msgstr "सक्रिय प्रोपरटिज:"
+#, fuzzy
+msgid "Class Properties:"
+msgstr "विशेषता"
 
 #: editor/editor_feature_profile.cpp
-msgid "Enabled Features:"
-msgstr "सक्रिय फ़िचर्स:"
+#, fuzzy
+msgid "Main Features:"
+msgstr "सुविधाऐं"
 
 #: editor/editor_feature_profile.cpp
-msgid "Enabled Classes:"
+#, fuzzy
+msgid "Nodes and Classes:"
 msgstr "सक्रिय क्लास:"
 
 #: editor/editor_feature_profile.cpp
@@ -1731,25 +1839,34 @@ msgid "Error saving profile to path: '%s'."
 msgstr "पाथ मे प्रोफ़ाइल सेव करनेमे एरर: '%s'."
 
 #: editor/editor_feature_profile.cpp
-msgid "Unset"
-msgstr "अन्सेट"
+#, fuzzy
+msgid "Reset to Default"
+msgstr "प्रायिक लोड कीजिये"
 
 #: editor/editor_feature_profile.cpp
 msgid "Current Profile:"
 msgstr "वर्तमान प्रोफ़ाइल:"
 
 #: editor/editor_feature_profile.cpp
+#, fuzzy
+msgid "Create Profile"
+msgstr "प्रोफ़ाइल मिटाय"
+
+#: editor/editor_feature_profile.cpp
+#, fuzzy
+msgid "Remove Profile"
+msgstr "मिटाना"
+
+#: editor/editor_feature_profile.cpp
+msgid "Available Profiles:"
+msgstr "उपलब्ध प्रोफ़ाइल:"
+
+#: editor/editor_feature_profile.cpp
 msgid "Make Current"
 msgstr "वर्तमान बनाय"
 
-#: editor/editor_feature_profile.cpp
-#: editor/plugins/animation_player_editor_plugin.cpp
-#: editor/plugins/version_control_editor_plugin.cpp
-msgid "New"
-msgstr "नई"
-
 #: editor/editor_feature_profile.cpp editor/editor_node.cpp
-#: editor/project_manager.cpp
+#: editor/plugins/theme_editor_plugin.cpp editor/project_manager.cpp
 msgid "Import"
 msgstr "आयात"
 
@@ -1758,20 +1875,22 @@ msgid "Export"
 msgstr "‍एक्सपोर्ट"
 
 #: editor/editor_feature_profile.cpp
-msgid "Available Profiles:"
-msgstr "उपलब्ध प्रोफ़ाइल:"
+#, fuzzy
+msgid "Configure Selected Profile:"
+msgstr "वर्तमान प्रोफ़ाइल:"
 
 #: editor/editor_feature_profile.cpp
-msgid "Class Options"
-msgstr "क्लास विकल्प"
+#, fuzzy
+msgid "Extra Options:"
+msgstr "क्लास विकल्प:"
+
+#: editor/editor_feature_profile.cpp
+msgid "Create or import a profile to edit available classes and properties."
+msgstr ""
 
 #: editor/editor_feature_profile.cpp
 msgid "New profile name:"
 msgstr "नया प्रोफ़ाइल नाम:"
-
-#: editor/editor_feature_profile.cpp
-msgid "Erase Profile"
-msgstr "प्रोफ़ाइल मिटाय"
 
 #: editor/editor_feature_profile.cpp
 msgid "Godot Feature Profile"
@@ -1794,7 +1913,8 @@ msgid "Select Current Folder"
 msgstr "वर्तमान फ़ोल्डर सिलेक्ट कीजिये"
 
 #: editor/editor_file_dialog.cpp scene/gui/file_dialog.cpp
-msgid "File Exists, Overwrite?"
+#, fuzzy
+msgid "File exists, overwrite?"
 msgstr "फ़ाइल पहले से मौजूद, मौजूदा के ऊपर लिखे?"
 
 #: editor/editor_file_dialog.cpp scene/gui/file_dialog.cpp
@@ -1848,9 +1968,10 @@ msgid "Open a File or Directory"
 msgstr "फ़ाइल या डायरेक्टरी खोलिये"
 
 #: editor/editor_file_dialog.cpp editor/editor_node.cpp
-#: editor/editor_properties.cpp editor/import_defaults_editor.cpp
+#: editor/editor_resource_picker.cpp editor/import_defaults_editor.cpp
 #: editor/inspector_dock.cpp editor/plugins/animation_player_editor_plugin.cpp
-#: editor/plugins/script_editor_plugin.cpp scene/gui/file_dialog.cpp
+#: editor/plugins/script_editor_plugin.cpp
+#: editor/plugins/theme_editor_plugin.cpp scene/gui/file_dialog.cpp
 msgid "Save"
 msgstr "सेव कीजिये"
 
@@ -1931,8 +2052,7 @@ msgid "Directories & Files:"
 msgstr "डायरेक्टरिज & फ़ाइले:"
 
 #: editor/editor_file_dialog.cpp editor/plugins/sprite_editor_plugin.cpp
-#: editor/plugins/style_box_editor_plugin.cpp
-#: editor/plugins/theme_editor_plugin.cpp editor/rename_dialog.cpp
+#: editor/plugins/style_box_editor_plugin.cpp editor/rename_dialog.cpp
 msgid "Preview:"
 msgstr "पूर्व दर्शन:"
 
@@ -2004,7 +2124,7 @@ msgstr "थीम विशेषता"
 msgid "Enumerations"
 msgstr "गणना"
 
-#: editor/editor_help.cpp
+#: editor/editor_help.cpp editor/plugins/theme_editor_plugin.cpp
 msgid "Constants"
 msgstr "कोन्स्टन्ट"
 
@@ -2093,7 +2213,7 @@ msgstr "मेथड"
 msgid "Signal"
 msgstr "सिग्नल"
 
-#: editor/editor_help_search.cpp editor/plugins/theme_editor_plugin.cpp
+#: editor/editor_help_search.cpp
 msgid "Constant"
 msgstr "कोन्स्टन्ट"
 
@@ -2109,9 +2229,10 @@ msgstr "थिम प्रोपर्टी"
 msgid "Property:"
 msgstr "प्रोपर्टी:"
 
-#: editor/editor_inspector.cpp
-msgid "Set"
-msgstr "सेट करे"
+#: editor/editor_inspector.cpp editor/scene_tree_dock.cpp
+#: modules/visual_script/visual_script_property_selector.cpp
+msgid "Set %s"
+msgstr ""
 
 #: editor/editor_inspector.cpp
 msgid "Set Multiple:"
@@ -2126,7 +2247,7 @@ msgid "Copy Selection"
 msgstr "खंड कौपी कीजिये"
 
 #: editor/editor_log.cpp editor/editor_network_profiler.cpp
-#: editor/editor_profiler.cpp editor/editor_properties.cpp
+#: editor/editor_profiler.cpp editor/editor_resource_picker.cpp
 #: editor/plugins/animation_tree_player_editor_plugin.cpp
 #: editor/property_editor.cpp editor/scene_tree_dock.cpp
 #: editor/script_editor_debugger.cpp
@@ -2186,11 +2307,23 @@ msgid "New Window"
 msgstr "नया विंडो"
 
 #: editor/editor_node.cpp
+msgid ""
+"Spins when the editor window redraws.\n"
+"Update Continuously is enabled, which can increase power usage. Click to "
+"disable it."
+msgstr ""
+
+#: editor/editor_node.cpp
+msgid "Spins when the editor window redraws."
+msgstr "जब संपादक खिड़की फिर से खींचता है तो स्पिन करता है।"
+
+#: editor/editor_node.cpp
 msgid "Imported resources can't be saved."
 msgstr "इंपोर्टेड रेसोर्सेस सेव नहीं कर सकते."
 
 #: editor/editor_node.cpp editor/plugins/script_editor_plugin.cpp
-#: scene/gui/dialogs.cpp
+#: editor/plugins/theme_editor_plugin.cpp
+#: modules/gltf/editor_scene_exporter_gltf_plugin.cpp scene/gui/dialogs.cpp
 msgid "OK"
 msgstr "ठीक है"
 
@@ -2404,18 +2537,23 @@ msgid "Save changes to '%s' before closing?"
 msgstr "बंद करने से पहले '%' में परिवर्तन सहेजें?"
 
 #: editor/editor_node.cpp
-msgid "Saved %s modified resource(s)."
-msgstr "सहेजा गया% संशोधित संसाधन (एस)"
+msgid ""
+"The current scene has no root node, but %d modified external resource(s) "
+"were saved anyway."
+msgstr ""
 
 #: editor/editor_node.cpp
-msgid "A root node is required to save the scene."
+#, fuzzy
+msgid ""
+"A root node is required to save the scene. You can add a root node using the "
+"Scene tree dock."
 msgstr "दृश्य को बचाने के लिए एक रूट नोड की आवश्यकता होती है।"
 
 #: editor/editor_node.cpp
 msgid "Save Scene As..."
 msgstr "दृश्य के रूप में सहेजें ..."
 
-#: editor/editor_node.cpp editor/scene_tree_dock.cpp
+#: editor/editor_node.cpp modules/gltf/editor_scene_exporter_gltf_plugin.cpp
 msgid "This operation can't be done without a scene."
 msgstr "यह ऑपरेशन बिना किसी दृश्य के नहीं किया जा सकता है।"
 
@@ -2602,7 +2740,7 @@ msgstr "लेआउट हटाएं"
 msgid "Default"
 msgstr "चूक"
 
-#: editor/editor_node.cpp editor/editor_properties.cpp
+#: editor/editor_node.cpp editor/editor_resource_picker.cpp
 #: editor/plugins/script_editor_plugin.cpp editor/property_editor.cpp
 msgid "Show in FileSystem"
 msgstr "शो में फाइल सिस्टम"
@@ -2783,6 +2921,11 @@ msgid "Orphan Resource Explorer..."
 msgstr "असहाय रेसोर्स खोजकर्ता..."
 
 #: editor/editor_node.cpp
+#, fuzzy
+msgid "Reload Current Project"
+msgstr "वर्तमान प्रोफ़ाइल:"
+
+#: editor/editor_node.cpp
 msgid "Quit to Project List"
 msgstr "परियोजना सूची में छोड़ो"
 
@@ -2936,18 +3079,22 @@ msgstr "निर्यात टेम्पलेट्स का प्रब
 msgid "Help"
 msgstr "मदद"
 
-#: editor/editor_node.cpp editor/plugins/script_editor_plugin.cpp
-#: editor/plugins/shader_editor_plugin.cpp
-msgid "Online Docs"
+#: editor/editor_node.cpp
+#, fuzzy
+msgid "Online Documentation"
 msgstr "ऑनलाइन डॉक्स"
 
 #: editor/editor_node.cpp
-msgid "Q&A"
-msgstr "Q&A"
+msgid "Questions & Answers"
+msgstr ""
 
 #: editor/editor_node.cpp
 msgid "Report a Bug"
 msgstr "प्रोग्राम में त्रुटि की शिकायत करें"
+
+#: editor/editor_node.cpp
+msgid "Suggest a Feature"
+msgstr ""
 
 #: editor/editor_node.cpp
 msgid "Send Docs Feedback"
@@ -2958,7 +3105,8 @@ msgid "Community"
 msgstr "समुदाय"
 
 #: editor/editor_node.cpp
-msgid "About"
+#, fuzzy
+msgid "About Godot"
 msgstr "के बारे में"
 
 #: editor/editor_node.cpp
@@ -3011,10 +3159,6 @@ msgid "Save & Restart"
 msgstr "सहेजें और पुनः आरंभ करें"
 
 #: editor/editor_node.cpp
-msgid "Spins when the editor window redraws."
-msgstr "जब संपादक खिड़की फिर से खींचता है तो स्पिन करता है।"
-
-#: editor/editor_node.cpp
 msgid "Update Continuously"
 msgstr "लगातार अपडेट करें"
 
@@ -3055,6 +3199,15 @@ msgid "Manage Templates"
 msgstr "टेम्पलेट्स का प्रबंधन करें"
 
 #: editor/editor_node.cpp
+#, fuzzy
+msgid "Install from file"
+msgstr "फ़ाइल से इंस्टॉल करें"
+
+#: editor/editor_node.cpp
+msgid "Select android sources file"
+msgstr ""
+
+#: editor/editor_node.cpp
 msgid ""
 "This will set up your project for custom Android builds by installing the "
 "source template to \"res://android/build\".\n"
@@ -3091,7 +3244,7 @@ msgstr "जिप फाइल से आयात टेम्पलेट्�
 msgid "Template Package"
 msgstr "टेम्पलेट पैकेज"
 
-#: editor/editor_node.cpp
+#: editor/editor_node.cpp modules/gltf/editor_scene_exporter_gltf_plugin.cpp
 msgid "Export Library"
 msgstr "एक्सपोर्ट लाइब्रेरी"
 
@@ -3134,6 +3287,11 @@ msgid "Select"
 msgstr "चुनें"
 
 #: editor/editor_node.cpp
+#, fuzzy
+msgid "Select Current"
+msgstr "वर्तमान फ़ोल्डर सिलेक्ट कीजिये"
+
+#: editor/editor_node.cpp
 msgid "Open 2D Editor"
 msgstr "ओपन 2D संपादक"
 
@@ -3165,6 +3323,11 @@ msgstr "चेतावनी!"
 msgid "No sub-resources found."
 msgstr "सब-रिसोर्स नहीं मिला."
 
+#: editor/editor_path.cpp
+#, fuzzy
+msgid "Open a list of sub-resources."
+msgstr "सब-रिसोर्स नहीं मिला."
+
 #: editor/editor_plugin.cpp
 msgid "Creating Mesh Previews"
 msgstr "मेष पूर्वावलोकन बनाना"
@@ -3189,33 +3352,34 @@ msgstr "स्थापित प्लगइन्स:"
 msgid "Update"
 msgstr "अद्यतन"
 
-#: editor/editor_plugin_settings.cpp editor/plugin_config_dialog.cpp
-#: editor/plugins/asset_library_editor_plugin.cpp
-msgid "Version:"
+#: editor/editor_plugin_settings.cpp
+#, fuzzy
+msgid "Version"
 msgstr "संस्करण:"
 
-#: editor/editor_plugin_settings.cpp editor/plugin_config_dialog.cpp
-msgid "Author:"
-msgstr "लेखक:"
+#: editor/editor_plugin_settings.cpp
+#, fuzzy
+msgid "Author"
+msgstr "लेखक"
 
 #: editor/editor_plugin_settings.cpp
-msgid "Status:"
-msgstr "स्थिति:"
-
-#: editor/editor_plugin_settings.cpp
-msgid "Edit:"
-msgstr "संपादित:"
+#: editor/plugins/version_control_editor_plugin.cpp
+#: modules/gdnative/gdnative_library_singleton_editor.cpp
+msgid "Status"
+msgstr ""
 
 #: editor/editor_profiler.cpp
 msgid "Measure:"
 msgstr "рдорд╛рдк:"
 
 #: editor/editor_profiler.cpp
-msgid "Frame Time (sec)"
+#, fuzzy
+msgid "Frame Time (ms)"
 msgstr "फ्रेम समय (सेकंड)"
 
 #: editor/editor_profiler.cpp
-msgid "Average Time (sec)"
+#, fuzzy
+msgid "Average Time (ms)"
 msgstr "औसत समय (सेकंड)"
 
 #: editor/editor_profiler.cpp
@@ -3233,6 +3397,16 @@ msgstr "समावेशी"
 #: editor/editor_profiler.cpp
 msgid "Self"
 msgstr "स्वयं"
+
+#: editor/editor_profiler.cpp
+msgid ""
+"Inclusive: Includes time from other functions called by this function.\n"
+"Use this to spot bottlenecks.\n"
+"\n"
+"Self: Only count the time spent in the function itself, not in other "
+"functions called by that function.\n"
+"Use this to find individual functions to optimize."
+msgstr ""
 
 #: editor/editor_profiler.cpp
 msgid "Frame #:"
@@ -3276,13 +3450,6 @@ msgstr "अमान्य RID"
 
 #: editor/editor_properties.cpp
 msgid ""
-"The selected resource (%s) does not match any type expected for this "
-"property (%s)."
-msgstr ""
-"चयनित संसाधन (%s) इस संपत्ति (% एस) के लिए अपेक्षित किसी भी प्रकार से मेल नहीं खाता है।"
-
-#: editor/editor_properties.cpp
-msgid ""
 "Can't create a ViewportTexture on resources saved as a file.\n"
 "Resource needs to belong to a scene."
 msgstr ""
@@ -3302,40 +3469,6 @@ msgstr ""
 #: editor/editor_properties.cpp editor/property_editor.cpp
 msgid "Pick a Viewport"
 msgstr "व्यूपोर्ट चुनें"
-
-#: editor/editor_properties.cpp editor/property_editor.cpp
-msgid "New Script"
-msgstr "नई स्क्रिप्ट"
-
-#: editor/editor_properties.cpp editor/scene_tree_dock.cpp
-msgid "Extend Script"
-msgstr "स्क्रिप्ट बढ़ाएँ"
-
-#: editor/editor_properties.cpp editor/property_editor.cpp
-msgid "New %s"
-msgstr "नया%s"
-
-#: editor/editor_properties.cpp editor/property_editor.cpp
-msgid "Make Unique"
-msgstr "अद्वितीय बनाओ"
-
-#: editor/editor_properties.cpp
-#: editor/plugins/animation_blend_space_1d_editor.cpp
-#: editor/plugins/animation_blend_space_2d_editor.cpp
-#: editor/plugins/animation_blend_tree_editor_plugin.cpp
-#: editor/plugins/animation_player_editor_plugin.cpp
-#: editor/plugins/animation_state_machine_editor.cpp
-#: editor/plugins/resource_preloader_editor_plugin.cpp
-#: editor/plugins/script_text_editor.cpp
-#: editor/plugins/sprite_frames_editor_plugin.cpp
-#: editor/plugins/tile_map_editor_plugin.cpp editor/property_editor.cpp
-#: editor/scene_tree_dock.cpp scene/gui/line_edit.cpp scene/gui/text_edit.cpp
-msgid "Paste"
-msgstr "चिपकाएँ"
-
-#: editor/editor_properties.cpp editor/property_editor.cpp
-msgid "Convert To %s"
-msgstr "% एस में परिवर्तित करें"
 
 #: editor/editor_properties.cpp editor/property_editor.cpp
 msgid "Selected node is not a Viewport!"
@@ -3365,6 +3498,48 @@ msgstr "नया मूल्य:"
 #: editor/editor_properties_array_dict.cpp
 msgid "Add Key/Value Pair"
 msgstr "कुंजी/मूल्य जोड़ी जोड़ें"
+
+#: editor/editor_resource_picker.cpp
+msgid ""
+"The selected resource (%s) does not match any type expected for this "
+"property (%s)."
+msgstr ""
+"चयनित संसाधन (%s) इस संपत्ति (% एस) के लिए अपेक्षित किसी भी प्रकार से मेल नहीं खाता है।"
+
+#: editor/editor_resource_picker.cpp editor/property_editor.cpp
+msgid "Make Unique"
+msgstr "अद्वितीय बनाओ"
+
+#: editor/editor_resource_picker.cpp
+#: editor/plugins/animation_blend_space_1d_editor.cpp
+#: editor/plugins/animation_blend_space_2d_editor.cpp
+#: editor/plugins/animation_blend_tree_editor_plugin.cpp
+#: editor/plugins/animation_player_editor_plugin.cpp
+#: editor/plugins/animation_state_machine_editor.cpp
+#: editor/plugins/resource_preloader_editor_plugin.cpp
+#: editor/plugins/script_text_editor.cpp
+#: editor/plugins/sprite_frames_editor_plugin.cpp
+#: editor/plugins/tile_map_editor_plugin.cpp editor/property_editor.cpp
+#: editor/scene_tree_dock.cpp scene/gui/line_edit.cpp scene/gui/text_edit.cpp
+msgid "Paste"
+msgstr "चिपकाएँ"
+
+#: editor/editor_resource_picker.cpp editor/property_editor.cpp
+#, fuzzy
+msgid "Convert to %s"
+msgstr "% एस में परिवर्तित करें"
+
+#: editor/editor_resource_picker.cpp editor/property_editor.cpp
+msgid "New %s"
+msgstr "नया%s"
+
+#: editor/editor_resource_picker.cpp editor/property_editor.cpp
+msgid "New Script"
+msgstr "नई स्क्रिप्ट"
+
+#: editor/editor_resource_picker.cpp editor/scene_tree_dock.cpp
+msgid "Extend Script"
+msgstr "स्क्रिप्ट बढ़ाएँ"
 
 #: editor/editor_run_native.cpp
 msgid ""
@@ -3401,7 +3576,8 @@ msgid "Did you forget the '_run' method?"
 msgstr "क्या आप '_run' विधि को भूल गए?"
 
 #: editor/editor_spin_slider.cpp
-msgid "Hold Ctrl to round to integers. Hold Shift for more precise changes."
+#, fuzzy
+msgid "Hold %s to round to integers. Hold Shift for more precise changes."
 msgstr "पूर्णांक के लिए Ctrl दबाए रखें. सटीक अंक के लिये Shift दबाए रखें."
 
 #: editor/editor_sub_scene.cpp
@@ -3421,113 +3597,67 @@ msgid "Import From Node:"
 msgstr "नोड से आयात:"
 
 #: editor/export_template_manager.cpp
-msgid "Redownload"
-msgstr "रीडाउनलोड करें"
+msgid "Open the folder containing these templates."
+msgstr ""
 
 #: editor/export_template_manager.cpp
-msgid "Uninstall"
-msgstr "अनइंस्टाल करें"
+msgid "Uninstall these templates."
+msgstr ""
 
 #: editor/export_template_manager.cpp
-msgid "(Installed)"
-msgstr "(स्थापित)"
+#, fuzzy
+msgid "There are no mirrors available."
+msgstr "कोई '%s' फ़ाइल नहीं."
 
 #: editor/export_template_manager.cpp
-#: editor/plugins/asset_library_editor_plugin.cpp
-msgid "Download"
-msgstr "डाउनलोड"
-
-#: editor/export_template_manager.cpp
-msgid "Official export templates aren't available for development builds."
-msgstr "विकास के निर्माण के लिए आधिकारिक निर्यात टेम्पलेटउपलब्ध नहीं हैं।"
-
-#: editor/export_template_manager.cpp
-msgid "(Missing)"
-msgstr "(लापता)"
-
-#: editor/export_template_manager.cpp
-msgid "(Current)"
-msgstr "(वर्तमान)"
-
-#: editor/export_template_manager.cpp
-msgid "Retrieving mirrors, please wait..."
+#, fuzzy
+msgid "Retrieving the mirror list..."
 msgstr "दर्पण को पुनः प्राप्त करना, कृपया प्रतीक्षा करें ..."
 
 #: editor/export_template_manager.cpp
-msgid "Remove template version '%s'?"
-msgstr "टेम्पलेट संस्करण '%s'?"
-
-#: editor/export_template_manager.cpp
-msgid "Can't open export templates zip."
-msgstr "निर्यात टेम्पलेट्स ज़िप नहीं खोल सकते।"
-
-#: editor/export_template_manager.cpp
-msgid "Invalid version.txt format inside templates: %s."
-msgstr "टेम्पलेट्स के अंदर अमान्य संस्करण.txt प्रारूप: % एस।"
-
-#: editor/export_template_manager.cpp
-msgid "No version.txt found inside templates."
-msgstr "टेम्पलेट्स के अंदर कोई संस्करण.txt नहीं मिला।"
-
-#: editor/export_template_manager.cpp
-msgid "Error creating path for templates:"
-msgstr "टेम्पलेट्स के लिए पथ बनाने में त्रुटि:"
-
-#: editor/export_template_manager.cpp
-msgid "Extracting Export Templates"
-msgstr "एक्सपोर्ट टेम्पलेट्स निकालना"
-
-#: editor/export_template_manager.cpp
-msgid "Importing:"
-msgstr "आयात:"
-
-#: editor/export_template_manager.cpp
-msgid "Error getting the list of mirrors."
-msgstr "त्रुटि दर्पण की सूची हो रही है।"
-
-#: editor/export_template_manager.cpp
-msgid "Error parsing JSON of mirror list. Please report this issue!"
-msgstr "मिरर लिस्ट की त्रुटि पार्सिंग जेसन । कृपया इस मुद्दे की रिपोर्ट करें!"
-
-#: editor/export_template_manager.cpp
-msgid ""
-"No download links found for this version. Direct download is only available "
-"for official releases."
+msgid "Starting the download..."
 msgstr ""
-"इस संस्करण के लिए कोई डाउनलोड लिंक नहीं मिला। प्रत्यक्ष डाउनलोड केवल आधिकारिक रिलीज के "
-"लिए उपलब्ध है।"
 
 #: editor/export_template_manager.cpp
-#: editor/plugins/asset_library_editor_plugin.cpp
-msgid "Can't resolve."
-msgstr "हल नहीं कर सकते।"
+msgid "Error requesting URL:"
+msgstr "लोड होने मे त्रुटि:"
 
 #: editor/export_template_manager.cpp
-#: editor/plugins/asset_library_editor_plugin.cpp
-msgid "Can't connect."
+#, fuzzy
+msgid "Connecting to the mirror..."
+msgstr "मिरर से कनेक्ट..."
+
+#: editor/export_template_manager.cpp
+msgid "Can't resolve the requested address."
+msgstr ""
+
+#: editor/export_template_manager.cpp
+#, fuzzy
+msgid "Can't connect to the mirror."
 msgstr "कनेक्ट नहीं कर सकते।"
 
 #: editor/export_template_manager.cpp
-#: editor/plugins/asset_library_editor_plugin.cpp
-msgid "No response."
+#, fuzzy
+msgid "No response from the mirror."
 msgstr "कोई जवाब नहीं।"
 
 #: editor/export_template_manager.cpp
-msgid "Request Failed."
+#: editor/plugins/asset_library_editor_plugin.cpp
+msgid "Request failed."
+msgstr ""
+
+#: editor/export_template_manager.cpp
+msgid "Request ended up in a redirect loop."
+msgstr ""
+
+#: editor/export_template_manager.cpp
+#, fuzzy
+msgid "Request failed:"
 msgstr "अनुरोध विफल रहा।"
 
 #: editor/export_template_manager.cpp
-msgid "Redirect Loop."
-msgstr "लूप को रीडायरेक्ट करते हैं।"
-
-#: editor/export_template_manager.cpp
-#: editor/plugins/asset_library_editor_plugin.cpp
-msgid "Failed:"
-msgstr "विफल:"
-
-#: editor/export_template_manager.cpp
-msgid "Download Complete."
-msgstr "पूरा डाउनलोड करें।"
+msgid "Download complete; extracting templates..."
+msgstr ""
 
 #: editor/export_template_manager.cpp
 msgid "Cannot remove temporary file:"
@@ -3542,12 +3672,25 @@ msgstr ""
 "समस्याग्रस्त टेम्पलेट्स अभिलेखागार '%' पर पाया जा सकता है।"
 
 #: editor/export_template_manager.cpp
-msgid "Error requesting URL:"
-msgstr "लोड होने मे त्रुटि:"
+msgid "Error getting the list of mirrors."
+msgstr "त्रुटि दर्पण की सूची हो रही है।"
 
 #: editor/export_template_manager.cpp
-msgid "Connecting to Mirror..."
-msgstr "मिरर से कनेक्ट..."
+#, fuzzy
+msgid "Error parsing JSON with the list of mirrors. Please report this issue!"
+msgstr "मिरर लिस्ट की त्रुटि पार्सिंग जेसन । कृपया इस मुद्दे की रिपोर्ट करें!"
+
+#: editor/export_template_manager.cpp
+msgid "Best available mirror"
+msgstr ""
+
+#: editor/export_template_manager.cpp
+msgid ""
+"No download links found for this version. Direct download is only available "
+"for official releases."
+msgstr ""
+"इस संस्करण के लिए कोई डाउनलोड लिंक नहीं मिला। प्रत्यक्ष डाउनलोड केवल आधिकारिक रिलीज के "
+"लिए उपलब्ध है।"
 
 #: editor/export_template_manager.cpp
 msgid "Disconnected"
@@ -3592,24 +3735,132 @@ msgid "SSL Handshake Error"
 msgstr "एसएसएल हैंडशेक एरर"
 
 #: editor/export_template_manager.cpp
+#, fuzzy
+msgid "Can't open the export templates file."
+msgstr "निर्यात टेम्पलेट्स ज़िप नहीं खोल सकते।"
+
+#: editor/export_template_manager.cpp
+#, fuzzy
+msgid "Invalid version.txt format inside the export templates file: %s."
+msgstr "टेम्पलेट्स के अंदर अमान्य संस्करण.txt प्रारूप: % एस।"
+
+#: editor/export_template_manager.cpp
+#, fuzzy
+msgid "No version.txt found inside the export templates file."
+msgstr "टेम्पलेट्स के अंदर कोई संस्करण.txt नहीं मिला।"
+
+#: editor/export_template_manager.cpp
+#, fuzzy
+msgid "Error creating path for extracting templates:"
+msgstr "टेम्पलेट्स के लिए पथ बनाने में त्रुटि:"
+
+#: editor/export_template_manager.cpp
+msgid "Extracting Export Templates"
+msgstr "एक्सपोर्ट टेम्पलेट्स निकालना"
+
+#: editor/export_template_manager.cpp
+msgid "Importing:"
+msgstr "आयात:"
+
+#: editor/export_template_manager.cpp
+#, fuzzy
+msgid "Remove templates for the version '%s'?"
+msgstr "टेम्पलेट संस्करण '%s'?"
+
+#: editor/export_template_manager.cpp
 msgid "Uncompressing Android Build Sources"
 msgstr "अनकॉमिंग एंड्रॉइड बिल्ड स्रोत"
+
+#: editor/export_template_manager.cpp
+msgid "Export Template Manager"
+msgstr "एक्सपोर्ट टेम्पलेट मैनेजर"
 
 #: editor/export_template_manager.cpp
 msgid "Current Version:"
 msgstr "वर्तमान संस्करण:"
 
 #: editor/export_template_manager.cpp
-msgid "Installed Versions:"
-msgstr "स्थापित संस्करण:"
+msgid "Export templates are missing. Download them or install from a file."
+msgstr ""
 
 #: editor/export_template_manager.cpp
-msgid "Install From File"
+msgid "Export templates are installed and ready to be used."
+msgstr ""
+
+#: editor/export_template_manager.cpp
+#, fuzzy
+msgid "Open Folder"
+msgstr "खोलो इसे"
+
+#: editor/export_template_manager.cpp
+msgid "Open the folder containing installed templates for the current version."
+msgstr ""
+
+#: editor/export_template_manager.cpp
+msgid "Uninstall"
+msgstr "अनइंस्टाल करें"
+
+#: editor/export_template_manager.cpp
+msgid "Uninstall templates for the current version."
+msgstr ""
+
+#: editor/export_template_manager.cpp
+#, fuzzy
+msgid "Download from:"
+msgstr "डाउनलोड"
+
+#: editor/export_template_manager.cpp
+#, fuzzy
+msgid "Open in Web Browser"
+msgstr "फ़ाइल मैनेजर में खोलिये"
+
+#: editor/export_template_manager.cpp
+msgid "Copy Mirror URL"
+msgstr ""
+
+#: editor/export_template_manager.cpp
+msgid "Download and Install"
+msgstr ""
+
+#: editor/export_template_manager.cpp
+msgid ""
+"Download and install templates for the current version from the best "
+"possible mirror."
+msgstr ""
+
+#: editor/export_template_manager.cpp
+msgid "Official export templates aren't available for development builds."
+msgstr "विकास के निर्माण के लिए आधिकारिक निर्यात टेम्पलेटउपलब्ध नहीं हैं।"
+
+#: editor/export_template_manager.cpp
+#, fuzzy
+msgid "Install from File"
 msgstr "फ़ाइल से इंस्टॉल करें"
 
 #: editor/export_template_manager.cpp
-msgid "Remove Template"
-msgstr "टेम्पलेट निकालें"
+#, fuzzy
+msgid "Install templates from a local file."
+msgstr "जिप फाइल से आयात टेम्पलेट्स"
+
+#: editor/export_template_manager.cpp editor/find_in_files.cpp
+#: editor/progress_dialog.cpp scene/gui/dialogs.cpp
+msgid "Cancel"
+msgstr "रद्द करें"
+
+#: editor/export_template_manager.cpp
+#, fuzzy
+msgid "Cancel the download of the templates."
+msgstr "निर्यात टेम्पलेट्स ज़िप नहीं खोल सकते।"
+
+#: editor/export_template_manager.cpp
+#, fuzzy
+msgid "Other Installed Versions:"
+msgstr "स्थापित संस्करण:"
+
+#: editor/export_template_manager.cpp
+#, fuzzy
+msgid "Uninstall Template"
+msgstr "अनइंस्टाल करें"
 
 #: editor/export_template_manager.cpp
 msgid "Select Template File"
@@ -3620,16 +3871,10 @@ msgid "Godot Export Templates"
 msgstr "गोडॉट एक्सपोर्ट टेम्पलेट्स"
 
 #: editor/export_template_manager.cpp
-msgid "Export Template Manager"
-msgstr "एक्सपोर्ट टेम्पलेट मैनेजर"
-
-#: editor/export_template_manager.cpp
-msgid "Download Templates"
-msgstr "टेम्पलेट्स डाउनलोड करें"
-
-#: editor/export_template_manager.cpp
-msgid "Select mirror from list: (Shift+Click: Open in Browser)"
-msgstr "सूची से दर्पण चुनें: (शिफ्ट +क्लिक: ब्राउज़र में खुला)"
+msgid ""
+"The templates will continue to download.\n"
+"You may experience a short editor freeze when they finish."
+msgstr ""
 
 #: editor/filesystem_dock.cpp
 msgid "Favorites"
@@ -3761,27 +4006,58 @@ msgstr "नई स्क्रिप्ट..."
 msgid "New Resource..."
 msgstr "नया संसाधन..."
 
-#: editor/filesystem_dock.cpp editor/plugins/visual_shader_editor_plugin.cpp
+#: editor/filesystem_dock.cpp editor/inspector_dock.cpp
+#: editor/plugins/visual_shader_editor_plugin.cpp
 #: editor/script_editor_debugger.cpp
 msgid "Expand All"
 msgstr "सभी बढाय"
 
-#: editor/filesystem_dock.cpp editor/plugins/visual_shader_editor_plugin.cpp
+#: editor/filesystem_dock.cpp editor/inspector_dock.cpp
+#: editor/plugins/visual_shader_editor_plugin.cpp
 #: editor/script_editor_debugger.cpp
 msgid "Collapse All"
 msgstr "सभी ढहाय"
 
 #: editor/filesystem_dock.cpp
-msgid "Duplicate..."
-msgstr "डुप्लिकेट..."
+#, fuzzy
+msgid "Sort files"
+msgstr "फाइलें खोजें"
 
 #: editor/filesystem_dock.cpp
-msgid "Move to Trash"
-msgstr "ट्रैश में ले जाएं"
+msgid "Sort by Name (Ascending)"
+msgstr ""
+
+#: editor/filesystem_dock.cpp
+msgid "Sort by Name (Descending)"
+msgstr ""
+
+#: editor/filesystem_dock.cpp
+msgid "Sort by Type (Ascending)"
+msgstr ""
+
+#: editor/filesystem_dock.cpp
+msgid "Sort by Type (Descending)"
+msgstr ""
+
+#: editor/filesystem_dock.cpp
+msgid "Sort by Last Modified"
+msgstr ""
+
+#: editor/filesystem_dock.cpp
+msgid "Sort by First Modified"
+msgstr ""
+
+#: editor/filesystem_dock.cpp
+msgid "Duplicate..."
+msgstr "डुप्लिकेट..."
 
 #: editor/filesystem_dock.cpp editor/plugins/animation_player_editor_plugin.cpp
 msgid "Rename..."
 msgstr "नाम बदली..."
+
+#: editor/filesystem_dock.cpp
+msgid "Focus the search box"
+msgstr ""
 
 #: editor/filesystem_dock.cpp
 msgid "Previous Folder/File"
@@ -3865,10 +4141,6 @@ msgstr "तलाशिये..."
 #: editor/find_in_files.cpp editor/plugins/script_text_editor.cpp
 msgid "Replace..."
 msgstr "बदली करे..."
-
-#: editor/find_in_files.cpp editor/progress_dialog.cpp scene/gui/dialogs.cpp
-msgid "Cancel"
-msgstr "रद्द करें"
 
 #: editor/find_in_files.cpp
 msgid "Find: "
@@ -4093,40 +4365,17 @@ msgid "Failed to load resource."
 msgstr ""
 
 #: editor/inspector_dock.cpp
-msgid "Expand All Properties"
-msgstr ""
+#, fuzzy
+msgid "Copy Properties"
+msgstr "विशेषता"
 
 #: editor/inspector_dock.cpp
-msgid "Collapse All Properties"
-msgstr ""
-
-#: editor/inspector_dock.cpp editor/plugins/animation_player_editor_plugin.cpp
-#: editor/plugins/script_editor_plugin.cpp
-msgid "Save As..."
-msgstr ""
-
-#: editor/inspector_dock.cpp
-msgid "Copy Params"
-msgstr ""
-
-#: editor/inspector_dock.cpp
-msgid "Edit Resource Clipboard"
-msgstr "एडिट रिसोर्स क्लिपबोर्ड"
-
-#: editor/inspector_dock.cpp
-msgid "Copy Resource"
-msgstr ""
-
-#: editor/inspector_dock.cpp
-msgid "Make Built-In"
-msgstr ""
+#, fuzzy
+msgid "Paste Properties"
+msgstr "विशेषता"
 
 #: editor/inspector_dock.cpp
 msgid "Make Sub-Resources Unique"
-msgstr ""
-
-#: editor/inspector_dock.cpp
-msgid "Open in Help"
 msgstr ""
 
 #: editor/inspector_dock.cpp
@@ -4139,6 +4388,30 @@ msgstr ""
 
 #: editor/inspector_dock.cpp
 msgid "Save the currently edited resource."
+msgstr ""
+
+#: editor/inspector_dock.cpp editor/plugins/animation_player_editor_plugin.cpp
+#: editor/plugins/script_editor_plugin.cpp
+#: editor/plugins/theme_editor_plugin.cpp
+msgid "Save As..."
+msgstr ""
+
+#: editor/inspector_dock.cpp
+#, fuzzy
+msgid "Extra resource options."
+msgstr "रेसोर्स पाथ में नहीं."
+
+#: editor/inspector_dock.cpp
+#, fuzzy
+msgid "Edit Resource from Clipboard"
+msgstr "एडिट रिसोर्स क्लिपबोर्ड"
+
+#: editor/inspector_dock.cpp
+msgid "Copy Resource"
+msgstr ""
+
+#: editor/inspector_dock.cpp
+msgid "Make Resource Built-In"
 msgstr ""
 
 #: editor/inspector_dock.cpp
@@ -4154,12 +4427,21 @@ msgid "History of recently edited objects."
 msgstr ""
 
 #: editor/inspector_dock.cpp
-msgid "Object properties."
+msgid "Open documentation for this object."
+msgstr ""
+
+#: editor/inspector_dock.cpp editor/scene_tree_dock.cpp
+msgid "Open Documentation"
 msgstr ""
 
 #: editor/inspector_dock.cpp
 msgid "Filter properties"
 msgstr ""
+
+#: editor/inspector_dock.cpp
+#, fuzzy
+msgid "Manage object properties."
+msgstr "एनिमेशन गुण।"
 
 #: editor/inspector_dock.cpp
 msgid "Changes may be lost!"
@@ -4188,6 +4470,15 @@ msgstr ""
 #: editor/plugin_config_dialog.cpp
 msgid "Subfolder:"
 msgstr ""
+
+#: editor/plugin_config_dialog.cpp
+msgid "Author:"
+msgstr "लेखक:"
+
+#: editor/plugin_config_dialog.cpp
+#: editor/plugins/asset_library_editor_plugin.cpp
+msgid "Version:"
+msgstr "संस्करण:"
 
 #: editor/plugin_config_dialog.cpp editor/script_create_dialog.cpp
 msgid "Language:"
@@ -4388,7 +4679,7 @@ msgid "Blend:"
 msgstr ""
 
 #: editor/plugins/animation_blend_tree_editor_plugin.cpp
-msgid "Parameter Changed"
+msgid "Parameter Changed:"
 msgstr ""
 
 #: editor/plugins/animation_blend_tree_editor_plugin.cpp
@@ -4600,6 +4891,11 @@ msgstr ""
 #: editor/plugins/animation_player_editor_plugin.cpp
 msgid "Animation"
 msgstr ""
+
+#: editor/plugins/animation_player_editor_plugin.cpp
+#: editor/plugins/version_control_editor_plugin.cpp
+msgid "New"
+msgstr "नई"
 
 #: editor/plugins/animation_player_editor_plugin.cpp
 msgid "Edit Transitions..."
@@ -4938,8 +5234,16 @@ msgid "View Files"
 msgstr ""
 
 #: editor/plugins/asset_library_editor_plugin.cpp
+msgid "Download"
+msgstr "डाउनलोड"
+
+#: editor/plugins/asset_library_editor_plugin.cpp
 msgid "Connection error, please try again."
 msgstr ""
+
+#: editor/plugins/asset_library_editor_plugin.cpp
+msgid "Can't connect."
+msgstr "कनेक्ट नहीं कर सकते।"
 
 #: editor/plugins/asset_library_editor_plugin.cpp
 msgid "Can't connect to host:"
@@ -4950,15 +5254,19 @@ msgid "No response from host:"
 msgstr ""
 
 #: editor/plugins/asset_library_editor_plugin.cpp
+msgid "No response."
+msgstr "कोई जवाब नहीं।"
+
+#: editor/plugins/asset_library_editor_plugin.cpp
 msgid "Can't resolve hostname:"
 msgstr ""
 
 #: editor/plugins/asset_library_editor_plugin.cpp
-msgid "Request failed, return code:"
-msgstr ""
+msgid "Can't resolve."
+msgstr "हल नहीं कर सकते।"
 
 #: editor/plugins/asset_library_editor_plugin.cpp
-msgid "Request failed."
+msgid "Request failed, return code:"
 msgstr ""
 
 #: editor/plugins/asset_library_editor_plugin.cpp
@@ -4984,6 +5292,10 @@ msgstr ""
 #: editor/plugins/asset_library_editor_plugin.cpp
 msgid "Timeout."
 msgstr ""
+
+#: editor/plugins/asset_library_editor_plugin.cpp
+msgid "Failed:"
+msgstr "विफल:"
 
 #: editor/plugins/asset_library_editor_plugin.cpp
 msgid "Bad download hash, assuming file has been tampered with."
@@ -5086,7 +5398,11 @@ msgid "All"
 msgstr ""
 
 #: editor/plugins/asset_library_editor_plugin.cpp
-msgid "No results for \"%s\"."
+msgid "Search templates, projects, and demos"
+msgstr ""
+
+#: editor/plugins/asset_library_editor_plugin.cpp
+msgid "Search assets (excluding templates, projects, and demos)"
 msgstr ""
 
 #: editor/plugins/asset_library_editor_plugin.cpp
@@ -5129,6 +5445,10 @@ msgstr "लोड..."
 msgid "Assets ZIP File"
 msgstr ""
 
+#: editor/plugins/audio_stream_editor_plugin.cpp
+msgid "Audio Preview Play/Pause"
+msgstr ""
+
 #: editor/plugins/baked_lightmap_editor_plugin.cpp
 msgid ""
 "Can't determine a save path for lightmap images.\n"
@@ -5137,8 +5457,8 @@ msgstr ""
 
 #: editor/plugins/baked_lightmap_editor_plugin.cpp
 msgid ""
-"No meshes to bake. Make sure they contain an UV2 channel and that the 'Bake "
-"Light' flag is on."
+"No meshes to bake. Make sure they contain an UV2 channel and that the 'Use "
+"In Baked Light' and 'Generate Lightmap' flags are on."
 msgstr ""
 
 #: editor/plugins/baked_lightmap_editor_plugin.cpp
@@ -5373,15 +5693,16 @@ msgstr ""
 #: editor/plugins/canvas_item_editor_plugin.cpp
 #: editor/plugins/spatial_editor_plugin.cpp
 msgid ""
-"Game Camera Override\n"
-"Overrides game camera with editor viewport camera."
+"Project Camera Override\n"
+"Overrides the running project's camera with the editor viewport camera."
 msgstr ""
 
 #: editor/plugins/canvas_item_editor_plugin.cpp
 #: editor/plugins/spatial_editor_plugin.cpp
 msgid ""
-"Game Camera Override\n"
-"No game instance running."
+"Project Camera Override\n"
+"No project instance running. Run the project from the editor to use this "
+"feature."
 msgstr ""
 
 #: editor/plugins/canvas_item_editor_plugin.cpp
@@ -5435,6 +5756,7 @@ msgid ""
 msgstr ""
 
 #: editor/plugins/canvas_item_editor_plugin.cpp
+#: editor/plugins/sprite_frames_editor_plugin.cpp
 #: editor/plugins/texture_region_editor_plugin.cpp
 #: editor/plugins/tile_set_editor_plugin.cpp scene/gui/graph_edit.cpp
 msgid "Zoom Reset"
@@ -5446,19 +5768,28 @@ msgid "Select Mode"
 msgstr ""
 
 #: editor/plugins/canvas_item_editor_plugin.cpp
-msgid "Drag: Rotate"
+#: editor/plugins/spatial_editor_plugin.cpp
+#, fuzzy
+msgid "Drag: Rotate selected node around pivot."
+msgstr "चयनित नोड या संक्रमण निकालें।"
+
+#: editor/plugins/canvas_item_editor_plugin.cpp
+#, fuzzy
+msgid "Alt+Drag: Move selected node."
+msgstr "चयनित फ़ाइलें हटाएं?"
+
+#: editor/plugins/canvas_item_editor_plugin.cpp
+#, fuzzy
+msgid "V: Set selected node's pivot position."
+msgstr "चयनित नोड या संक्रमण निकालें।"
+
+#: editor/plugins/canvas_item_editor_plugin.cpp
+#: editor/plugins/spatial_editor_plugin.cpp
+msgid "Alt+RMB: Show list of all nodes at position clicked, including locked."
 msgstr ""
 
 #: editor/plugins/canvas_item_editor_plugin.cpp
-msgid "Alt+Drag: Move"
-msgstr ""
-
-#: editor/plugins/canvas_item_editor_plugin.cpp
-msgid "Press 'v' to Change Pivot, 'Shift+v' to Drag Pivot (while moving)."
-msgstr ""
-
-#: editor/plugins/canvas_item_editor_plugin.cpp
-msgid "Alt+RMB: Depth list selection"
+msgid "RMB: Add node at position clicked."
 msgstr ""
 
 #: editor/plugins/canvas_item_editor_plugin.cpp
@@ -5690,6 +6021,16 @@ msgid "Clear Pose"
 msgstr ""
 
 #: editor/plugins/canvas_item_editor_plugin.cpp
+#, fuzzy
+msgid "Add Node Here"
+msgstr "नोड प्वाइंट जोड़ें"
+
+#: editor/plugins/canvas_item_editor_plugin.cpp
+#, fuzzy
+msgid "Instance Scene Here"
+msgstr "चाबी यहां डालें"
+
+#: editor/plugins/canvas_item_editor_plugin.cpp
 msgid "Multiply grid step by 2"
 msgstr ""
 
@@ -5699,6 +6040,52 @@ msgstr ""
 
 #: editor/plugins/canvas_item_editor_plugin.cpp
 msgid "Pan View"
+msgstr ""
+
+#: editor/plugins/canvas_item_editor_plugin.cpp
+msgid "Zoom to 3.125%"
+msgstr ""
+
+#: editor/plugins/canvas_item_editor_plugin.cpp
+msgid "Zoom to 6.25%"
+msgstr ""
+
+#: editor/plugins/canvas_item_editor_plugin.cpp
+msgid "Zoom to 12.5%"
+msgstr ""
+
+#: editor/plugins/canvas_item_editor_plugin.cpp
+#, fuzzy
+msgid "Zoom to 25%"
+msgstr "छोटा करो"
+
+#: editor/plugins/canvas_item_editor_plugin.cpp
+#, fuzzy
+msgid "Zoom to 50%"
+msgstr "छोटा करो"
+
+#: editor/plugins/canvas_item_editor_plugin.cpp
+#, fuzzy
+msgid "Zoom to 100%"
+msgstr "छोटा करो"
+
+#: editor/plugins/canvas_item_editor_plugin.cpp
+#, fuzzy
+msgid "Zoom to 200%"
+msgstr "छोटा करो"
+
+#: editor/plugins/canvas_item_editor_plugin.cpp
+#, fuzzy
+msgid "Zoom to 400%"
+msgstr "छोटा करो"
+
+#: editor/plugins/canvas_item_editor_plugin.cpp
+#, fuzzy
+msgid "Zoom to 800%"
+msgstr "छोटा करो"
+
+#: editor/plugins/canvas_item_editor_plugin.cpp
+msgid "Zoom to 1600%"
 msgstr ""
 
 #: editor/plugins/canvas_item_editor_plugin.cpp
@@ -5944,6 +6331,11 @@ msgstr ""
 
 #: editor/plugins/mesh_instance_editor_plugin.cpp
 #, fuzzy
+msgid "Create Simplified Convex Shape"
+msgstr "एक नया बनाएं"
+
+#: editor/plugins/mesh_instance_editor_plugin.cpp
+#, fuzzy
 msgid "Create Single Convex Shape"
 msgstr "एक नया बनाएं"
 
@@ -5977,7 +6369,7 @@ msgid "No mesh to debug."
 msgstr ""
 
 #: editor/plugins/mesh_instance_editor_plugin.cpp
-msgid "Model has no UV in this layer"
+msgid "Mesh has no UV in layer %d."
 msgstr ""
 
 #: editor/plugins/mesh_instance_editor_plugin.cpp
@@ -6038,13 +6430,26 @@ msgstr ""
 
 #: editor/plugins/mesh_instance_editor_plugin.cpp
 #, fuzzy
+msgid "Create Simplified Convex Collision Sibling"
+msgstr "सदस्यता बनाएं"
+
+#: editor/plugins/mesh_instance_editor_plugin.cpp
+msgid ""
+"Creates a simplified convex collision shape.\n"
+"This is similar to single collision shape, but can result in a simpler "
+"geometry in some cases, at the cost of accuracy."
+msgstr ""
+
+#: editor/plugins/mesh_instance_editor_plugin.cpp
+#, fuzzy
 msgid "Create Multiple Convex Collision Siblings"
 msgstr "सदस्यता बनाएं"
 
 #: editor/plugins/mesh_instance_editor_plugin.cpp
 msgid ""
 "Creates a polygon-based collision shape.\n"
-"This is a performance middle-ground between the two above options."
+"This is a performance middle-ground between a single convex collision and a "
+"polygon-based collision."
 msgstr ""
 
 #: editor/plugins/mesh_instance_editor_plugin.cpp
@@ -6098,7 +6503,6 @@ msgid "Mesh Library"
 msgstr ""
 
 #: editor/plugins/mesh_library_editor_plugin.cpp
-#: editor/plugins/theme_editor_plugin.cpp
 msgid "Add Item"
 msgstr ""
 
@@ -6372,7 +6776,8 @@ msgid "Close Curve"
 msgstr ""
 
 #: editor/plugins/path_2d_editor_plugin.cpp
-#: editor/plugins/path_editor_plugin.cpp editor/plugins/theme_editor_plugin.cpp
+#: editor/plugins/path_editor_plugin.cpp
+#: editor/plugins/theme_editor_preview.cpp
 #: editor/plugins/visual_shader_editor_plugin.cpp editor/project_export.cpp
 msgid "Options"
 msgstr ""
@@ -6682,6 +7087,24 @@ msgstr ""
 msgid "ResourcePreloader"
 msgstr "संसाधन"
 
+#: editor/plugins/room_manager_editor_plugin.cpp
+msgid "Flip Portals"
+msgstr ""
+
+#: editor/plugins/room_manager_editor_plugin.cpp
+#, fuzzy
+msgid "Room Generate Points"
+msgstr "बेज़ियर पॉइंट्स को स्थानांतरित करें"
+
+#: editor/plugins/room_manager_editor_plugin.cpp
+#, fuzzy
+msgid "Generate Points"
+msgstr "अंक बनाएं।"
+
+#: editor/plugins/room_manager_editor_plugin.cpp
+msgid "Flip Portal"
+msgstr ""
+
 #: editor/plugins/root_motion_editor_plugin.cpp
 msgid "AnimationTree has no path set to an AnimationPlayer"
 msgstr ""
@@ -6891,7 +7314,7 @@ msgstr ""
 #: editor/plugins/script_editor_plugin.cpp
 #: editor/plugins/script_text_editor.cpp
 #: editor/plugins/shader_editor_plugin.cpp editor/plugins/text_editor.cpp
-#: editor/plugins/visual_shader_editor_plugin.cpp editor/project_manager.cpp
+#: editor/plugins/visual_shader_editor_plugin.cpp
 #: editor/project_settings_editor.cpp editor/settings_config_dialog.cpp
 msgid "Search"
 msgstr "ढूंढें"
@@ -6920,6 +7343,11 @@ msgstr ""
 #: editor/plugins/script_editor_plugin.cpp
 msgid "Debug with External Editor"
 msgstr ""
+
+#: editor/plugins/script_editor_plugin.cpp
+#: editor/plugins/shader_editor_plugin.cpp
+msgid "Online Docs"
+msgstr "ऑनलाइन डॉक्स"
 
 #: editor/plugins/script_editor_plugin.cpp
 msgid "Open Godot online documentation."
@@ -7048,8 +7476,8 @@ msgstr ""
 msgid "Cut"
 msgstr ""
 
-#: editor/plugins/script_text_editor.cpp scene/gui/line_edit.cpp
-#: scene/gui/text_edit.cpp
+#: editor/plugins/script_text_editor.cpp editor/plugins/theme_editor_plugin.cpp
+#: scene/gui/line_edit.cpp scene/gui/text_edit.cpp
 msgid "Select All"
 msgstr ""
 
@@ -7079,10 +7507,6 @@ msgstr ""
 
 #: editor/plugins/script_text_editor.cpp
 msgid "Unfold All Lines"
-msgstr ""
-
-#: editor/plugins/script_text_editor.cpp
-msgid "Clone Down"
 msgstr ""
 
 #: editor/plugins/script_text_editor.cpp
@@ -7239,6 +7663,25 @@ msgid "View Plane Transform."
 msgstr ""
 
 #: editor/plugins/spatial_editor_plugin.cpp
+#: editor/plugins/texture_region_editor_plugin.cpp
+#: editor/plugins/theme_editor_plugin.cpp scene/resources/visual_shader.cpp
+msgid "None"
+msgstr ""
+
+#: editor/plugins/spatial_editor_plugin.cpp
+msgid "Rotate"
+msgstr ""
+
+#. TRANSLATORS: This refers to the movement that changes the position of an object.
+#: editor/plugins/spatial_editor_plugin.cpp
+msgid "Translate"
+msgstr ""
+
+#: editor/plugins/spatial_editor_plugin.cpp
+msgid "Scale"
+msgstr ""
+
+#: editor/plugins/spatial_editor_plugin.cpp
 msgid "Scaling: "
 msgstr ""
 
@@ -7259,40 +7702,46 @@ msgid "Animation Key Inserted."
 msgstr ""
 
 #: editor/plugins/spatial_editor_plugin.cpp
-msgid "Pitch"
+msgid "Pitch:"
 msgstr ""
 
 #: editor/plugins/spatial_editor_plugin.cpp
-msgid "Yaw"
+msgid "Yaw:"
 msgstr ""
 
 #: editor/plugins/spatial_editor_plugin.cpp
 #, fuzzy
-msgid "Size"
+msgid "Size:"
 msgstr "आकार: "
 
 #: editor/plugins/spatial_editor_plugin.cpp
-msgid "Objects Drawn"
+msgid "Objects Drawn:"
 msgstr ""
 
 #: editor/plugins/spatial_editor_plugin.cpp
-msgid "Material Changes"
+msgid "Material Changes:"
 msgstr ""
 
 #: editor/plugins/spatial_editor_plugin.cpp
-msgid "Shader Changes"
+msgid "Shader Changes:"
 msgstr ""
 
 #: editor/plugins/spatial_editor_plugin.cpp
-msgid "Surface Changes"
+msgid "Surface Changes:"
 msgstr ""
 
 #: editor/plugins/spatial_editor_plugin.cpp
-msgid "Draw Calls"
-msgstr ""
+#, fuzzy
+msgid "Draw Calls:"
+msgstr "कॉल"
 
 #: editor/plugins/spatial_editor_plugin.cpp
-msgid "Vertices"
+#, fuzzy
+msgid "Vertices:"
+msgstr "विशेषता"
+
+#: editor/plugins/spatial_editor_plugin.cpp
+msgid "FPS: %d (%s ms)"
 msgstr ""
 
 #: editor/plugins/spatial_editor_plugin.cpp
@@ -7448,6 +7897,11 @@ msgid "Freelook Slow Modifier"
 msgstr ""
 
 #: editor/plugins/spatial_editor_plugin.cpp
+#, fuzzy
+msgid "Toggle Camera Preview"
+msgstr "फ़ेवरेट टॉगल कीजिये"
+
+#: editor/plugins/spatial_editor_plugin.cpp
 msgid "View Rotation Locked"
 msgstr ""
 
@@ -7463,6 +7917,11 @@ msgid ""
 msgstr ""
 
 #: editor/plugins/spatial_editor_plugin.cpp
+#, fuzzy
+msgid "Convert Rooms"
+msgstr "% एस में परिवर्तित करें"
+
+#: editor/plugins/spatial_editor_plugin.cpp
 msgid "XForm Dialog"
 msgstr ""
 
@@ -7476,18 +7935,12 @@ msgid ""
 msgstr ""
 
 #: editor/plugins/spatial_editor_plugin.cpp
-msgid "Snap Nodes To Floor"
-msgstr ""
+#, fuzzy
+msgid "Snap Nodes to Floor"
+msgstr "आयात करने के लिए नोड (एस) का चयन करें"
 
 #: editor/plugins/spatial_editor_plugin.cpp
 msgid "Couldn't find a solid floor to snap the selection to."
-msgstr ""
-
-#: editor/plugins/spatial_editor_plugin.cpp
-msgid ""
-"Drag: Rotate\n"
-"Alt+Drag: Move\n"
-"Alt+RMB: Depth list selection"
 msgstr ""
 
 #: editor/plugins/spatial_editor_plugin.cpp
@@ -7496,6 +7949,10 @@ msgstr ""
 
 #: editor/plugins/spatial_editor_plugin.cpp
 msgid "Use Snap"
+msgstr ""
+
+#: editor/plugins/spatial_editor_plugin.cpp
+msgid "Converts rooms for portal culling."
 msgstr ""
 
 #: editor/plugins/spatial_editor_plugin.cpp
@@ -7589,6 +8046,10 @@ msgstr ""
 
 #: editor/plugins/spatial_editor_plugin.cpp
 msgid "View Grid"
+msgstr ""
+
+#: editor/plugins/spatial_editor_plugin.cpp
+msgid "View Portal Culling"
 msgstr ""
 
 #: editor/plugins/spatial_editor_plugin.cpp
@@ -7893,11 +8354,6 @@ msgid "Snap Mode:"
 msgstr ""
 
 #: editor/plugins/texture_region_editor_plugin.cpp
-#: scene/resources/visual_shader.cpp
-msgid "None"
-msgstr ""
-
-#: editor/plugins/texture_region_editor_plugin.cpp
 msgid "Pixel Snap"
 msgstr ""
 
@@ -7918,169 +8374,595 @@ msgid "Step:"
 msgstr ""
 
 #: editor/plugins/texture_region_editor_plugin.cpp
-msgid "Sep.:"
-msgstr ""
+#, fuzzy
+msgid "Separation:"
+msgstr "संस्करण:"
 
 #: editor/plugins/texture_region_editor_plugin.cpp
 msgid "TextureRegion"
 msgstr ""
 
 #: editor/plugins/theme_editor_plugin.cpp
-msgid "Add All Items"
+msgid "Colors"
 msgstr ""
 
 #: editor/plugins/theme_editor_plugin.cpp
-msgid "Add All"
+msgid "Fonts"
 msgstr ""
 
 #: editor/plugins/theme_editor_plugin.cpp
-msgid "Remove All Items"
-msgstr ""
-
-#: editor/plugins/theme_editor_plugin.cpp editor/project_manager.cpp
-msgid "Remove All"
+msgid "Icons"
 msgstr ""
 
 #: editor/plugins/theme_editor_plugin.cpp
-msgid "Edit Theme"
+msgid "Styleboxes"
 msgstr ""
 
 #: editor/plugins/theme_editor_plugin.cpp
-msgid "Theme editing menu."
+msgid "{num} color(s)"
 msgstr ""
 
 #: editor/plugins/theme_editor_plugin.cpp
-msgid "Add Class Items"
+#, fuzzy
+msgid "No colors found."
+msgstr "सब-रिसोर्स नहीं मिला."
+
+#: editor/plugins/theme_editor_plugin.cpp
+#, fuzzy
+msgid "{num} constant(s)"
+msgstr "कोन्स्टन्ट"
+
+#: editor/plugins/theme_editor_plugin.cpp
+#, fuzzy
+msgid "No constants found."
+msgstr "सिर्फ कोन्स्टन्ट"
+
+#: editor/plugins/theme_editor_plugin.cpp
+msgid "{num} font(s)"
 msgstr ""
+
+#: editor/plugins/theme_editor_plugin.cpp
+#, fuzzy
+msgid "No fonts found."
+msgstr "सब-रिसोर्स नहीं मिला."
+
+#: editor/plugins/theme_editor_plugin.cpp
+msgid "{num} icon(s)"
+msgstr ""
+
+#: editor/plugins/theme_editor_plugin.cpp
+#, fuzzy
+msgid "No icons found."
+msgstr "सब-रिसोर्स नहीं मिला."
+
+#: editor/plugins/theme_editor_plugin.cpp
+msgid "{num} stylebox(es)"
+msgstr ""
+
+#: editor/plugins/theme_editor_plugin.cpp
+#, fuzzy
+msgid "No styleboxes found."
+msgstr "सब-रिसोर्स नहीं मिला."
+
+#: editor/plugins/theme_editor_plugin.cpp
+msgid "{num} currently selected"
+msgstr ""
+
+#: editor/plugins/theme_editor_plugin.cpp
+msgid "Nothing was selected for the import."
+msgstr ""
+
+#: editor/plugins/theme_editor_plugin.cpp
+#, fuzzy
+msgid "Importing Theme Items"
+msgstr "अस्सेट (पुन:) इंपोर्ट"
+
+#: editor/plugins/theme_editor_plugin.cpp
+msgid "Importing items {n}/{n}"
+msgstr ""
+
+#: editor/plugins/theme_editor_plugin.cpp
+#, fuzzy
+msgid "Updating the editor"
+msgstr "संपादक से बाहर निकलें?"
+
+#: editor/plugins/theme_editor_plugin.cpp
+#, fuzzy
+msgid "Finalizing"
+msgstr "विश्लेषण"
+
+#: editor/plugins/theme_editor_plugin.cpp
+#, fuzzy
+msgid "Filter:"
+msgstr "फिल्टर:"
+
+#: editor/plugins/theme_editor_plugin.cpp
+msgid "With Data"
+msgstr ""
+
+#: editor/plugins/theme_editor_plugin.cpp
+msgid "Select by data type:"
+msgstr ""
+
+#: editor/plugins/theme_editor_plugin.cpp
+msgid "Select all visible color items."
+msgstr ""
+
+#: editor/plugins/theme_editor_plugin.cpp
+msgid "Select all visible color items and their data."
+msgstr ""
+
+#: editor/plugins/theme_editor_plugin.cpp
+msgid "Deselect all visible color items."
+msgstr ""
+
+#: editor/plugins/theme_editor_plugin.cpp
+msgid "Select all visible constant items."
+msgstr ""
+
+#: editor/plugins/theme_editor_plugin.cpp
+msgid "Select all visible constant items and their data."
+msgstr ""
+
+#: editor/plugins/theme_editor_plugin.cpp
+msgid "Deselect all visible constant items."
+msgstr ""
+
+#: editor/plugins/theme_editor_plugin.cpp
+msgid "Select all visible font items."
+msgstr ""
+
+#: editor/plugins/theme_editor_plugin.cpp
+msgid "Select all visible font items and their data."
+msgstr ""
+
+#: editor/plugins/theme_editor_plugin.cpp
+msgid "Deselect all visible font items."
+msgstr ""
+
+#: editor/plugins/theme_editor_plugin.cpp
+msgid "Select all visible icon items."
+msgstr ""
+
+#: editor/plugins/theme_editor_plugin.cpp
+msgid "Select all visible icon items and their data."
+msgstr ""
+
+#: editor/plugins/theme_editor_plugin.cpp
+msgid "Deselect all visible icon items."
+msgstr ""
+
+#: editor/plugins/theme_editor_plugin.cpp
+msgid "Select all visible stylebox items."
+msgstr ""
+
+#: editor/plugins/theme_editor_plugin.cpp
+msgid "Select all visible stylebox items and their data."
+msgstr ""
+
+#: editor/plugins/theme_editor_plugin.cpp
+msgid "Deselect all visible stylebox items."
+msgstr ""
+
+#: editor/plugins/theme_editor_plugin.cpp
+msgid ""
+"Caution: Adding icon data may considerably increase the size of your Theme "
+"resource."
+msgstr ""
+
+#: editor/plugins/theme_editor_plugin.cpp
+#, fuzzy
+msgid "Collapse types."
+msgstr "सभी ढहाय"
+
+#: editor/plugins/theme_editor_plugin.cpp
+#, fuzzy
+msgid "Expand types."
+msgstr "सभी बढाय"
+
+#: editor/plugins/theme_editor_plugin.cpp
+#, fuzzy
+msgid "Select all Theme items."
+msgstr "टेम्पलेट फ़ाइल का चयन करें"
+
+#: editor/plugins/theme_editor_plugin.cpp
+msgid "Select With Data"
+msgstr ""
+
+#: editor/plugins/theme_editor_plugin.cpp
+msgid "Select all Theme items with item data."
+msgstr ""
+
+#: editor/plugins/theme_editor_plugin.cpp
+#, fuzzy
+msgid "Deselect All"
+msgstr "सभी को डिस्कनेक्ट करें"
+
+#: editor/plugins/theme_editor_plugin.cpp
+msgid "Deselect all Theme items."
+msgstr ""
+
+#: editor/plugins/theme_editor_plugin.cpp
+#, fuzzy
+msgid "Import Selected"
+msgstr "सीन इंपोर्ट किजिये"
+
+#: editor/plugins/theme_editor_plugin.cpp
+msgid ""
+"Import Items tab has some items selected. Selection will be lost upon "
+"closing this window.\n"
+"Close anyway?"
+msgstr ""
+
+#: editor/plugins/theme_editor_plugin.cpp
+msgid ""
+"Select a theme type from the list to edit its items.\n"
+"You can add a custom type or import a type with its items from another theme."
+msgstr ""
+
+#: editor/plugins/theme_editor_plugin.cpp
+#, fuzzy
+msgid "Remove All Color Items"
+msgstr "आइटम निकालें"
+
+#: editor/plugins/theme_editor_plugin.cpp
+#, fuzzy
+msgid "Rename Item"
+msgstr "आइटम निकालें"
+
+#: editor/plugins/theme_editor_plugin.cpp
+#, fuzzy
+msgid "Remove All Constant Items"
+msgstr "आइटम निकालें"
+
+#: editor/plugins/theme_editor_plugin.cpp
+#, fuzzy
+msgid "Remove All Font Items"
+msgstr "आइटम निकालें"
+
+#: editor/plugins/theme_editor_plugin.cpp
+#, fuzzy
+msgid "Remove All Icon Items"
+msgstr "आइटम निकालें"
+
+#: editor/plugins/theme_editor_plugin.cpp
+#, fuzzy
+msgid "Remove All StyleBox Items"
+msgstr "आइटम निकालें"
+
+#: editor/plugins/theme_editor_plugin.cpp
+msgid ""
+"This theme type is empty.\n"
+"Add more items to it manually or by importing from another theme."
+msgstr ""
+
+#: editor/plugins/theme_editor_plugin.cpp
+#, fuzzy
+msgid "Add Color Item"
+msgstr "पसंदीदा में जोड़ें"
+
+#: editor/plugins/theme_editor_plugin.cpp
+#, fuzzy
+msgid "Add Constant Item"
+msgstr "कोन्स्टन्ट"
+
+#: editor/plugins/theme_editor_plugin.cpp
+#, fuzzy
+msgid "Add Font Item"
+msgstr "प्वाइंट जोड़ें"
+
+#: editor/plugins/theme_editor_plugin.cpp
+#, fuzzy
+msgid "Add Icon Item"
+msgstr "प्वाइंट जोड़ें"
+
+#: editor/plugins/theme_editor_plugin.cpp
+msgid "Add Stylebox Item"
+msgstr ""
+
+#: editor/plugins/theme_editor_plugin.cpp
+#, fuzzy
+msgid "Rename Color Item"
+msgstr "आइटम निकालें"
+
+#: editor/plugins/theme_editor_plugin.cpp
+msgid "Rename Constant Item"
+msgstr ""
+
+#: editor/plugins/theme_editor_plugin.cpp
+#, fuzzy
+msgid "Rename Font Item"
+msgstr "आइटम निकालें"
+
+#: editor/plugins/theme_editor_plugin.cpp
+#, fuzzy
+msgid "Rename Icon Item"
+msgstr "आइटम निकालें"
+
+#: editor/plugins/theme_editor_plugin.cpp
+msgid "Rename Stylebox Item"
+msgstr ""
+
+#: editor/plugins/theme_editor_plugin.cpp
+#, fuzzy
+msgid "Invalid file, not a Theme resource."
+msgstr "अमान्य फ़ाइल, ऑडियो बस लेआउट."
+
+#: editor/plugins/theme_editor_plugin.cpp
+msgid "Invalid file, same as the edited Theme resource."
+msgstr ""
+
+#: editor/plugins/theme_editor_plugin.cpp
+#, fuzzy
+msgid "Manage Theme Items"
+msgstr "टेम्पलेट्स का प्रबंधन करें"
+
+#: editor/plugins/theme_editor_plugin.cpp
+#, fuzzy
+msgid "Edit Items"
+msgstr "टेक्स्ट संपादित करें:"
+
+#: editor/plugins/theme_editor_plugin.cpp
+msgid "Types:"
+msgstr ""
+
+#: editor/plugins/theme_editor_plugin.cpp
+msgid "Add Type:"
+msgstr ""
+
+#: editor/plugins/theme_editor_plugin.cpp
+msgid "Add Item:"
+msgstr ""
+
+#: editor/plugins/theme_editor_plugin.cpp
+msgid "Add StyleBox Item"
+msgstr ""
+
+#: editor/plugins/theme_editor_plugin.cpp
+#, fuzzy
+msgid "Remove Items:"
+msgstr "आइटम निकालें"
 
 #: editor/plugins/theme_editor_plugin.cpp
 msgid "Remove Class Items"
 msgstr ""
 
 #: editor/plugins/theme_editor_plugin.cpp
-msgid "Create Empty Template"
+#, fuzzy
+msgid "Remove Custom Items"
+msgstr "आइटम निकालें"
+
+#: editor/plugins/theme_editor_plugin.cpp
+msgid "Remove All Items"
 msgstr ""
 
 #: editor/plugins/theme_editor_plugin.cpp
-msgid "Create Empty Editor Template"
+#, fuzzy
+msgid "Add Theme Item"
+msgstr "आइटम निकालें"
+
+#: editor/plugins/theme_editor_plugin.cpp
+#, fuzzy
+msgid "Old Name:"
+msgstr "नोड का नाम:"
+
+#: editor/plugins/theme_editor_plugin.cpp
+#, fuzzy
+msgid "Import Items"
+msgstr "सीन इंपोर्ट किजिये"
+
+#: editor/plugins/theme_editor_plugin.cpp
+#, fuzzy
+msgid "Default Theme"
+msgstr "चूक"
+
+#: editor/plugins/theme_editor_plugin.cpp
+#, fuzzy
+msgid "Editor Theme"
+msgstr "संपादक"
+
+#: editor/plugins/theme_editor_plugin.cpp
+#, fuzzy
+msgid "Select Another Theme Resource:"
+msgstr "खोज रिप्लेसमेंट संसाधन:"
+
+#: editor/plugins/theme_editor_plugin.cpp
+msgid "Another Theme"
 msgstr ""
 
 #: editor/plugins/theme_editor_plugin.cpp
-msgid "Create From Current Editor Theme"
+msgid "Confirm Item Rename"
 msgstr ""
 
 #: editor/plugins/theme_editor_plugin.cpp
+msgid "Cancel Item Rename"
+msgstr ""
+
+#: editor/plugins/theme_editor_plugin.cpp
+#, fuzzy
+msgid "Override Item"
+msgstr "मौजूदा के ऊपर लिखे"
+
+#: editor/plugins/theme_editor_plugin.cpp
+msgid "Unpin this StyleBox as a main style."
+msgstr ""
+
+#: editor/plugins/theme_editor_plugin.cpp
+msgid ""
+"Pin this StyleBox as a main style. Editing its properties will update the "
+"same properties in all other StyleBoxes of this type."
+msgstr ""
+
+#: editor/plugins/theme_editor_plugin.cpp
+#, fuzzy
+msgid "Add Type"
+msgstr "त्रिकोण जोड़ें"
+
+#: editor/plugins/theme_editor_plugin.cpp
+msgid "Add Item Type"
+msgstr ""
+
+#: editor/plugins/theme_editor_plugin.cpp
+#, fuzzy
+msgid "Node Types:"
+msgstr "नोड का नाम:"
+
+#: editor/plugins/theme_editor_plugin.cpp
+#, fuzzy
+msgid "Show Default"
+msgstr "प्रायिक लोड कीजिये"
+
+#: editor/plugins/theme_editor_plugin.cpp
+msgid "Show default type items alongside items that have been overridden."
+msgstr ""
+
+#: editor/plugins/theme_editor_plugin.cpp
+#, fuzzy
+msgid "Override All"
+msgstr "अधिभावी करता है:"
+
+#: editor/plugins/theme_editor_plugin.cpp
+msgid "Override all default type items."
+msgstr ""
+
+#: editor/plugins/theme_editor_plugin.cpp
+#, fuzzy
+msgid "Theme:"
+msgstr "खोलो इसे"
+
+#: editor/plugins/theme_editor_plugin.cpp
+#, fuzzy
+msgid "Manage Items..."
+msgstr "निर्यात टेम्पलेट्स का प्रबंधन करें ..."
+
+#: editor/plugins/theme_editor_plugin.cpp
+msgid "Add, remove, organize and import Theme items."
+msgstr ""
+
+#: editor/plugins/theme_editor_plugin.cpp
+#, fuzzy
+msgid "Add Preview"
+msgstr "पूर्व दर्शन:"
+
+#: editor/plugins/theme_editor_plugin.cpp
+#, fuzzy
+msgid "Default Preview"
+msgstr "चूक"
+
+#: editor/plugins/theme_editor_plugin.cpp
+#, fuzzy
+msgid "Select UI Scene:"
+msgstr "वापस दृश्य"
+
+#: editor/plugins/theme_editor_preview.cpp
+msgid ""
+"Toggle the control picker, allowing to visually select control types for "
+"edit."
+msgstr ""
+
+#: editor/plugins/theme_editor_preview.cpp
 msgid "Toggle Button"
 msgstr ""
 
-#: editor/plugins/theme_editor_plugin.cpp
+#: editor/plugins/theme_editor_preview.cpp
 #, fuzzy
 msgid "Disabled Button"
 msgstr "बंद कर दिया गया है"
 
-#: editor/plugins/theme_editor_plugin.cpp
+#: editor/plugins/theme_editor_preview.cpp
 msgid "Item"
 msgstr ""
 
-#: editor/plugins/theme_editor_plugin.cpp
+#: editor/plugins/theme_editor_preview.cpp
 #, fuzzy
 msgid "Disabled Item"
 msgstr "बंद कर दिया गया है"
 
-#: editor/plugins/theme_editor_plugin.cpp
+#: editor/plugins/theme_editor_preview.cpp
 msgid "Check Item"
 msgstr ""
 
-#: editor/plugins/theme_editor_plugin.cpp
+#: editor/plugins/theme_editor_preview.cpp
 msgid "Checked Item"
 msgstr ""
 
-#: editor/plugins/theme_editor_plugin.cpp
+#: editor/plugins/theme_editor_preview.cpp
 msgid "Radio Item"
 msgstr ""
 
-#: editor/plugins/theme_editor_plugin.cpp
+#: editor/plugins/theme_editor_preview.cpp
 msgid "Checked Radio Item"
 msgstr ""
 
-#: editor/plugins/theme_editor_plugin.cpp
-msgid "Named Sep."
+#: editor/plugins/theme_editor_preview.cpp
+msgid "Named Separator"
 msgstr ""
 
-#: editor/plugins/theme_editor_plugin.cpp
+#: editor/plugins/theme_editor_preview.cpp
 msgid "Submenu"
 msgstr ""
 
-#: editor/plugins/theme_editor_plugin.cpp
+#: editor/plugins/theme_editor_preview.cpp
 msgid "Subitem 1"
 msgstr ""
 
-#: editor/plugins/theme_editor_plugin.cpp
+#: editor/plugins/theme_editor_preview.cpp
 msgid "Subitem 2"
 msgstr ""
 
-#: editor/plugins/theme_editor_plugin.cpp
+#: editor/plugins/theme_editor_preview.cpp
 msgid "Has"
 msgstr ""
 
-#: editor/plugins/theme_editor_plugin.cpp
+#: editor/plugins/theme_editor_preview.cpp
 msgid "Many"
 msgstr ""
 
-#: editor/plugins/theme_editor_plugin.cpp
+#: editor/plugins/theme_editor_preview.cpp
 #, fuzzy
 msgid "Disabled LineEdit"
 msgstr "बंद कर दिया गया है"
 
-#: editor/plugins/theme_editor_plugin.cpp
+#: editor/plugins/theme_editor_preview.cpp
 msgid "Tab 1"
 msgstr ""
 
-#: editor/plugins/theme_editor_plugin.cpp
+#: editor/plugins/theme_editor_preview.cpp
 msgid "Tab 2"
 msgstr ""
 
-#: editor/plugins/theme_editor_plugin.cpp
+#: editor/plugins/theme_editor_preview.cpp
 msgid "Tab 3"
 msgstr ""
 
-#: editor/plugins/theme_editor_plugin.cpp
+#: editor/plugins/theme_editor_preview.cpp
 msgid "Editable Item"
 msgstr ""
 
-#: editor/plugins/theme_editor_plugin.cpp
+#: editor/plugins/theme_editor_preview.cpp
 msgid "Subtree"
 msgstr ""
 
-#: editor/plugins/theme_editor_plugin.cpp
+#: editor/plugins/theme_editor_preview.cpp
 msgid "Has,Many,Options"
 msgstr ""
 
-#: editor/plugins/theme_editor_plugin.cpp
-msgid "Data Type:"
+#: editor/plugins/theme_editor_preview.cpp
+msgid "Invalid path, the PackedScene resource was probably moved or removed."
 msgstr ""
 
-#: editor/plugins/theme_editor_plugin.cpp
-#: editor/plugins/tile_set_editor_plugin.cpp
-msgid "Icon"
+#: editor/plugins/theme_editor_preview.cpp
+msgid "Invalid PackedScene resource, must have a Control node at its root."
 msgstr ""
 
-#: editor/plugins/theme_editor_plugin.cpp editor/rename_dialog.cpp
-msgid "Style"
-msgstr ""
-
-#: editor/plugins/theme_editor_plugin.cpp
-msgid "Font"
-msgstr ""
-
-#: editor/plugins/theme_editor_plugin.cpp
-msgid "Color"
-msgstr ""
-
-#: editor/plugins/theme_editor_plugin.cpp
+#: editor/plugins/theme_editor_preview.cpp
 #, fuzzy
-msgid "Theme File"
-msgstr "खोलो इसे"
+msgid "Invalid file, not a PackedScene resource."
+msgstr "अमान्य फ़ाइल, ऑडियो बस लेआउट."
+
+#: editor/plugins/theme_editor_preview.cpp
+msgid "Reload the scene to reflect its most actual state."
+msgstr ""
 
 #: editor/plugins/tile_map_editor_plugin.cpp
 msgid "Erase Selection"
@@ -8251,6 +9133,10 @@ msgstr ""
 
 #: editor/plugins/tile_set_editor_plugin.cpp
 msgid "Priority"
+msgstr ""
+
+#: editor/plugins/tile_set_editor_plugin.cpp
+msgid "Icon"
 msgstr ""
 
 #: editor/plugins/tile_set_editor_plugin.cpp
@@ -8594,11 +9480,6 @@ msgstr ""
 
 #: editor/plugins/version_control_editor_plugin.cpp
 msgid "Commit Changes"
-msgstr ""
-
-#: editor/plugins/version_control_editor_plugin.cpp
-#: modules/gdnative/gdnative_library_singleton_editor.cpp
-msgid "Status"
 msgstr ""
 
 #: editor/plugins/version_control_editor_plugin.cpp
@@ -9437,8 +10318,9 @@ msgid "VisualShader"
 msgstr ""
 
 #: editor/plugins/visual_shader_editor_plugin.cpp
-msgid "Edit Visual Property"
-msgstr ""
+#, fuzzy
+msgid "Edit Visual Property:"
+msgstr "प्रोपर्टी:"
 
 #: editor/plugins/visual_shader_editor_plugin.cpp
 msgid "Visual Shader Mode Changed"
@@ -9552,7 +10434,7 @@ msgid "Script"
 msgstr ""
 
 #: editor/project_export.cpp
-msgid "Script Export Mode:"
+msgid "GDScript Export Mode:"
 msgstr ""
 
 #: editor/project_export.cpp
@@ -9560,7 +10442,7 @@ msgid "Text"
 msgstr ""
 
 #: editor/project_export.cpp
-msgid "Compiled"
+msgid "Compiled Bytecode (Faster Loading)"
 msgstr ""
 
 #: editor/project_export.cpp
@@ -9568,11 +10450,11 @@ msgid "Encrypted (Provide Key Below)"
 msgstr ""
 
 #: editor/project_export.cpp
-msgid "Invalid Encryption Key (must be 64 characters long)"
+msgid "Invalid Encryption Key (must be 64 hexadecimal characters long)"
 msgstr ""
 
 #: editor/project_export.cpp
-msgid "Script Encryption Key (256-bits as hex):"
+msgid "GDScript Encryption Key (256-bits as hexadecimal):"
 msgstr ""
 
 #: editor/project_export.cpp
@@ -9647,7 +10529,7 @@ msgstr ""
 
 #: editor/project_manager.cpp
 #, fuzzy
-msgid "Invalid Project Name."
+msgid "Invalid project name."
 msgstr "गलत फॉण्ट का आकार |"
 
 #: editor/project_manager.cpp
@@ -9679,6 +10561,18 @@ msgstr ""
 #: editor/project_manager.cpp
 msgid "Couldn't create project.godot in project path."
 msgstr ""
+
+#: editor/project_manager.cpp
+msgid "Error opening package file, not in ZIP format."
+msgstr "ज़िप फ़ाइल खोलने में त्रुटि, प्रारूप में नहीं।"
+
+#: editor/project_manager.cpp
+msgid "The following files failed extraction from package:"
+msgstr "निम्न फ़ाइलों का निस्सारण नहीं हो पाया:"
+
+#: editor/project_manager.cpp
+msgid "Package installed successfully!"
+msgstr "पैकेज सफलतापूर्वक स्थापित!"
 
 #: editor/project_manager.cpp
 msgid "Rename Project"
@@ -9827,15 +10721,11 @@ msgid "Are you sure to run %d projects at once?"
 msgstr ""
 
 #: editor/project_manager.cpp
-msgid ""
-"Remove %d projects from the list?\n"
-"The project folders' contents won't be modified."
+msgid "Remove %d projects from the list?"
 msgstr ""
 
 #: editor/project_manager.cpp
-msgid ""
-"Remove this project from the list?\n"
-"The project folder's contents won't be modified."
+msgid "Remove this project from the list?"
 msgstr ""
 
 #: editor/project_manager.cpp
@@ -9863,7 +10753,7 @@ msgstr "प्रोजेक्ट मैनेजर"
 
 #: editor/project_manager.cpp
 #, fuzzy
-msgid "Projects"
+msgid "Local Projects"
 msgstr "परियोजना के संस्थापक"
 
 #: editor/project_manager.cpp
@@ -9876,8 +10766,23 @@ msgid "Last Modified"
 msgstr ""
 
 #: editor/project_manager.cpp
+#, fuzzy
+msgid "Edit Project"
+msgstr "परियोजना"
+
+#: editor/project_manager.cpp
+#, fuzzy
+msgid "Run Project"
+msgstr "परियोजना"
+
+#: editor/project_manager.cpp
 msgid "Scan"
 msgstr ""
+
+#: editor/project_manager.cpp
+#, fuzzy
+msgid "Scan Projects"
+msgstr "परियोजना के संस्थापक"
 
 #: editor/project_manager.cpp
 msgid "Select a Folder to Scan"
@@ -9889,15 +10794,38 @@ msgstr ""
 
 #: editor/project_manager.cpp
 #, fuzzy
+msgid "Import Project"
+msgstr "इंपोर्ट डॉक"
+
+#: editor/project_manager.cpp
+#, fuzzy
+msgid "Remove Project"
+msgstr "मिटाना"
+
+#: editor/project_manager.cpp
+#, fuzzy
 msgid "Remove Missing"
 msgstr "मिटाना"
 
 #: editor/project_manager.cpp
-msgid "Templates"
-msgstr ""
+msgid "About"
+msgstr "के बारे में"
+
+#: editor/project_manager.cpp
+#, fuzzy
+msgid "Asset Library Projects"
+msgstr "अस्सेट संग्रह"
 
 #: editor/project_manager.cpp
 msgid "Restart Now"
+msgstr ""
+
+#: editor/project_manager.cpp
+msgid "Remove All"
+msgstr ""
+
+#: editor/project_manager.cpp
+msgid "Also delete project contents (no undo!)"
 msgstr ""
 
 #: editor/project_manager.cpp
@@ -9911,14 +10839,23 @@ msgid ""
 msgstr ""
 
 #: editor/project_manager.cpp
+#, fuzzy
+msgid "Filter projects"
+msgstr "नोड फिल्टर किजिये"
+
+#: editor/project_manager.cpp
 msgid ""
-"The search box filters projects by name and last path component.\n"
+"This field filters projects by name and last path component.\n"
 "To filter projects by name and full path, the query must contain at least "
 "one `/` character."
 msgstr ""
 
 #: editor/project_settings_editor.cpp
 msgid "Key "
+msgstr ""
+
+#: editor/project_settings_editor.cpp
+msgid "Physical Key"
 msgstr ""
 
 #: editor/project_settings_editor.cpp
@@ -9962,6 +10899,10 @@ msgstr ""
 
 #: editor/project_settings_editor.cpp
 msgid "Device"
+msgstr ""
+
+#: editor/project_settings_editor.cpp
+msgid " (Physical)"
 msgstr ""
 
 #: editor/project_settings_editor.cpp editor/settings_config_dialog.cpp
@@ -10103,19 +11044,20 @@ msgid "Override for Feature"
 msgstr ""
 
 #: editor/project_settings_editor.cpp
-msgid "Add Translation"
-msgstr ""
+#, fuzzy
+msgid "Add %d Translations"
+msgstr "ट्रांजिशन जोड़ें"
 
 #: editor/project_settings_editor.cpp
 msgid "Remove Translation"
 msgstr ""
 
 #: editor/project_settings_editor.cpp
-msgid "Add Remapped Path"
+msgid "Translation Resource Remap: Add %d Path(s)"
 msgstr ""
 
 #: editor/project_settings_editor.cpp
-msgid "Resource Remap Add Remap"
+msgid "Translation Resource Remap: Add %d Remap(s)"
 msgstr ""
 
 #: editor/project_settings_editor.cpp
@@ -10385,6 +11327,10 @@ msgid "Post-Process"
 msgstr ""
 
 #: editor/rename_dialog.cpp
+msgid "Style"
+msgstr ""
+
+#: editor/rename_dialog.cpp
 msgid "Keep"
 msgstr ""
 
@@ -10553,11 +11499,29 @@ msgid "Delete node \"%s\"?"
 msgstr "को हटा दें"
 
 #: editor/scene_tree_dock.cpp
-msgid "Can not perform with the root node."
+msgid ""
+"Saving the branch as a scene requires having a scene open in the editor."
 msgstr ""
 
 #: editor/scene_tree_dock.cpp
-msgid "This operation can't be done on instanced scenes."
+msgid ""
+"Saving the branch as a scene requires selecting only one node, but you have "
+"selected %d nodes."
+msgstr ""
+
+#: editor/scene_tree_dock.cpp
+msgid ""
+"Can't save the root node branch as an instanced scene.\n"
+"To create an editable copy of the current scene, duplicate it using the "
+"FileSystem dock context menu\n"
+"or create an inherited scene using Scene > New Inherited Scene... instead."
+msgstr ""
+
+#: editor/scene_tree_dock.cpp
+msgid ""
+"Can't save the branch of an already instanced scene.\n"
+"To create a variation of a scene, you can make an inherited scene based on "
+"the instanced scene using Scene > New Inherited Scene... instead."
 msgstr ""
 
 #: editor/scene_tree_dock.cpp
@@ -10615,6 +11579,10 @@ msgid "Can't operate on nodes the current scene inherits from!"
 msgstr ""
 
 #: editor/scene_tree_dock.cpp
+msgid "This operation can't be done on instanced scenes."
+msgstr ""
+
+#: editor/scene_tree_dock.cpp
 msgid "Attach Script"
 msgstr ""
 
@@ -10660,10 +11628,6 @@ msgstr ""
 
 #: editor/scene_tree_dock.cpp
 msgid "Load As Placeholder"
-msgstr ""
-
-#: editor/scene_tree_dock.cpp
-msgid "Open Documentation"
 msgstr ""
 
 #: editor/scene_tree_dock.cpp
@@ -10945,6 +11909,12 @@ msgid ""
 msgstr ""
 
 #: editor/script_create_dialog.cpp
+msgid ""
+"Warning: Having the script name be the same as a built-in type is usually "
+"not desired."
+msgstr ""
+
+#: editor/script_create_dialog.cpp
 msgid "Class Name:"
 msgstr ""
 
@@ -11016,6 +11986,10 @@ msgstr "डिस्कनेक्ट"
 
 #: editor/script_editor_debugger.cpp
 msgid "Copy Error"
+msgstr ""
+
+#: editor/script_editor_debugger.cpp
+msgid "Open C++ Source on GitHub"
 msgstr ""
 
 #: editor/script_editor_debugger.cpp
@@ -11196,6 +12170,14 @@ msgstr ""
 msgid "Change Ray Shape Length"
 msgstr ""
 
+#: editor/spatial_editor_gizmos.cpp
+msgid "Set Room Point Position"
+msgstr ""
+
+#: editor/spatial_editor_gizmos.cpp
+msgid "Set Portal Point Position"
+msgstr ""
+
 #: modules/csg/csg_gizmos.cpp
 msgid "Change Cylinder Radius"
 msgstr ""
@@ -11304,6 +12286,16 @@ msgstr ""
 msgid "Object can't provide a length."
 msgstr ""
 
+#: modules/gltf/editor_scene_exporter_gltf_plugin.cpp
+#, fuzzy
+msgid "Export Mesh GLTF2"
+msgstr "निर्यात मेष पुस्तकालय"
+
+#: modules/gltf/editor_scene_exporter_gltf_plugin.cpp
+#, fuzzy
+msgid "Export GLTF..."
+msgstr "निर्यात..."
+
 #: modules/gridmap/grid_map_editor_plugin.cpp
 msgid "Next Plane"
 msgstr ""
@@ -11345,6 +12337,11 @@ msgstr "सभी खंड"
 #: modules/gridmap/grid_map_editor_plugin.cpp
 msgid "GridMap Paint"
 msgstr ""
+
+#: modules/gridmap/grid_map_editor_plugin.cpp
+#, fuzzy
+msgid "GridMap Selection"
+msgstr "सभी खंड"
 
 #: modules/gridmap/grid_map_editor_plugin.cpp
 msgid "Grid Map"
@@ -11595,6 +12592,16 @@ msgid "Add Output Port"
 msgstr "पसंदीदा:"
 
 #: modules/visual_script/visual_script_editor.cpp
+#, fuzzy
+msgid "Change Port Type"
+msgstr "%s का टाइप बदले"
+
+#: modules/visual_script/visual_script_editor.cpp
+#, fuzzy
+msgid "Change Port Name"
+msgstr "शब्द बदलें मूल्य"
+
+#: modules/visual_script/visual_script_editor.cpp
 msgid "Override an existing built-in function."
 msgstr ""
 
@@ -11707,6 +12714,11 @@ msgstr ""
 #: modules/visual_script/visual_script_editor.cpp
 msgid "Add Preload Node"
 msgstr ""
+
+#: modules/visual_script/visual_script_editor.cpp
+#, fuzzy
+msgid "Add Node(s)"
+msgstr "पसंदीदा:"
 
 #: modules/visual_script/visual_script_editor.cpp
 msgid "Add Node(s) From Tree"
@@ -11938,10 +12950,6 @@ msgstr ""
 msgid "Get %s"
 msgstr ""
 
-#: modules/visual_script/visual_script_property_selector.cpp
-msgid "Set %s"
-msgstr ""
-
 #: platform/android/export/export.cpp
 msgid "Package name is missing."
 msgstr ""
@@ -11969,6 +12977,40 @@ msgstr ""
 #: platform/android/export/export.cpp
 msgid "Select device from the list"
 msgstr ""
+
+#: platform/android/export/export.cpp
+msgid "Running on %s"
+msgstr ""
+
+#: platform/android/export/export.cpp
+#, fuzzy
+msgid "Exporting APK..."
+msgstr "निर्यात..."
+
+#: platform/android/export/export.cpp
+#, fuzzy
+msgid "Uninstalling..."
+msgstr "अनइंस्टाल करें"
+
+#: platform/android/export/export.cpp
+#, fuzzy
+msgid "Installing to device, please wait..."
+msgstr "दर्पण को पुनः प्राप्त करना, कृपया प्रतीक्षा करें ..."
+
+#: platform/android/export/export.cpp
+#, fuzzy
+msgid "Could not install to device: %s"
+msgstr "उपप्रक्रिया शुरू नहीं कर सका!"
+
+#: platform/android/export/export.cpp
+#, fuzzy
+msgid "Running on device..."
+msgstr "कस्टम स्क्रिप्ट चला रहा है..."
+
+#: platform/android/export/export.cpp
+#, fuzzy
+msgid "Could not execute on device."
+msgstr "फ़ोल्डर नही बना सकते."
 
 #: platform/android/export/export.cpp
 msgid "Unable to find the 'apksigner' tool."
@@ -12068,6 +13110,45 @@ msgid "\"Export AAB\" is only valid when \"Use Custom Build\" is enabled."
 msgstr ""
 
 #: platform/android/export/export.cpp
+msgid ""
+"'apksigner' could not be found.\n"
+"Please check the command is available in the Android SDK build-tools "
+"directory.\n"
+"The resulting %s is unsigned."
+msgstr ""
+
+#: platform/android/export/export.cpp
+msgid "Signing debug %s..."
+msgstr ""
+
+#: platform/android/export/export.cpp
+#, fuzzy
+msgid "Signing release %s..."
+msgstr ""
+"फ़ाइले स्कैन कर रहा है,\n"
+"कृपया रुकिये..."
+
+#: platform/android/export/export.cpp
+msgid "Could not find keystore, unable to export."
+msgstr ""
+
+#: platform/android/export/export.cpp
+msgid "'apksigner' returned with error #%d"
+msgstr ""
+
+#: platform/android/export/export.cpp
+msgid "Verifying %s..."
+msgstr ""
+
+#: platform/android/export/export.cpp
+msgid "'apksigner' verification of %s failed."
+msgstr ""
+
+#: platform/android/export/export.cpp
+msgid "Exporting for Android"
+msgstr ""
+
+#: platform/android/export/export.cpp
 msgid "Invalid filename! Android App Bundle requires the *.aab extension."
 msgstr ""
 
@@ -12077,6 +13158,10 @@ msgstr ""
 
 #: platform/android/export/export.cpp
 msgid "Invalid filename! Android APK requires the *.apk extension."
+msgstr ""
+
+#: platform/android/export/export.cpp
+msgid "Unsupported export format!\n"
 msgstr ""
 
 #: platform/android/export/export.cpp
@@ -12091,6 +13176,19 @@ msgid ""
 "   Template installed: %s\n"
 "   Godot Version: %s\n"
 "Please reinstall Android build template from 'Project' menu."
+msgstr ""
+
+#: platform/android/export/export.cpp
+msgid ""
+"Unable to overwrite res://android/build/res/*.xml files with project name"
+msgstr ""
+
+#: platform/android/export/export.cpp
+msgid "Could not export project files to gradle project\n"
+msgstr ""
+
+#: platform/android/export/export.cpp
+msgid "Could not write expansion package file!"
 msgstr ""
 
 #: platform/android/export/export.cpp
@@ -12113,11 +13211,53 @@ msgid ""
 "outputs."
 msgstr ""
 
-#: platform/iphone/export/export.cpp
+#: platform/android/export/export.cpp
+#, fuzzy
+msgid "Package not found: %s"
+msgstr "पैकेज में है:"
+
+#: platform/android/export/export.cpp
+#, fuzzy
+msgid "Creating APK..."
+msgstr "जोड़ने..."
+
+#: platform/android/export/export.cpp
+msgid ""
+"Could not find template APK to export:\n"
+"%s"
+msgstr ""
+
+#: platform/android/export/export.cpp
+msgid ""
+"Missing libraries in the export template for the selected architectures: "
+"%s.\n"
+"Please build a template with all required libraries, or uncheck the missing "
+"architectures in the export preset."
+msgstr ""
+
+#: platform/android/export/export.cpp
+#, fuzzy
+msgid "Adding files..."
+msgstr "पसंदीदा:"
+
+#: platform/android/export/export.cpp
+#, fuzzy
+msgid "Could not export project files"
+msgstr "उपप्रक्रिया शुरू नहीं कर सका!"
+
+#: platform/android/export/export.cpp
+msgid "Aligning APK..."
+msgstr ""
+
+#: platform/android/export/export.cpp
+msgid "Could not unzip temporary unaligned APK."
+msgstr ""
+
+#: platform/iphone/export/export.cpp platform/osx/export/export.cpp
 msgid "Identifier is missing."
 msgstr ""
 
-#: platform/iphone/export/export.cpp
+#: platform/iphone/export/export.cpp platform/osx/export/export.cpp
 msgid "The character '%s' is not allowed in Identifier."
 msgstr ""
 
@@ -12147,10 +13287,6 @@ msgid "Run exported HTML in the system's default browser."
 msgstr ""
 
 #: platform/javascript/export/export.cpp
-msgid "Could not write file:"
-msgstr ""
-
-#: platform/javascript/export/export.cpp
 msgid "Could not open template for export:"
 msgstr ""
 
@@ -12159,15 +13295,48 @@ msgid "Invalid export template:"
 msgstr ""
 
 #: platform/javascript/export/export.cpp
-msgid "Could not read custom HTML shell:"
+msgid "Could not write file:"
 msgstr ""
 
 #: platform/javascript/export/export.cpp
-msgid "Could not read boot splash image file:"
-msgstr ""
+#, fuzzy
+msgid "Could not read file:"
+msgstr "फ़ोल्डर नही बना सकते."
 
 #: platform/javascript/export/export.cpp
-msgid "Using default boot splash image."
+#, fuzzy
+msgid "Could not read HTML shell:"
+msgstr "फ़ोल्डर नही बना सकते."
+
+#: platform/javascript/export/export.cpp
+#, fuzzy
+msgid "Could not create HTTP server directory:"
+msgstr "फ़ोल्डर नही बना सकते."
+
+#: platform/javascript/export/export.cpp
+#, fuzzy
+msgid "Error starting HTTP server:"
+msgstr "त्रुटि बचत टाइलसेट!"
+
+#: platform/osx/export/export.cpp
+#, fuzzy
+msgid "Invalid bundle identifier:"
+msgstr "गलत फॉण्ट का आकार |"
+
+#: platform/osx/export/export.cpp
+msgid "Notarization: code signing required."
+msgstr ""
+
+#: platform/osx/export/export.cpp
+msgid "Notarization: hardened runtime required."
+msgstr ""
+
+#: platform/osx/export/export.cpp
+msgid "Notarization: Apple ID name not specified."
+msgstr ""
+
+#: platform/osx/export/export.cpp
+msgid "Notarization: Apple ID password not specified."
 msgstr ""
 
 #: platform/uwp/export/export.cpp
@@ -12522,6 +13691,13 @@ msgid ""
 "Use a BakedLightmap instead."
 msgstr ""
 
+#: scene/3d/gi_probe.cpp
+msgid ""
+"The GIProbe Compress property has been deprecated due to known bugs and no "
+"longer has any effect.\n"
+"To remove this warning, disable the GIProbe's Compress property."
+msgstr ""
+
 #: scene/3d/light.cpp
 msgid "A SpotLight with an angle wider than 90 degrees cannot cast shadows."
 msgstr ""
@@ -12591,10 +13767,98 @@ msgstr ""
 msgid "Node A and Node B must be different PhysicsBodies"
 msgstr ""
 
+#: scene/3d/portal.cpp
+msgid "The RoomManager should not be a child or grandchild of a Portal."
+msgstr ""
+
+#: scene/3d/portal.cpp
+msgid "A Room should not be a child or grandchild of a Portal."
+msgstr ""
+
+#: scene/3d/portal.cpp
+msgid "A RoomGroup should not be a child or grandchild of a Portal."
+msgstr ""
+
 #: scene/3d/remote_transform.cpp
 msgid ""
 "The \"Remote Path\" property must point to a valid Spatial or Spatial-"
 "derived node to work."
+msgstr ""
+
+#: scene/3d/room.cpp
+msgid "A Room cannot have another Room as a child or grandchild."
+msgstr ""
+
+#: scene/3d/room.cpp
+msgid "The RoomManager should not be placed inside a Room."
+msgstr ""
+
+#: scene/3d/room.cpp
+msgid "A RoomGroup should not be placed inside a Room."
+msgstr ""
+
+#: scene/3d/room.cpp
+msgid ""
+"Room convex hull contains a large number of planes.\n"
+"Consider simplifying the room bound in order to increase performance."
+msgstr ""
+
+#: scene/3d/room_group.cpp
+msgid "The RoomManager should not be placed inside a RoomGroup."
+msgstr ""
+
+#: scene/3d/room_manager.cpp
+msgid "The RoomList has not been assigned."
+msgstr ""
+
+#: scene/3d/room_manager.cpp
+msgid "The RoomList node should be a Spatial (or derived from Spatial)."
+msgstr ""
+
+#: scene/3d/room_manager.cpp
+msgid ""
+"Portal Depth Limit is set to Zero.\n"
+"Only the Room that the Camera is in will render."
+msgstr ""
+
+#: scene/3d/room_manager.cpp
+msgid "There should only be one RoomManager in the SceneTree."
+msgstr ""
+
+#: scene/3d/room_manager.cpp
+msgid ""
+"RoomList path is invalid.\n"
+"Please check the RoomList branch has been assigned in the RoomManager."
+msgstr ""
+
+#: scene/3d/room_manager.cpp
+msgid "RoomList contains no Rooms, aborting."
+msgstr ""
+
+#: scene/3d/room_manager.cpp
+msgid "Misnamed nodes detected, check output log for details. Aborting."
+msgstr ""
+
+#: scene/3d/room_manager.cpp
+msgid "Portal link room not found, check output log for details."
+msgstr ""
+
+#: scene/3d/room_manager.cpp
+msgid ""
+"Portal autolink failed, check output log for details.\n"
+"Check the portal is facing outwards from the source room."
+msgstr ""
+
+#: scene/3d/room_manager.cpp
+msgid ""
+"Room overlap detected, cameras may work incorrectly in overlapping area.\n"
+"Check output log for details."
+msgstr ""
+
+#: scene/3d/room_manager.cpp
+msgid ""
+"Error calculating room bounds.\n"
+"Ensure all rooms contain geometry or manual bounds."
 msgstr ""
 
 #: scene/3d/soft_body.cpp
@@ -12643,6 +13907,10 @@ msgstr ""
 
 #: scene/animation/animation_blend_tree.cpp
 msgid "Animation not found: '%s'"
+msgstr ""
+
+#: scene/animation/animation_player.cpp
+msgid "Anim Apply Reset"
 msgstr ""
 
 #: scene/animation/animation_tree.cpp
@@ -12797,6 +14065,26 @@ msgid "Invalid comparison function for that type."
 msgstr "गलत फॉण्ट का आकार |"
 
 #: servers/visual/shader_language.cpp
+msgid "Varying may not be assigned in the '%s' function."
+msgstr ""
+
+#: servers/visual/shader_language.cpp
+msgid ""
+"Varyings which assigned in 'vertex' function may not be reassigned in "
+"'fragment' or 'light'."
+msgstr ""
+
+#: servers/visual/shader_language.cpp
+msgid ""
+"Varyings which assigned in 'fragment' function may not be reassigned in "
+"'vertex' or 'light'."
+msgstr ""
+
+#: servers/visual/shader_language.cpp
+msgid "Fragment-stage varying could not been accessed in custom function!"
+msgstr ""
+
+#: servers/visual/shader_language.cpp
 msgid "Assignment to function."
 msgstr ""
 
@@ -12805,12 +14093,72 @@ msgid "Assignment to uniform."
 msgstr ""
 
 #: servers/visual/shader_language.cpp
-msgid "Varyings can only be assigned in vertex function."
-msgstr ""
-
-#: servers/visual/shader_language.cpp
 msgid "Constants cannot be modified."
 msgstr ""
+
+#~ msgid "Singleton"
+#~ msgstr "सिन्गलटन"
+
+#~ msgid "Erase profile '%s'? (no undo)"
+#~ msgstr "प्रोफ़ाइल '%s' को मिटाएं? (इसे अंडू नहीं किया जा सकता है)"
+
+#~ msgid "Enabled Properties:"
+#~ msgstr "सक्रिय प्रोपरटिज:"
+
+#~ msgid "Enabled Features:"
+#~ msgstr "सक्रिय फ़िचर्स:"
+
+#~ msgid "Unset"
+#~ msgstr "अन्सेट"
+
+#~ msgid "Class Options"
+#~ msgstr "क्लास विकल्प"
+
+#~ msgid "Set"
+#~ msgstr "सेट करे"
+
+#~ msgid "Saved %s modified resource(s)."
+#~ msgstr "सहेजा गया% संशोधित संसाधन (एस)"
+
+#~ msgid "Q&A"
+#~ msgstr "Q&A"
+
+#~ msgid "Status:"
+#~ msgstr "स्थिति:"
+
+#~ msgid "Edit:"
+#~ msgstr "संपादित:"
+
+#~ msgid "Redownload"
+#~ msgstr "रीडाउनलोड करें"
+
+#~ msgid "(Installed)"
+#~ msgstr "(स्थापित)"
+
+#~ msgid "(Missing)"
+#~ msgstr "(लापता)"
+
+#~ msgid "Redirect Loop."
+#~ msgstr "लूप को रीडायरेक्ट करते हैं।"
+
+#~ msgid "Download Complete."
+#~ msgstr "पूरा डाउनलोड करें।"
+
+#~ msgid "Remove Template"
+#~ msgstr "टेम्पलेट निकालें"
+
+#~ msgid "Download Templates"
+#~ msgstr "टेम्पलेट्स डाउनलोड करें"
+
+#~ msgid "Select mirror from list: (Shift+Click: Open in Browser)"
+#~ msgstr "सूची से दर्पण चुनें: (शिफ्ट +क्लिक: ब्राउज़र में खुला)"
+
+#~ msgid "Move to Trash"
+#~ msgstr "ट्रैश में ले जाएं"
+
+#, fuzzy
+#~ msgid "Size"
+#~ msgstr "आकार: "
 
 #~ msgid "An animation player can't animate itself, only other players."
 #~ msgstr "एक एनीमेशन खिलाड़ी खुद को चेतन नहीं कर सकता, केवल अन्य खिलाड़ी।"
@@ -12847,17 +14195,11 @@ msgstr ""
 #~ msgid "Current scene was never saved, please save it prior to running."
 #~ msgstr "वर्तमान दृश्य कभी नहीं बचाया गया था, कृपया इसे चलाने से पहले बचाने के लिए ।"
 
-#~ msgid "Not in resource path."
-#~ msgstr "रेसोर्स पाथ में नहीं."
-
 #~ msgid "Revert"
 #~ msgstr "वापस लौटना"
 
 #~ msgid "This action cannot be undone. Revert anyway?"
 #~ msgstr "इस कार्रवाई को पूर्ववत नहीं किया जा सकता । वैसे भी वापस?"
-
-#~ msgid "Revert Scene"
-#~ msgstr "वापस दृश्य"
 
 #~ msgid "Issue Tracker"
 #~ msgstr "मुद्दा पर नज़र रखने वाला"

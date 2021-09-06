@@ -60,6 +60,10 @@ class DisplayServerOSX : public DisplayServer {
 	_THREAD_SAFE_CLASS_
 
 public:
+	void _send_event(NSEvent *p_event);
+	NSMenu *_get_dock_menu() const;
+	void _menu_callback(id p_sender);
+
 #if defined(OPENGL_ENABLED)
 	ContextGL_OSX *context_gles2;
 #endif
@@ -81,7 +85,7 @@ public:
 		bool pressed = false;
 		bool echo = false;
 		bool raw = false;
-		uint32_t keycode = 0;
+		Key keycode = KEY_NONE;
 		uint32_t physical_keycode = 0;
 		uint32_t unicode = 0;
 	};
@@ -163,7 +167,6 @@ public:
 
 	String rendering_driver;
 
-	id delegate;
 	id autoreleasePool;
 	CGEventSourceRef eventSource;
 
@@ -207,7 +210,6 @@ public:
 	virtual void global_menu_remove_item(const String &p_menu_root, int p_idx) override;
 	virtual void global_menu_clear(const String &p_menu_root) override;
 
-	virtual void alert(const String &p_alert, const String &p_title = "ALERT!") override;
 	virtual Error dialog_show(String p_title, String p_description, Vector<String> p_buttons, const Callable &p_callback) override;
 	virtual Error dialog_input_text(String p_title, String p_description, String p_partial, const Callable &p_callback) override;
 

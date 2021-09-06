@@ -922,11 +922,11 @@ Variant Object::get_script() const {
 	return script;
 }
 
-bool Object::has_meta(const String &p_name) const {
+bool Object::has_meta(const StringName &p_name) const {
 	return metadata.has(p_name);
 }
 
-void Object::set_meta(const String &p_name, const Variant &p_value) {
+void Object::set_meta(const StringName &p_name, const Variant &p_value) {
 	if (p_value.get_type() == Variant::NIL) {
 		metadata.erase(p_name);
 		return;
@@ -935,12 +935,12 @@ void Object::set_meta(const String &p_name, const Variant &p_value) {
 	metadata[p_name] = p_value;
 }
 
-Variant Object::get_meta(const String &p_name) const {
+Variant Object::get_meta(const StringName &p_name) const {
 	ERR_FAIL_COND_V_MSG(!metadata.has(p_name), Variant(), "The object does not have any 'meta' values with the key '" + p_name + "'.");
 	return metadata[p_name];
 }
 
-void Object::remove_meta(const String &p_name) {
+void Object::remove_meta(const StringName &p_name) {
 	metadata.erase(p_name);
 }
 
@@ -964,23 +964,23 @@ Array Object::_get_method_list_bind() const {
 	return ret;
 }
 
-Vector<String> Object::_get_meta_list_bind() const {
-	Vector<String> _metaret;
+Vector<StringName> Object::_get_meta_list_bind() const {
+	Vector<StringName> _metaret;
 
 	List<Variant> keys;
 	metadata.get_key_list(&keys);
-	for (List<Variant>::Element *E = keys.front(); E; E = E->next()) {
-		_metaret.push_back(E->get());
+	for (const Variant &E : keys) {
+		_metaret.push_back(E);
 	}
 
 	return _metaret;
 }
 
-void Object::get_meta_list(List<String> *p_list) const {
+void Object::get_meta_list(List<StringName> *p_list) const {
 	List<Variant> keys;
 	metadata.get_key_list(&keys);
-	for (List<Variant>::Element *E = keys.front(); E; E = E->next()) {
-		p_list->push_back(E->get());
+	for (const Variant &E : keys) {
+		p_list->push_back(E);
 	}
 }
 
@@ -1184,8 +1184,8 @@ Array Object::_get_signal_list() const {
 	get_signal_list(&signal_list);
 
 	Array ret;
-	for (List<MethodInfo>::Element *E = signal_list.front(); E; E = E->next()) {
-		ret.push_back(Dictionary(E->get()));
+	for (const MethodInfo &E : signal_list) {
+		ret.push_back(Dictionary(E));
 	}
 
 	return ret;
@@ -1197,8 +1197,7 @@ Array Object::_get_signal_connection_list(const String &p_signal) const {
 
 	Array ret;
 
-	for (List<Connection>::Element *E = conns.front(); E; E = E->next()) {
-		Connection &c = E->get();
+	for (const Connection &c : conns) {
 		if (c.signal.get_name() == p_signal) {
 			ret.push_back(c);
 		}
@@ -1297,8 +1296,8 @@ int Object::get_persistent_signal_connection_count() const {
 }
 
 void Object::get_signals_connected_to_this(List<Connection> *p_connections) const {
-	for (const List<Connection>::Element *E = connections.front(); E; E = E->next()) {
-		p_connections->push_back(E->get());
+	for (const Connection &E : connections) {
+		p_connections->push_back(E);
 	}
 }
 
@@ -1500,9 +1499,9 @@ void Object::_clear_internal_resource_paths(const Variant &p_var) {
 			List<Variant> keys;
 			d.get_key_list(&keys);
 
-			for (List<Variant>::Element *E = keys.front(); E; E = E->next()) {
-				_clear_internal_resource_paths(E->get());
-				_clear_internal_resource_paths(d[E->get()]);
+			for (const Variant &E : keys) {
+				_clear_internal_resource_paths(E);
+				_clear_internal_resource_paths(d[E]);
 			}
 		} break;
 		default: {
@@ -1531,8 +1530,8 @@ void Object::clear_internal_resource_paths() {
 
 	get_property_list(&pinfo);
 
-	for (List<PropertyInfo>::Element *E = pinfo.front(); E; E = E->next()) {
-		_clear_internal_resource_paths(get(E->get().name));
+	for (const PropertyInfo &E : pinfo) {
+		_clear_internal_resource_paths(get(E.name));
 	}
 }
 
@@ -1620,22 +1619,25 @@ void Object::_bind_methods() {
 	ADD_SIGNAL(MethodInfo("script_changed"));
 	ADD_SIGNAL(MethodInfo("property_list_changed"));
 
-	BIND_VMETHOD(MethodInfo("_notification", PropertyInfo(Variant::INT, "what")));
-	BIND_VMETHOD(MethodInfo(Variant::BOOL, "_set", PropertyInfo(Variant::STRING_NAME, "property"), PropertyInfo(Variant::NIL, "value")));
+#define BIND_OBJ_CORE_METHOD(m_method) \
+	::ClassDB::add_virtual_method(get_class_static(), m_method, true, Vector<String>(), true);
+
+	BIND_OBJ_CORE_METHOD(MethodInfo("_notification", PropertyInfo(Variant::INT, "what")));
+	BIND_OBJ_CORE_METHOD(MethodInfo(Variant::BOOL, "_set", PropertyInfo(Variant::STRING_NAME, "property"), PropertyInfo(Variant::NIL, "value")));
 #ifdef TOOLS_ENABLED
 	MethodInfo miget("_get", PropertyInfo(Variant::STRING_NAME, "property"));
 	miget.return_val.name = "Variant";
 	miget.return_val.usage |= PROPERTY_USAGE_NIL_IS_VARIANT;
-	BIND_VMETHOD(miget);
+	BIND_OBJ_CORE_METHOD(miget);
 
 	MethodInfo plget("_get_property_list");
 
 	plget.return_val.type = Variant::ARRAY;
-	BIND_VMETHOD(plget);
+	BIND_OBJ_CORE_METHOD(plget);
 
 #endif
-	BIND_VMETHOD(MethodInfo("_init"));
-	BIND_VMETHOD(MethodInfo(Variant::STRING, "_to_string"));
+	BIND_OBJ_CORE_METHOD(MethodInfo("_init"));
+	BIND_OBJ_CORE_METHOD(MethodInfo(Variant::STRING, "_to_string"));
 
 	BIND_CONSTANT(NOTIFICATION_POSTINITIALIZE);
 	BIND_CONSTANT(NOTIFICATION_PREDELETE);
@@ -1666,12 +1668,12 @@ void Object::get_translatable_strings(List<String> *p_strings) const {
 	List<PropertyInfo> plist;
 	get_property_list(&plist);
 
-	for (List<PropertyInfo>::Element *E = plist.front(); E; E = E->next()) {
-		if (!(E->get().usage & PROPERTY_USAGE_INTERNATIONALIZED)) {
+	for (const PropertyInfo &E : plist) {
+		if (!(E.usage & PROPERTY_USAGE_INTERNATIONALIZED)) {
 			continue;
 		}
 
-		String text = get(E->get().name);
+		String text = get(E.name);
 
 		if (text == "") {
 			continue;
@@ -1812,11 +1814,26 @@ void *Object::get_instance_binding(void *p_token, const GDNativeInstanceBindingC
 	return binding;
 }
 
+bool Object::has_instance_binding(void *p_token) {
+	bool found = false;
+	_instance_binding_mutex.lock();
+	for (uint32_t i = 0; i < _instance_binding_count; i++) {
+		if (_instance_bindings[i].token == p_token) {
+			found = true;
+			break;
+		}
+	}
+
+	_instance_binding_mutex.unlock();
+
+	return found;
+}
+
 void Object::_construct_object(bool p_reference) {
 	type_is_reference = p_reference;
 	_instance_id = ObjectDB::add_instance(this);
 
-	ClassDB::instance_get_native_extension_data(&_extension, &_extension_instance);
+	ClassDB::instance_get_native_extension_data(&_extension, &_extension_instance, this);
 
 #ifdef DEBUG_ENABLED
 	_lock_index.init(1);
@@ -1877,7 +1894,7 @@ Object::~Object() {
 	if (_instance_bindings != nullptr) {
 		for (uint32_t i = 0; i < _instance_binding_count; i++) {
 			if (_instance_bindings[i].free_callback) {
-				_instance_bindings[i].free_callback(_instance_bindings[i].token, _instance_bindings[i].binding, this);
+				_instance_bindings[i].free_callback(_instance_bindings[i].token, this, _instance_bindings[i].binding);
 			}
 		}
 		memfree(_instance_bindings);

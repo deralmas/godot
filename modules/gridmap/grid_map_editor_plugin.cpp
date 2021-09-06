@@ -497,8 +497,8 @@ void GridMapEditor::_fill_selection() {
 }
 
 void GridMapEditor::_clear_clipboard_data() {
-	for (List<ClipboardItem>::Element *E = clipboard_items.front(); E; E = E->next()) {
-		RenderingServer::get_singleton()->free(E->get().instance);
+	for (const ClipboardItem &E : clipboard_items) {
+		RenderingServer::get_singleton()->free(E.instance);
 	}
 
 	clipboard_items.clear();
@@ -552,9 +552,7 @@ void GridMapEditor::_update_paste_indicator() {
 
 	RenderingServer::get_singleton()->instance_set_transform(paste_instance, node->get_global_transform() * xf);
 
-	for (List<ClipboardItem>::Element *E = clipboard_items.front(); E; E = E->next()) {
-		ClipboardItem &item = E->get();
-
+	for (const ClipboardItem &item : clipboard_items) {
 		xf = Transform3D();
 		xf.origin = (paste_indicator.begin + (paste_indicator.current - paste_indicator.click) + center) * node->get_cell_size();
 		xf.basis = rot * xf.basis;
@@ -578,9 +576,7 @@ void GridMapEditor::_do_paste() {
 	Vector3 ofs = paste_indicator.current - paste_indicator.click;
 	undo_redo->create_action(TTR("GridMap Paste Selection"));
 
-	for (List<ClipboardItem>::Element *E = clipboard_items.front(); E; E = E->next()) {
-		ClipboardItem &item = E->get();
-
+	for (const ClipboardItem &item : clipboard_items) {
 		Vector3 position = rot.xform(item.grid_offset) + paste_indicator.begin + ofs;
 
 		Basis orm;
@@ -663,8 +659,7 @@ bool GridMapEditor::forward_spatial_input_event(Camera3D *p_camera, const Ref<In
 			if ((mb->get_button_index() == MOUSE_BUTTON_RIGHT && input_action == INPUT_ERASE) || (mb->get_button_index() == MOUSE_BUTTON_LEFT && input_action == INPUT_PAINT)) {
 				if (set_items.size()) {
 					undo_redo->create_action(TTR("GridMap Paint"));
-					for (List<SetItem>::Element *E = set_items.front(); E; E = E->next()) {
-						const SetItem &si = E->get();
+					for (const SetItem &si : set_items) {
 						undo_redo->add_do_method(node, "set_cell_item", si.position, si.new_value, si.new_orientation);
 					}
 					for (List<SetItem>::Element *E = set_items.back(); E; E = E->prev()) {
@@ -680,7 +675,7 @@ bool GridMapEditor::forward_spatial_input_event(Camera3D *p_camera, const Ref<In
 			}
 
 			if (mb->get_button_index() == MOUSE_BUTTON_LEFT && input_action == INPUT_SELECT) {
-				undo_redo->create_action("GridMap Selection");
+				undo_redo->create_action(TTR("GridMap Selection"));
 				undo_redo->add_do_method(this, "_set_selection", selection.active, selection.begin, selection.end);
 				undo_redo->add_undo_method(this, "_set_selection", last_selection.active, last_selection.begin, last_selection.end);
 				undo_redo->commit_action();
@@ -795,7 +790,7 @@ void GridMapEditor::_sbox_input(const Ref<InputEvent> &p_ie) {
 
 	if (k.is_valid() && (k->get_keycode() == KEY_UP || k->get_keycode() == KEY_DOWN || k->get_keycode() == KEY_PAGEUP || k->get_keycode() == KEY_PAGEDOWN)) {
 		// Forward the key input to the ItemList so it can be scrolled
-		mesh_library_palette->call("_gui_input", k);
+		mesh_library_palette->gui_input(k);
 		search_box->accept_event();
 	}
 }
@@ -869,8 +864,8 @@ void GridMapEditor::update_palette() {
 
 	int item = 0;
 
-	for (List<_CGMEItemSort>::Element *E = il.front(); E; E = E->next()) {
-		int id = E->get().id;
+	for (_CGMEItemSort &E : il) {
+		int id = E.id;
 		String name = mesh_library->get_item_name(id);
 		Ref<Texture2D> preview = mesh_library->get_item_preview(id);
 

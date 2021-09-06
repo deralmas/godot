@@ -386,7 +386,7 @@ EditorMaterialPreviewPlugin::EditorMaterialPreviewPlugin() {
 	Vector<Vector3> vertices;
 	Vector<Vector3> normals;
 	Vector<Vector2> uvs;
-	Vector<float> tangents;
+	Vector<real_t> tangents;
 	Basis tt = Basis(Vector3(0, 1, 0), Math_PI * 0.5);
 
 	for (int i = 1; i <= lats; i++) {
@@ -490,11 +490,11 @@ Ref<Texture2D> EditorScriptPreviewPlugin::generate(const RES &p_from, const Size
 	Set<String> control_flow_keywords;
 	Set<String> keywords;
 
-	for (List<String>::Element *E = kwors.front(); E; E = E->next()) {
-		if (scr->get_language()->is_control_flow_keyword(E->get())) {
-			control_flow_keywords.insert(E->get());
+	for (const String &E : kwors) {
+		if (scr->get_language()->is_control_flow_keyword(E)) {
+			control_flow_keywords.insert(E);
 		} else {
-			keywords.insert(E->get());
+			keywords.insert(E);
 		}
 	}
 
@@ -505,12 +505,12 @@ Ref<Texture2D> EditorScriptPreviewPlugin::generate(const RES &p_from, const Size
 	int thumbnail_size = MAX(p_size.x, p_size.y);
 	img->create(thumbnail_size, thumbnail_size, false, Image::FORMAT_RGBA8);
 
-	Color bg_color = EditorSettings::get_singleton()->get("text_editor/highlighting/background_color");
-	Color keyword_color = EditorSettings::get_singleton()->get("text_editor/highlighting/keyword_color");
-	Color control_flow_keyword_color = EditorSettings::get_singleton()->get("text_editor/highlighting/control_flow_keyword_color");
-	Color text_color = EditorSettings::get_singleton()->get("text_editor/highlighting/text_color");
-	Color symbol_color = EditorSettings::get_singleton()->get("text_editor/highlighting/symbol_color");
-	Color comment_color = EditorSettings::get_singleton()->get("text_editor/highlighting/comment_color");
+	Color bg_color = EditorSettings::get_singleton()->get("text_editor/theme/highlighting/background_color");
+	Color keyword_color = EditorSettings::get_singleton()->get("text_editor/theme/highlighting/keyword_color");
+	Color control_flow_keyword_color = EditorSettings::get_singleton()->get("text_editor/theme/highlighting/control_flow_keyword_color");
+	Color text_color = EditorSettings::get_singleton()->get("text_editor/theme/highlighting/text_color");
+	Color symbol_color = EditorSettings::get_singleton()->get("text_editor/theme/highlighting/symbol_color");
+	Color comment_color = EditorSettings::get_singleton()->get("text_editor/theme/highlighting/comment_color");
 
 	if (bg_color.a == 0) {
 		bg_color = Color(0, 0, 0, 0);
@@ -635,7 +635,7 @@ Ref<Texture2D> EditorAudioStreamPreviewPlugin::generate(const RES &p_from, const
 	Ref<AudioStreamPlayback> playback = stream->instance_playback();
 	ERR_FAIL_COND_V(playback.is_null(), Ref<Texture2D>());
 
-	float len_s = stream->get_length();
+	real_t len_s = stream->get_length();
 	if (len_s == 0) {
 		len_s = 60; //one minute audio if no length specified
 	}
@@ -649,8 +649,8 @@ Ref<Texture2D> EditorAudioStreamPreviewPlugin::generate(const RES &p_from, const
 	playback->stop();
 
 	for (int i = 0; i < w; i++) {
-		float max = -1000;
-		float min = 1000;
+		real_t max = -1000;
+		real_t min = 1000;
 		int from = uint64_t(i) * frame_length / w;
 		int to = (uint64_t(i) + 1) * frame_length / w;
 		to = MIN(to, frame_length);
@@ -724,7 +724,7 @@ Ref<Texture2D> EditorMeshPreviewPlugin::generate(const RES &p_from, const Size2 
 	xform.basis = Basis().rotated(Vector3(0, 1, 0), -Math_PI * 0.125);
 	xform.basis = Basis().rotated(Vector3(1, 0, 0), Math_PI * 0.125) * xform.basis;
 	AABB rot_aabb = xform.xform(aabb);
-	float m = MAX(rot_aabb.size.x, rot_aabb.size.y) * 0.5;
+	real_t m = MAX(rot_aabb.size.x, rot_aabb.size.y) * 0.5;
 	if (m == 0) {
 		return Ref<Texture2D>();
 	}
@@ -826,55 +826,6 @@ bool EditorFontPreviewPlugin::handles(const String &p_type) const {
 	return ClassDB::is_parent_class(p_type, "FontData") || ClassDB::is_parent_class(p_type, "Font");
 }
 
-struct FSample {
-	String script;
-	String sample;
-};
-
-static FSample _samples[] = {
-	{ "hani", U"漢字" },
-	{ "armn", U"Աբ" },
-	{ "copt", U"Αα" },
-	{ "cyrl", U"Аб" },
-	{ "grek", U"Αα" },
-	{ "hebr", U"אב" },
-	{ "arab", U"اب" },
-	{ "syrc", U"ܐܒ" },
-	{ "thaa", U"ހށ" },
-	{ "deva", U"आ" },
-	{ "beng", U"আ" },
-	{ "guru", U"ਆ" },
-	{ "gujr", U"આ" },
-	{ "orya", U"ଆ" },
-	{ "taml", U"ஆ" },
-	{ "telu", U"ఆ" },
-	{ "knda", U"ಆ" },
-	{ "mylm", U"ആ" },
-	{ "sinh", U"ආ" },
-	{ "thai", U"กิ" },
-	{ "laoo", U"ກິ" },
-	{ "tibt", U"ༀ" },
-	{ "mymr", U"က" },
-	{ "geor", U"Ⴀა" },
-	{ "hang", U"한글" },
-	{ "ethi", U"ሀ" },
-	{ "cher", U"Ꭳ" },
-	{ "cans", U"ᐁ" },
-	{ "ogam", U"ᚁ" },
-	{ "runr", U"ᚠ" },
-	{ "tglg", U"ᜀ" },
-	{ "hano", U"ᜠ" },
-	{ "buhd", U"ᝀ" },
-	{ "tagb", U"ᝠ" },
-	{ "khmr", U"ក" },
-	{ "mong", U"ᠠ" },
-	{ "limb", U"ᤁ" },
-	{ "tale", U"ᥐ" },
-	{ "latn", U"Ab" },
-	{ "zyyy", U"😀" },
-	{ "", U"" }
-};
-
 Ref<Texture2D> EditorFontPreviewPlugin::generate_from_path(const String &p_path, const Size2 &p_size) const {
 	RES res = ResourceLoader::load(p_path);
 	Ref<Font> sampled_font;
@@ -886,14 +837,14 @@ Ref<Texture2D> EditorFontPreviewPlugin::generate_from_path(const String &p_path,
 	}
 
 	String sample;
-	for (int j = 0; j < sampled_font->get_data_count(); j++) {
-		for (int i = 0; _samples[i].script != String(); i++) {
-			if (sampled_font->get_data(j)->is_script_supported(_samples[i].script)) {
-				if (sampled_font->get_data(j)->has_char(_samples[i].sample[0])) {
-					sample += _samples[i].sample;
-				}
-			}
+	static const String sample_base = U"12漢字ԱբΑαАбΑαאבابܐܒހށआআਆઆଆஆఆಆആආกิກິༀကႠა한글ሀᎣᐁᚁᚠᜀᜠᝀᝠកᠠᤁᥐAb😀";
+	for (int i = 0; i < sample_base.length(); i++) {
+		if (sampled_font->has_char(sample_base[i])) {
+			sample += sample_base[i];
 		}
+	}
+	if (sample.is_empty()) {
+		sample = sampled_font->get_supported_chars().substr(0, 6);
 	}
 	Vector2 size = sampled_font->get_string_size(sample, 50);
 

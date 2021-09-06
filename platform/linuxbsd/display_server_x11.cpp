@@ -136,70 +136,6 @@ String DisplayServerX11::get_name() const {
 	return "X11";
 }
 
-void DisplayServerX11::alert(const String &p_alert, const String &p_title) {
-	const char *message_programs[] = { "zenity", "kdialog", "Xdialog", "xmessage" };
-
-	String path = OS::get_singleton()->get_environment("PATH");
-	Vector<String> path_elems = path.split(":", false);
-	String program;
-
-	for (int i = 0; i < path_elems.size(); i++) {
-		for (uint64_t k = 0; k < sizeof(message_programs) / sizeof(char *); k++) {
-			String tested_path = path_elems[i].plus_file(message_programs[k]);
-
-			if (FileAccess::exists(tested_path)) {
-				program = tested_path;
-				break;
-			}
-		}
-
-		if (program.length()) {
-			break;
-		}
-	}
-
-	List<String> args;
-
-	if (program.ends_with("zenity")) {
-		args.push_back("--error");
-		args.push_back("--width");
-		args.push_back("500");
-		args.push_back("--title");
-		args.push_back(p_title);
-		args.push_back("--text");
-		args.push_back(p_alert);
-	}
-
-	if (program.ends_with("kdialog")) {
-		args.push_back("--error");
-		args.push_back(p_alert);
-		args.push_back("--title");
-		args.push_back(p_title);
-	}
-
-	if (program.ends_with("Xdialog")) {
-		args.push_back("--title");
-		args.push_back(p_title);
-		args.push_back("--msgbox");
-		args.push_back(p_alert);
-		args.push_back("0");
-		args.push_back("0");
-	}
-
-	if (program.ends_with("xmessage")) {
-		args.push_back("-center");
-		args.push_back("-title");
-		args.push_back(p_title);
-		args.push_back(p_alert);
-	}
-
-	if (program.length()) {
-		OS::get_singleton()->execute(program, args);
-	} else {
-		print_line(p_alert);
-	}
-}
-
 void DisplayServerX11::_update_real_mouse_position(const WindowData &wd) {
 	Window root_return, child_return;
 	int root_x, root_y, win_x, win_y;
@@ -871,7 +807,9 @@ DisplayServer::WindowID DisplayServerX11::create_sub_window(WindowMode p_mode, V
 void DisplayServerX11::show_window(WindowID p_id) {
 	_THREAD_SAFE_METHOD_
 
-	WindowData &wd = windows[p_id];
+	const WindowData &wd = windows[p_id];
+
+	DEBUG_LOG_X11("show_window: %lu (%u) \n", wd.x11_window, p_id);
 
 	XMapWindow(x11_display, wd.x11_window);
 }
@@ -1095,6 +1033,8 @@ void DisplayServerX11::window_set_transient(WindowID p_window, WindowID p_parent
 	WindowID prev_parent = wd_window.transient_parent;
 	ERR_FAIL_COND(prev_parent == p_parent);
 
+	DEBUG_LOG_X11("window_set_transient: %lu (%u), prev_parent=%u, parent=%u\n", wd_window.x11_window, p_window, prev_parent, p_parent);
+
 	ERR_FAIL_COND_MSG(wd_window.on_top, "Windows with the 'on top' can't become transient.");
 	if (p_parent == INVALID_WINDOW_ID) {
 		//remove transient
@@ -1109,10 +1049,10 @@ void DisplayServerX11::window_set_transient(WindowID p_window, WindowID p_parent
 
 		XSetTransientForHint(x11_display, wd_window.x11_window, None);
 
-		// Set focus to parent sub window to avoid losing all focus with nested menus.
+		// Set focus to parent sub window to avoid losing all focus when closing a nested sub-menu.
 		// RevertToPointerRoot is used to make sure we don't lose all focus in case
 		// a subwindow and its parent are both destroyed.
-		if (wd_window.menu_type && !wd_window.no_focus) {
+		if (wd_window.menu_type && !wd_window.no_focus && wd_window.focused) {
 			if (!wd_parent.no_focus) {
 				XSetInputFocus(x11_display, wd_parent.x11_window, RevertToPointerRoot, CurrentTime);
 			}
@@ -2227,7 +2167,7 @@ void DisplayServerX11::_handle_key_event(WindowID p_window, XKeyEvent *p_event, 
 	// still works in half the cases. (won't handle deadkeys)
 	// For more complex input methods (deadkeys and more advanced)
 	// you have to use XmbLookupString (??).
-	// So.. then you have to chosse which of both results
+	// So then you have to choose which of both results
 	// you want to keep.
 	// This is a real bizarreness and cpu waster.
 
@@ -2267,7 +2207,7 @@ void DisplayServerX11::_handle_key_event(WindowID p_window, XKeyEvent *p_event, 
 
 		if (status == XLookupChars) {
 			bool keypress = xkeyevent->type == KeyPress;
-			unsigned int keycode = KeyMappingX11::get_keycode(keysym_keycode);
+			Key keycode = KeyMappingX11::get_keycode(keysym_keycode);
 			unsigned int physical_keycode = KeyMappingX11::get_scancode(xkeyevent->keycode);
 
 			if (keycode >= 'a' && keycode <= 'z') {
@@ -2284,7 +2224,7 @@ void DisplayServerX11::_handle_key_event(WindowID p_window, XKeyEvent *p_event, 
 				}
 
 				if (keycode == 0) {
-					keycode = physical_keycode;
+					keycode = (Key)physical_keycode;
 				}
 
 				_get_key_modifier_state(xkeyevent->state, k);
@@ -2296,7 +2236,7 @@ void DisplayServerX11::_handle_key_event(WindowID p_window, XKeyEvent *p_event, 
 
 				k->set_keycode(keycode);
 
-				k->set_physical_keycode(physical_keycode);
+				k->set_physical_keycode((Key)physical_keycode);
 
 				k->set_echo(false);
 
@@ -2307,7 +2247,7 @@ void DisplayServerX11::_handle_key_event(WindowID p_window, XKeyEvent *p_event, 
 					k->set_shift_pressed(true);
 				}
 
-				Input::get_singleton()->accumulate_input_event(k);
+				Input::get_singleton()->parse_input_event(k);
 			}
 			memfree(utf8string);
 			return;
@@ -2331,7 +2271,7 @@ void DisplayServerX11::_handle_key_event(WindowID p_window, XKeyEvent *p_event, 
 	// KeyMappingX11 just translated the X11 keysym to a PIGUI
 	// keysym, so it works in all platforms the same.
 
-	unsigned int keycode = KeyMappingX11::get_keycode(keysym_keycode);
+	Key keycode = KeyMappingX11::get_keycode(keysym_keycode);
 	unsigned int physical_keycode = KeyMappingX11::get_scancode(xkeyevent->keycode);
 
 	/* Phase 3, obtain a unicode character from the keysym */
@@ -2352,12 +2292,12 @@ void DisplayServerX11::_handle_key_event(WindowID p_window, XKeyEvent *p_event, 
 
 	bool keypress = xkeyevent->type == KeyPress;
 
-	if (physical_keycode == 0 && keycode == 0 && unicode == 0) {
+	if (physical_keycode == 0 && keycode == KEY_NONE && unicode == 0) {
 		return;
 	}
 
-	if (keycode == 0) {
-		keycode = physical_keycode;
+	if (keycode == KEY_NONE) {
+		keycode = (Key)physical_keycode;
 	}
 
 	/* Phase 5, determine modifier mask */
@@ -2420,11 +2360,11 @@ void DisplayServerX11::_handle_key_event(WindowID p_window, XKeyEvent *p_event, 
 	k->set_pressed(keypress);
 
 	if (keycode >= 'a' && keycode <= 'z') {
-		keycode -= 'a' - 'A';
+		keycode -= int('a' - 'A');
 	}
 
 	k->set_keycode(keycode);
-	k->set_physical_keycode(physical_keycode);
+	k->set_physical_keycode((Key)physical_keycode);
 	k->set_unicode(unicode);
 	k->set_echo(p_echo);
 
@@ -2456,7 +2396,7 @@ void DisplayServerX11::_handle_key_event(WindowID p_window, XKeyEvent *p_event, 
 		}
 	}
 
-	Input::get_singleton()->accumulate_input_event(k);
+	Input::get_singleton()->parse_input_event(k);
 }
 
 Atom DisplayServerX11::_process_selection_request_target(Atom p_target, Window p_requestor, Atom p_property) const {
@@ -2943,13 +2883,13 @@ void DisplayServerX11::process_events() {
 								// in a spurious mouse motion event being sent to Godot; remember it to be able to filter it out
 								xi.mouse_pos_to_filter = pos;
 							}
-							Input::get_singleton()->accumulate_input_event(st);
+							Input::get_singleton()->parse_input_event(st);
 						} else {
 							if (!xi.state.has(index)) { // Defensive
 								break;
 							}
 							xi.state.erase(index);
-							Input::get_singleton()->accumulate_input_event(st);
+							Input::get_singleton()->parse_input_event(st);
 						}
 					} break;
 
@@ -2966,7 +2906,7 @@ void DisplayServerX11::process_events() {
 							sd->set_index(index);
 							sd->set_position(pos);
 							sd->set_relative(pos - curr_pos_elem->value());
-							Input::get_singleton()->accumulate_input_event(sd);
+							Input::get_singleton()->parse_input_event(sd);
 
 							curr_pos_elem->value() = pos;
 						}
@@ -3118,7 +3058,7 @@ void DisplayServerX11::process_events() {
 					st->set_index(E->key());
 					st->set_window_id(window_id);
 					st->set_position(E->get());
-					Input::get_singleton()->accumulate_input_event(st);
+					Input::get_singleton()->parse_input_event(st);
 				}
 				xi.state.clear();
 #endif
@@ -3216,7 +3156,7 @@ void DisplayServerX11::process_events() {
 									mb->set_window_id(window_id_other);
 									mb->set_position(Vector2(x, y));
 									mb->set_global_position(mb->get_position());
-									Input::get_singleton()->accumulate_input_event(mb);
+									Input::get_singleton()->parse_input_event(mb);
 								}
 								break;
 							}
@@ -3224,7 +3164,7 @@ void DisplayServerX11::process_events() {
 					}
 				}
 
-				Input::get_singleton()->accumulate_input_event(mb);
+				Input::get_singleton()->parse_input_event(mb);
 
 			} break;
 			case MotionNotify: {
@@ -3340,7 +3280,7 @@ void DisplayServerX11::process_events() {
 				// this is so that the relative motion doesn't get messed up
 				// after we regain focus.
 				if (focused) {
-					Input::get_singleton()->accumulate_input_event(mm);
+					Input::get_singleton()->parse_input_event(mm);
 				} else {
 					// Propagate the event to the focused window,
 					// because it's received only on the topmost window.
@@ -3360,7 +3300,7 @@ void DisplayServerX11::process_events() {
 							mm->set_position(pos_focused);
 							mm->set_global_position(pos_focused);
 							mm->set_speed(Input::get_singleton()->get_last_mouse_speed());
-							Input::get_singleton()->accumulate_input_event(mm);
+							Input::get_singleton()->parse_input_event(mm);
 
 							break;
 						}
@@ -3493,7 +3433,7 @@ void DisplayServerX11::process_events() {
 		*/
 	}
 
-	Input::get_singleton()->flush_accumulated_events();
+	Input::get_singleton()->flush_buffered_events();
 }
 
 void DisplayServerX11::release_rendering_thread() {
@@ -3673,8 +3613,8 @@ Vector<String> DisplayServerX11::get_rendering_drivers_func() {
 DisplayServer *DisplayServerX11::create_func(const String &p_rendering_driver, WindowMode p_mode, VSyncMode p_vsync_mode, uint32_t p_flags, const Vector2i &p_resolution, Error &r_error) {
 	DisplayServer *ds = memnew(DisplayServerX11(p_rendering_driver, p_mode, p_vsync_mode, p_flags, p_resolution, r_error));
 	if (r_error != OK) {
-		ds->alert("Your video card driver does not support any of the supported Vulkan versions.\n"
-				  "Please update your drivers or if you have a very old or integrated GPU upgrade it.",
+		OS::get_singleton()->alert("Your video card driver does not support any of the supported Vulkan versions.\n"
+								   "Please update your drivers or if you have a very old or integrated GPU upgrade it.",
 				"Unable to initialize Video driver");
 	}
 	return ds;
@@ -3972,8 +3912,8 @@ DisplayServerX11::DisplayServerX11(const String &p_rendering_driver, WindowMode 
 	}
 
 	if (!_refresh_device_info()) {
-		alert("Your system does not support XInput 2.\n"
-			  "Please upgrade your distribution.",
+		OS::get_singleton()->alert("Your system does not support XInput 2.\n"
+								   "Please upgrade your distribution.",
 				"Unable to initialize XInput");
 		r_error = ERR_UNAVAILABLE;
 		return;

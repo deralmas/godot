@@ -94,50 +94,15 @@ Variant::Type GDScriptParser::get_builtin_type(const StringName &p_type) {
 	return Variant::VARIANT_MAX;
 }
 
-// TODO: Move this to a central location (maybe core?).
-static HashMap<StringName, StringName> underscore_map;
-static const char *underscore_classes[] = {
-	"ClassDB",
-	"Directory",
-	"Engine",
-	"File",
-	"Geometry",
-	"GodotSharp",
-	"JSON",
-	"Marshalls",
-	"Mutex",
-	"OS",
-	"ResourceLoader",
-	"ResourceSaver",
-	"Semaphore",
-	"Thread",
-	"VisualScriptEditor",
-	nullptr,
-};
-StringName GDScriptParser::get_real_class_name(const StringName &p_source) {
-	if (underscore_map.is_empty()) {
-		const char **class_name = underscore_classes;
-		while (*class_name != nullptr) {
-			underscore_map[*class_name] = String("_") + *class_name;
-			class_name++;
-		}
-	}
-	if (underscore_map.has(p_source)) {
-		return underscore_map[p_source];
-	}
-	return p_source;
-}
-
 void GDScriptParser::cleanup() {
 	builtin_types.clear();
-	underscore_map.clear();
 }
 
 void GDScriptParser::get_annotation_list(List<MethodInfo> *r_annotations) const {
 	List<StringName> keys;
 	valid_annotations.get_key_list(&keys);
-	for (const List<StringName>::Element *E = keys.front(); E != nullptr; E = E->next()) {
-		r_annotations->push_back(valid_annotations[E->get()].info);
+	for (const StringName &E : keys) {
+		r_annotations->push_back(valid_annotations[E].info);
 	}
 }
 
@@ -168,7 +133,7 @@ GDScriptParser::GDScriptParser() {
 	register_annotation(MethodInfo("@export_flags_3d_physics"), AnnotationInfo::VARIABLE, &GDScriptParser::export_annotations<PROPERTY_HINT_LAYERS_3D_PHYSICS, Variant::INT>);
 	register_annotation(MethodInfo("@export_flags_3d_navigation"), AnnotationInfo::VARIABLE, &GDScriptParser::export_annotations<PROPERTY_HINT_LAYERS_3D_NAVIGATION, Variant::INT>);
 	// Networking.
-	register_annotation(MethodInfo("@rpc", { Variant::STRING, "mode" }, { Variant::STRING, "sync" }, { Variant::STRING, "transfer_mode" }, { Variant::INT, "transfer_channel" }), AnnotationInfo::FUNCTION, &GDScriptParser::network_annotations<MultiplayerAPI::RPC_MODE_MASTER>, 4, true);
+	register_annotation(MethodInfo("@rpc", { Variant::STRING, "mode" }, { Variant::STRING, "sync" }, { Variant::STRING, "transfer_mode" }, { Variant::INT, "transfer_channel" }), AnnotationInfo::FUNCTION, &GDScriptParser::network_annotations<MultiplayerAPI::RPC_MODE_AUTHORITY>, 4, true);
 	// TODO: Warning annotations.
 }
 
@@ -248,7 +213,7 @@ void GDScriptParser::push_warning(const Node *p_source, GDScriptWarning::Code p_
 	warning.rightmost_column = p_source->rightmost_column;
 
 	List<GDScriptWarning>::Element *before = nullptr;
-	for (List<GDScriptWarning>::Element *E = warnings.front(); E != nullptr; E = E->next()) {
+	for (List<GDScriptWarning>::Element *E = warnings.front(); E; E = E->next()) {
 		if (E->get().start_line > warning.start_line) {
 			break;
 		}
@@ -337,7 +302,7 @@ Error GDScriptParser::parse(const String &p_source_code, const String &p_script_
 	int tab_size = 4;
 #ifdef TOOLS_ENABLED
 	if (EditorSettings::get_singleton()) {
-		tab_size = EditorSettings::get_singleton()->get_setting("text_editor/indent/size");
+		tab_size = EditorSettings::get_singleton()->get_setting("text_editor/behavior/indent/size");
 	}
 #endif // TOOLS_ENABLED
 
@@ -1152,7 +1117,6 @@ GDScriptParser::EnumNode *GDScriptParser::parse_enum() {
 				}
 				item.custom_value = value;
 			}
-			item.rightmost_column = previous.rightmost_column;
 
 			item.index = enum_node->values.size();
 			enum_node->values.push_back(item);
@@ -1332,8 +1296,7 @@ GDScriptParser::AnnotationNode *GDScriptParser::parse_annotation(uint32_t p_vali
 }
 
 void GDScriptParser::clear_unused_annotations() {
-	for (const List<AnnotationNode *>::Element *E = annotation_stack.front(); E != nullptr; E = E->next()) {
-		AnnotationNode *annotation = E->get();
+	for (const AnnotationNode *annotation : annotation_stack) {
 		push_error(vformat(R"(Annotation "%s" does not precedes a valid target, so it will have no effect.)", annotation->name), annotation);
 	}
 
@@ -1796,8 +1759,8 @@ GDScriptParser::MatchBranchNode *GDScriptParser::parse_match_branch() {
 		List<StringName> binds;
 		branch->patterns[0]->binds.get_key_list(&binds);
 
-		for (List<StringName>::Element *E = binds.front(); E != nullptr; E = E->next()) {
-			SuiteNode::Local local(branch->patterns[0]->binds[E->get()], current_function);
+		for (const StringName &E : binds) {
+			SuiteNode::Local local(branch->patterns[0]->binds[E], current_function);
 			suite->add_local(local);
 		}
 	}
@@ -2402,6 +2365,9 @@ GDScriptParser::ExpressionNode *GDScriptParser::parse_assignment(ExpressionNode 
 	}
 	assignment->assignee = p_previous_operand;
 	assignment->assigned_value = parse_expression(false);
+	if (assignment->assigned_value == nullptr) {
+		push_error(R"(Expected an expression after "=".)");
+	}
 
 #ifdef DEBUG_ENABLED
 	if (has_operator && source_variable != nullptr && source_variable->assignments == 0) {
@@ -2414,7 +2380,11 @@ GDScriptParser::ExpressionNode *GDScriptParser::parse_assignment(ExpressionNode 
 
 GDScriptParser::ExpressionNode *GDScriptParser::parse_await(ExpressionNode *p_previous_operand, bool p_can_assign) {
 	AwaitNode *await = alloc_node<AwaitNode>();
-	await->to_await = parse_precedence(PREC_AWAIT, false);
+	ExpressionNode *element = parse_precedence(PREC_AWAIT, false);
+	if (element == nullptr) {
+		push_error(R"(Expected signal or coroutine after "await".)");
+	}
+	await->to_await = element;
 
 	current_function->is_coroutine = true;
 
@@ -2481,7 +2451,9 @@ GDScriptParser::ExpressionNode *GDScriptParser::parse_dictionary(ExpressionNode 
 			switch (dictionary->style) {
 				case DictionaryNode::LUA_TABLE:
 					if (key != nullptr && key->type != Node::IDENTIFIER) {
-						push_error("Expected identifier as dictionary key.");
+						push_error("Expected identifier as LUA-style dictionary key.");
+						advance();
+						break;
 					}
 					if (!match(GDScriptTokenizer::Token::EQUAL)) {
 						if (match(GDScriptTokenizer::Token::COLON)) {
@@ -2985,7 +2957,7 @@ void GDScriptParser::get_class_doc_comment(int p_line, String &p_brief, String &
 
 			} else {
 				/* Syntax:
-				   @tutorial ( The Title Here )         :         http://the.url/
+				   @tutorial ( The Title Here )         :         https://the.url/
 				             ^ open           ^ close   ^ colon   ^ url
 				*/
 				int open_bracket_pos = begin_scan, close_bracket_pos = 0;
@@ -3362,10 +3334,10 @@ bool GDScriptParser::export_annotations(const AnnotationNode *p_annotation, Node
 				variable->export_info.hint_string = Variant::get_type_name(export_type.builtin_type);
 				break;
 			case GDScriptParser::DataType::NATIVE:
-				if (ClassDB::is_parent_class(get_real_class_name(export_type.native_type), "Resource")) {
+				if (ClassDB::is_parent_class(export_type.native_type, "Resource")) {
 					variable->export_info.type = Variant::OBJECT;
 					variable->export_info.hint = PROPERTY_HINT_RESOURCE_TYPE;
-					variable->export_info.hint_string = get_real_class_name(export_type.native_type);
+					variable->export_info.hint_string = export_type.native_type;
 				} else {
 					push_error(R"(Export type can only be built-in, a resource, or an enum.)", variable);
 					return false;
@@ -3427,43 +3399,35 @@ bool GDScriptParser::network_annotations(const AnnotationNode *p_annotation, Nod
 
 	MultiplayerAPI::RPCConfig rpc_config;
 	rpc_config.rpc_mode = t_mode;
-	for (int i = 0; i < p_annotation->resolved_arguments.size(); i++) {
-		if (i == 0) {
+	if (p_annotation->resolved_arguments.size()) {
+		int last = p_annotation->resolved_arguments.size() - 1;
+		if (p_annotation->resolved_arguments[last].get_type() == Variant::INT) {
+			rpc_config.channel = p_annotation->resolved_arguments[last].operator int();
+			last -= 1;
+		}
+		if (last > 3) {
+			push_error(R"(Invalid RPC arguments. At most 4 arguments are allowed, where only the last argument can be an integer to specify the channel.')", p_annotation);
+			return false;
+		}
+		for (int i = last; i >= 0; i--) {
 			String mode = p_annotation->resolved_arguments[i].operator String();
 			if (mode == "any") {
-				rpc_config.rpc_mode = MultiplayerAPI::RPC_MODE_REMOTE;
-			} else if (mode == "master") {
-				rpc_config.rpc_mode = MultiplayerAPI::RPC_MODE_MASTER;
-			} else if (mode == "puppet") {
-				rpc_config.rpc_mode = MultiplayerAPI::RPC_MODE_PUPPET;
-			} else {
-				push_error(R"(Invalid RPC mode. Must be one of: 'any', 'master', or 'puppet')", p_annotation);
-				return false;
-			}
-		} else if (i == 1) {
-			String sync = p_annotation->resolved_arguments[i].operator String();
-			if (sync == "sync") {
+				rpc_config.rpc_mode = MultiplayerAPI::RPC_MODE_ANY;
+			} else if (mode == "auth") {
+				rpc_config.rpc_mode = MultiplayerAPI::RPC_MODE_AUTHORITY;
+			} else if (mode == "sync") {
 				rpc_config.sync = true;
-			} else if (sync == "nosync") {
+			} else if (mode == "nosync") {
 				rpc_config.sync = false;
-			} else {
-				push_error(R"(Invalid RPC sync mode. Must be one of: 'sync' or 'nosync')", p_annotation);
-				return false;
-			}
-		} else if (i == 2) {
-			String mode = p_annotation->resolved_arguments[i].operator String();
-			if (mode == "reliable") {
+			} else if (mode == "reliable") {
 				rpc_config.transfer_mode = MultiplayerPeer::TRANSFER_MODE_RELIABLE;
 			} else if (mode == "unreliable") {
 				rpc_config.transfer_mode = MultiplayerPeer::TRANSFER_MODE_UNRELIABLE;
 			} else if (mode == "ordered") {
 				rpc_config.transfer_mode = MultiplayerPeer::TRANSFER_MODE_UNRELIABLE_ORDERED;
 			} else {
-				push_error(R"(Invalid RPC transfer mode. Must be one of: 'reliable', 'unreliable', 'ordered')", p_annotation);
-				return false;
+				push_error(R"(Invalid RPC argument. Must be one of: 'sync'/'nosync' (local calls), 'any'/'auth' (permission), 'reliable'/'unreliable'/'ordered' (transfer mode).)", p_annotation);
 			}
-		} else if (i == 3) {
-			rpc_config.channel = p_annotation->resolved_arguments[i].operator int();
 		}
 	}
 	switch (p_node->type) {
@@ -3618,7 +3582,7 @@ void GDScriptParser::TreePrinter::push_text(const String &p_text) {
 	printed += p_text;
 }
 
-void GDScriptParser::TreePrinter::print_annotation(AnnotationNode *p_annotation) {
+void GDScriptParser::TreePrinter::print_annotation(const AnnotationNode *p_annotation) {
 	push_text(p_annotation->name);
 	push_text(" (");
 	for (int i = 0; i < p_annotation->arguments.size(); i++) {
@@ -3993,8 +3957,8 @@ void GDScriptParser::TreePrinter::print_for(ForNode *p_for) {
 }
 
 void GDScriptParser::TreePrinter::print_function(FunctionNode *p_function, const String &p_context) {
-	for (const List<AnnotationNode *>::Element *E = p_function->annotations.front(); E != nullptr; E = E->next()) {
-		print_annotation(E->get());
+	for (const AnnotationNode *E : p_function->annotations) {
+		print_annotation(E);
 	}
 	push_text(p_context);
 	push_text(" ");
@@ -4333,8 +4297,8 @@ void GDScriptParser::TreePrinter::print_unary_op(UnaryOpNode *p_unary_op) {
 }
 
 void GDScriptParser::TreePrinter::print_variable(VariableNode *p_variable) {
-	for (const List<AnnotationNode *>::Element *E = p_variable->annotations.front(); E != nullptr; E = E->next()) {
-		print_annotation(E->get());
+	for (const AnnotationNode *E : p_variable->annotations) {
+		print_annotation(E);
 	}
 
 	push_text("Variable ");

@@ -98,10 +98,10 @@ void NativeScript::_update_placeholder(PlaceHolderScriptInstance *p_placeholder)
 	List<PropertyInfo> info;
 	get_script_property_list(&info);
 	Map<StringName, Variant> values;
-	for (List<PropertyInfo>::Element *E = info.front(); E; E = E->next()) {
+	for (const PropertyInfo &E : info) {
 		Variant value;
-		get_property_default_value(E->get().name, value);
-		values[E->get().name] = value;
+		get_property_default_value(E.name, value);
+		values[E.name] = value;
 	}
 
 	p_placeholder->update(info, values);
@@ -114,9 +114,25 @@ void NativeScript::_placeholder_erased(PlaceHolderScriptInstance *p_placeholder)
 #endif
 
 bool NativeScript::inherits_script(const Ref<Script> &p_script) const {
-#ifndef _MSC_VER
-#warning inheritance needs to be implemented in NativeScript
-#endif
+	Ref<NativeScript> ns = p_script;
+	if (ns.is_null()) {
+		return false;
+	}
+
+	const NativeScriptDesc *other_s = ns->get_script_desc();
+	if (!other_s) {
+		return false;
+	}
+
+	const NativeScriptDesc *s = get_script_desc();
+
+	while (s) {
+		if (s == other_s) {
+			return true;
+		}
+		s = s->base_data;
+	}
+
 	return false;
 }
 

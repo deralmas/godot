@@ -44,7 +44,11 @@
 #endif
 #include "vk_mem_alloc.h"
 
+#ifdef USE_VOLK
+#include <volk.h>
+#else
 #include <vulkan/vulkan.h>
+#endif
 
 class VulkanContext;
 
@@ -635,6 +639,7 @@ class RenderingDeviceVulkan : public RenderingDevice {
 		Vector<VkPipelineShaderStageCreateInfo> pipeline_stages;
 		Vector<SpecializationConstant> specialization_constants;
 		VkPipelineLayout pipeline_layout = VK_NULL_HANDLE;
+		String name; //used for debug
 	};
 
 	String _shader_uniform_debug(RID p_shader, int p_set = -1);
@@ -652,8 +657,8 @@ class RenderingDeviceVulkan : public RenderingDevice {
 	// Basically, you can mix and match pools as you
 	// like, but you'll run into fragmentation issues.
 	// Because of this, the recommended approach is to
-	// create a a pool for every descriptor set type,
-	// as this prevents fragmentation.
+	// create a pool for every descriptor set type, as
+	// this prevents fragmentation.
 	//
 	// This is implemented here as a having a list of
 	// pools (each can contain up to 64 sets) for each
@@ -1039,6 +1044,7 @@ public:
 	virtual bool texture_is_format_supported_for_usage(DataFormat p_format, uint32_t p_usage) const;
 	virtual bool texture_is_shared(RID p_texture);
 	virtual bool texture_is_valid(RID p_texture);
+	virtual Size2i texture_size(RID p_texture);
 
 	virtual Error texture_copy(RID p_from_texture, RID p_to_texture, const Vector3 &p_from, const Vector3 &p_to, const Vector3 &p_size, uint32_t p_src_mipmap, uint32_t p_dst_mipmap, uint32_t p_src_layer, uint32_t p_dst_layer, uint32_t p_post_barrier = BARRIER_MASK_ALL);
 	virtual Error texture_clear(RID p_texture, const Color &p_color, uint32_t p_base_mipmap, uint32_t p_mipmaps, uint32_t p_base_layer, uint32_t p_layers, uint32_t p_post_barrier = BARRIER_MASK_ALL);
@@ -1083,7 +1089,11 @@ public:
 	/**** SHADER ****/
 	/****************/
 
-	virtual RID shader_create(const Vector<ShaderStageData> &p_stages);
+	virtual String shader_get_binary_cache_key() const;
+	virtual Vector<uint8_t> shader_compile_binary_from_spirv(const Vector<ShaderStageSPIRVData> &p_spirv, const String &p_shader_name = "");
+
+	virtual RID shader_create_from_bytecode(const Vector<uint8_t> &p_shader_binary);
+
 	virtual uint32_t shader_get_vertex_input_attribute_mask(RID p_shader);
 
 	/*****************/
@@ -1145,6 +1155,7 @@ public:
 	virtual void draw_list_enable_scissor(DrawListID p_list, const Rect2 &p_rect);
 	virtual void draw_list_disable_scissor(DrawListID p_list);
 
+	virtual uint32_t draw_list_get_current_pass();
 	virtual DrawListID draw_list_switch_to_next_pass();
 	virtual Error draw_list_switch_to_next_pass_split(uint32_t p_splits, DrawListID *r_split_ids);
 

@@ -43,6 +43,7 @@
 #include "gltf_texture.h"
 
 #include "core/crypto/crypto_core.h"
+#include "core/error/error_macros.h"
 #include "core/io/dir_access.h"
 #include "core/io/file_access.h"
 #include "core/io/json.h"
@@ -2796,7 +2797,7 @@ Error GLTFDocument::_parse_meshes(Ref<GLTFState> state) {
 				mat = mat3d;
 			}
 
-			import_mesh->add_surface(primitive, array, morphs, Dictionary(), mat, mat->get_name());
+			import_mesh->add_surface(primitive, array, morphs, Dictionary(), mat, mat.is_valid() ? mat->get_name() : String());
 		}
 
 		Vector<float> blend_weights;
@@ -3002,24 +3003,31 @@ Error GLTFDocument::_parse_images(Ref<GLTFState> state, const String &p_base_pat
 
 		Ref<Image> img;
 
+		// First we honor the mime types if they were defined.
 		if (mimetype == "image/png") { // Load buffer as PNG.
 			ERR_FAIL_COND_V(Image::_png_mem_loader_func == nullptr, ERR_UNAVAILABLE);
 			img = Image::_png_mem_loader_func(data_ptr, data_size);
 		} else if (mimetype == "image/jpeg") { // Loader buffer as JPEG.
 			ERR_FAIL_COND_V(Image::_jpg_mem_loader_func == nullptr, ERR_UNAVAILABLE);
 			img = Image::_jpg_mem_loader_func(data_ptr, data_size);
-		} else {
-			// We can land here if we got an URI with base64-encoded data with application/* MIME type,
-			// and the optional mimeType property was not defined to tell us how to handle this data (or was invalid).
-			// So let's try PNG first, then JPEG.
-			ERR_FAIL_COND_V(Image::_png_mem_loader_func == nullptr, ERR_UNAVAILABLE);
-			img = Image::_png_mem_loader_func(data_ptr, data_size);
-			if (img.is_null()) {
-				ERR_FAIL_COND_V(Image::_jpg_mem_loader_func == nullptr, ERR_UNAVAILABLE);
-				img = Image::_jpg_mem_loader_func(data_ptr, data_size);
-			}
 		}
 
+		// If we didn't pass the above tests, we attempt loading as PNG and then
+		// JPEG directly.
+		// This covers URIs with base64-encoded data with application/* type but
+		// no optional mimeType property, or bufferViews with a bogus mimeType
+		// (e.g. `image/jpeg` but the data is actually PNG).
+		// That's not *exactly* what the spec mandates but this lets us be
+		// lenient with bogus glb files which do exist in production.
+		if (img.is_null()) { // Try PNG first.
+			ERR_FAIL_COND_V(Image::_png_mem_loader_func == nullptr, ERR_UNAVAILABLE);
+			img = Image::_png_mem_loader_func(data_ptr, data_size);
+		}
+		if (img.is_null()) { // And then JPEG.
+			ERR_FAIL_COND_V(Image::_jpg_mem_loader_func == nullptr, ERR_UNAVAILABLE);
+			img = Image::_jpg_mem_loader_func(data_ptr, data_size);
+		}
+		// Now we've done our best, fix your scenes.
 		if (img.is_null()) {
 			ERR_PRINT(vformat("glTF: Couldn't load image index '%d' with its given mimetype: %s.", i, mimetype));
 			state->images.push_back(Ref<Texture2D>());
@@ -4462,9 +4470,9 @@ Error GLTFDocument::_parse_lights(Ref<GLTFState> state) {
 			const Dictionary &spot = d["spot"];
 			light->inner_cone_angle = spot["innerConeAngle"];
 			light->outer_cone_angle = spot["outerConeAngle"];
-			ERR_FAIL_COND_V_MSG(light->inner_cone_angle >= light->outer_cone_angle, ERR_PARSE_ERROR, "The inner angle must be smaller than the outer angle.");
+			ERR_CONTINUE_MSG(light->inner_cone_angle >= light->outer_cone_angle, "The inner angle must be smaller than the outer angle.");
 		} else if (type != "point" && type != "directional") {
-			ERR_FAIL_V_MSG(ERR_PARSE_ERROR, "Light type is unknown.");
+			ERR_CONTINUE_MSG(ERR_PARSE_ERROR, "Light type is unknown.");
 		}
 
 		state->lights.push_back(light);
@@ -5373,15 +5381,16 @@ void GLTFDocument::_generate_scene_node(Ref<GLTFState> state, Node *scene_parent
 		// and attach it to the bone_attachment
 		scene_parent = bone_attachment;
 	}
-
-	// We still have not managed to make a node
 	if (gltf_node->mesh >= 0) {
 		current_node = _generate_mesh_instance(state, scene_parent, node_index);
 	} else if (gltf_node->camera >= 0) {
 		current_node = _generate_camera(state, scene_parent, node_index);
 	} else if (gltf_node->light >= 0) {
 		current_node = _generate_light(state, scene_parent, node_index);
-	} else {
+	}
+
+	// We still have not managed to make a node.
+	if (!current_node) {
 		current_node = _generate_spatial(state, scene_parent, node_index);
 	}
 
@@ -5531,7 +5540,10 @@ struct EditorSceneImporterGLTFInterpolate<Quaternion> {
 template <class T>
 T GLTFDocument::_interpolate_track(const Vector<float> &p_times, const Vector<T> &p_values, const float p_time, const GLTFAnimation::Interpolation p_interp) {
 	ERR_FAIL_COND_V(!p_values.size(), T());
-	ERR_FAIL_COND_V(p_times.size() != p_values.size(), p_values[0]);
+	if (p_times.size() != p_values.size()) {
+		ERR_PRINT_ONCE("The interpolated values are not corresponding to its times.");
+		return p_values[0];
+	}
 	//could use binary search, worth it?
 	int idx = -1;
 	for (int i = 0; i < p_times.size(); i++) {

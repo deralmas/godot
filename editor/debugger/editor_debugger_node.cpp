@@ -164,6 +164,7 @@ void EditorDebuggerNode::_bind_methods() {
 	ADD_SIGNAL(MethodInfo("set_execution", PropertyInfo("script"), PropertyInfo(Variant::INT, "line")));
 	ADD_SIGNAL(MethodInfo("clear_execution", PropertyInfo("script")));
 	ADD_SIGNAL(MethodInfo("breaked", PropertyInfo(Variant::BOOL, "reallydid"), PropertyInfo(Variant::BOOL, "can_debug")));
+	ADD_SIGNAL(MethodInfo("breakpoint_toggled", PropertyInfo(Variant::STRING, "path"), PropertyInfo(Variant::INT, "line"), PropertyInfo(Variant::BOOL, "enabled")));
 }
 
 EditorDebuggerRemoteObject *EditorDebuggerNode::get_inspected_remote_object() {
@@ -466,7 +467,7 @@ void EditorDebuggerNode::_paused() {
 	});
 }
 
-void EditorDebuggerNode::_breaked(bool p_breaked, bool p_can_debug, int p_debugger) {
+void EditorDebuggerNode::_breaked(bool p_breaked, bool p_can_debug, String p_message, bool p_has_stackdump, int p_debugger) {
 	if (get_current_debugger() != get_debugger(p_debugger)) {
 		if (!p_breaked) {
 			return;
@@ -487,6 +488,21 @@ void EditorDebuggerNode::set_breakpoint(const String &p_path, int p_line, bool p
 	_for_all(tabs, [&](ScriptEditorDebugger *dbg) {
 		dbg->set_breakpoint(p_path, p_line, p_enabled);
 	});
+
+	emit_signal("breakpoint_toggled", p_path, p_line, p_enabled);
+}
+
+void EditorDebuggerNode::set_breakpoints(const String &p_path, Array p_lines) {
+	for (int i = 0; i < p_lines.size(); i++) {
+		set_breakpoint(p_path, p_lines[i], true);
+	}
+
+	for (Map<Breakpoint, bool>::Element *E = breakpoints.front(); E; E = E->next()) {
+		Breakpoint b = E->key();
+		if (b.source == p_path && !p_lines.has(b.line)) {
+			set_breakpoint(p_path, b.line, false);
+		}
+	}
 }
 
 void EditorDebuggerNode::reload_scripts() {
@@ -640,6 +656,17 @@ void EditorDebuggerNode::live_debug_reparent_node(const NodePath &p_at, const No
 	_for_all(tabs, [&](ScriptEditorDebugger *dbg) {
 		dbg->live_debug_reparent_node(p_at, p_new_place, p_new_name, p_at_pos);
 	});
+}
+
+void EditorDebuggerNode::set_camera_override(CameraOverride p_override) {
+	_for_all(tabs, [&](ScriptEditorDebugger *dbg) {
+		dbg->set_camera_override(p_override);
+	});
+	camera_override = p_override;
+}
+
+EditorDebuggerNode::CameraOverride EditorDebuggerNode::get_camera_override() {
+	return camera_override;
 }
 
 void EditorDebuggerNode::add_debugger_plugin(const Ref<Script> &p_script) {

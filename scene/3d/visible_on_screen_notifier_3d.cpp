@@ -30,10 +30,6 @@
 
 #include "visible_on_screen_notifier_3d.h"
 
-#include "core/config/engine.h"
-#include "scene/3d/camera_3d.h"
-#include "scene/3d/physics_body_3d.h"
-#include "scene/animation/animation_player.h"
 #include "scene/scene_string_names.h"
 
 void VisibleOnScreenNotifier3D::_visibility_enter() {
@@ -63,7 +59,7 @@ void VisibleOnScreenNotifier3D::set_aabb(const AABB &p_aabb) {
 
 	RS::get_singleton()->visibility_notifier_set_aabb(get_base(), aabb);
 
-	update_gizmo();
+	update_gizmos();
 }
 
 AABB VisibleOnScreenNotifier3D::get_aabb() const {

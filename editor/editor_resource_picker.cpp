@@ -36,6 +36,12 @@
 #include "editor_settings.h"
 #include "filesystem_dock.h"
 
+HashMap<StringName, List<StringName>> EditorResourcePicker::allowed_types_cache;
+
+void EditorResourcePicker::clear_caches() {
+	allowed_types_cache.clear();
+}
+
 void EditorResourcePicker::_update_resource() {
 	preview_rect->set_texture(Ref<Texture2D>());
 	assign_button->set_custom_minimum_size(Size2(1, 1));
@@ -221,8 +227,8 @@ void EditorResourcePicker::_edit_menu_cbk(int p_which) {
 			}
 
 			Set<String> valid_extensions;
-			for (List<String>::Element *E = extensions.front(); E; E = E->next()) {
-				valid_extensions.insert(E->get());
+			for (const String &E : extensions) {
+				valid_extensions.insert(E);
 			}
 
 			if (!file_dialog) {
@@ -260,9 +266,8 @@ void EditorResourcePicker::_edit_menu_cbk(int p_which) {
 			List<PropertyInfo> property_list;
 			edited_resource->get_property_list(&property_list);
 			List<Pair<String, Variant>> propvalues;
-			for (List<PropertyInfo>::Element *E = property_list.front(); E; E = E->next()) {
+			for (const PropertyInfo &pi : property_list) {
 				Pair<String, Variant> p;
-				PropertyInfo &pi = E->get();
 				if (pi.usage & PROPERTY_USAGE_STORAGE) {
 					p.first = pi.name;
 					p.second = edited_resource->get(pi.name);
@@ -276,8 +281,7 @@ void EditorResourcePicker::_edit_menu_cbk(int p_which) {
 			Ref<Resource> unique_resource = Ref<Resource>(Object::cast_to<Resource>(inst));
 			ERR_FAIL_COND(unique_resource.is_null());
 
-			for (List<Pair<String, Variant>>::Element *E = propvalues.front(); E; E = E->next()) {
-				Pair<String, Variant> &p = E->get();
+			for (const Pair<String, Variant> &p : propvalues) {
 				unique_resource->set(p.first, p.second);
 			}
 
@@ -464,17 +468,31 @@ void EditorResourcePicker::_get_allowed_types(bool p_with_convert, Set<String> *
 		String base = allowed_types[i].strip_edges();
 		p_vector->insert(base);
 
-		List<StringName> inheriters;
-
-		ClassDB::get_inheriters_from_class(base, &inheriters);
-		for (List<StringName>::Element *E = inheriters.front(); E; E = E->next()) {
-			p_vector->insert(E->get());
-		}
-
-		for (List<StringName>::Element *E = global_classes.front(); E; E = E->next()) {
-			if (EditorNode::get_editor_data().script_class_is_parent(E->get(), base)) {
-				p_vector->insert(E->get());
+		// If we hit a familiar base type, take all the data from cache.
+		if (allowed_types_cache.has(base)) {
+			List<StringName> allowed_subtypes = allowed_types_cache[base];
+			for (const StringName &subtype_name : allowed_subtypes) {
+				p_vector->insert(subtype_name);
 			}
+		} else {
+			List<StringName> allowed_subtypes;
+
+			List<StringName> inheriters;
+			ClassDB::get_inheriters_from_class(base, &inheriters);
+			for (const StringName &subtype_name : inheriters) {
+				p_vector->insert(subtype_name);
+				allowed_subtypes.push_back(subtype_name);
+			}
+
+			for (const StringName &subtype_name : global_classes) {
+				if (EditorNode::get_editor_data().script_class_is_parent(subtype_name, base)) {
+					p_vector->insert(subtype_name);
+					allowed_subtypes.push_back(subtype_name);
+				}
+			}
+
+			// Store the subtypes of the base type in the cache for future use.
+			allowed_types_cache[base] = allowed_subtypes;
 		}
 
 		if (p_with_convert) {
@@ -507,7 +525,9 @@ bool EditorResourcePicker::_is_drop_valid(const Dictionary &p_drag_data) const {
 	Ref<Resource> res;
 	if (drag_data.has("type") && String(drag_data["type"]) == "script_list_element") {
 		ScriptEditorBase *se = Object::cast_to<ScriptEditorBase>(drag_data["script_list_element"]);
-		res = se->get_edited_resource();
+		if (se) {
+			res = se->get_edited_resource();
+		}
 	} else if (drag_data.has("type") && String(drag_data["type"]) == "resource") {
 		res = drag_data["resource"];
 	}
@@ -573,7 +593,9 @@ void EditorResourcePicker::drop_data_fw(const Point2 &p_point, const Variant &p_
 	Ref<Resource> dropped_resource;
 	if (drag_data.has("type") && String(drag_data["type"]) == "script_list_element") {
 		ScriptEditorBase *se = Object::cast_to<ScriptEditorBase>(drag_data["script_list_element"]);
-		dropped_resource = se->get_edited_resource();
+		if (se) {
+			dropped_resource = se->get_edited_resource();
+		}
 	} else if (drag_data.has("type") && String(drag_data["type"]) == "resource") {
 		dropped_resource = drag_data["resource"];
 	}
@@ -704,6 +726,10 @@ void EditorResourcePicker::set_base_type(const String &p_base_type) {
 			String class_str = (custom_class == StringName() ? edited_resource->get_class() : vformat("%s (%s)", custom_class, edited_resource->get_class()));
 			WARN_PRINT(vformat("Value mismatch between the new base type of this EditorResourcePicker, '%s', and the type of the value it already has, '%s'.", base_type, class_str));
 		}
+	} else {
+		// Call the method to build the cache immediately.
+		Set<String> allowed_types;
+		_get_allowed_types(false, &allowed_types);
 	}
 }
 
@@ -821,6 +847,8 @@ EditorResourcePicker::EditorResourcePicker() {
 	edit_button->connect("gui_input", callable_mp(this, &EditorResourcePicker::_button_input));
 }
 
+// EditorScriptPicker
+
 void EditorScriptPicker::set_create_options(Object *p_menu_node) {
 	PopupMenu *menu_node = Object::cast_to<PopupMenu>(p_menu_node);
 	if (!menu_node) {
@@ -868,4 +896,43 @@ void EditorScriptPicker::_bind_methods() {
 }
 
 EditorScriptPicker::EditorScriptPicker() {
+}
+
+// EditorShaderPicker
+
+void EditorShaderPicker::set_create_options(Object *p_menu_node) {
+	PopupMenu *menu_node = Object::cast_to<PopupMenu>(p_menu_node);
+	if (!menu_node) {
+		return;
+	}
+
+	menu_node->add_icon_item(get_theme_icon("Shader", "EditorIcons"), TTR("New Shader"), OBJ_MENU_NEW_SHADER);
+	menu_node->add_separator();
+}
+
+bool EditorShaderPicker::handle_menu_selected(int p_which) {
+	Ref<ShaderMaterial> material = Ref<ShaderMaterial>(get_edited_material());
+
+	switch (p_which) {
+		case OBJ_MENU_NEW_SHADER: {
+			if (material.is_valid()) {
+				EditorNode::get_singleton()->get_scene_tree_dock()->open_shader_dialog(material);
+				return true;
+			}
+		} break;
+		default:
+			break;
+	}
+	return false;
+}
+
+void EditorShaderPicker::set_edited_material(ShaderMaterial *p_material) {
+	edited_material = p_material;
+}
+
+ShaderMaterial *EditorShaderPicker::get_edited_material() const {
+	return edited_material;
+}
+
+EditorShaderPicker::EditorShaderPicker() {
 }

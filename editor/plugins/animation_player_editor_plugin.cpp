@@ -345,17 +345,16 @@ void AnimationPlayerEditor::_animation_rename() {
 
 void AnimationPlayerEditor::_animation_load() {
 	ERR_FAIL_COND(!player);
-	file->set_file_mode(EditorFileDialog::FILE_MODE_OPEN_FILE);
+	file->set_file_mode(EditorFileDialog::FILE_MODE_OPEN_FILES);
 	file->clear_filters();
 	List<String> extensions;
 
 	ResourceLoader::get_recognized_extensions_for_type("Animation", &extensions);
-	for (List<String>::Element *E = extensions.front(); E; E = E->next()) {
-		file->add_filter("*." + E->get() + " ; " + E->get().to_upper());
+	for (const String &E : extensions) {
+		file->add_filter("*." + E + " ; " + E.to_upper());
 	}
 
 	file->popup_file_dialog();
-	current_option = RESOURCE_LOAD;
 }
 
 void AnimationPlayerEditor::_animation_save_in_path(const Ref<Resource> &p_resource, const String &p_path) {
@@ -408,14 +407,14 @@ void AnimationPlayerEditor::_animation_save_as(const Ref<Resource> &p_resource) 
 			if (p_resource->get_name() != "") {
 				path = p_resource->get_name() + "." + extensions.front()->get().to_lower();
 			} else {
-				path = "new_" + p_resource->get_class().to_lower() + "." + extensions.front()->get().to_lower();
+				String resource_name_snake_case = p_resource->get_class().camelcase_to_underscore();
+				path = "new_" + resource_name_snake_case + "." + extensions.front()->get().to_lower();
 			}
 		}
 	}
 	file->set_current_path(path);
 	file->set_title(TTR("Save Resource As..."));
 	file->popup_file_dialog();
-	current_option = RESOURCE_SAVE;
 }
 
 void AnimationPlayerEditor::_animation_remove() {
@@ -584,8 +583,7 @@ void AnimationPlayerEditor::_animation_blend() {
 	blend_editor.next->clear();
 	blend_editor.next->add_item("", i);
 
-	for (List<StringName>::Element *E = anims.front(); E; E = E->next()) {
-		String to = E->get();
+	for (const StringName &to : anims) {
 		TreeItem *blend = blend_editor.tree->create_item(root);
 		blend->set_editable(0, false);
 		blend->set_editable(1, true);
@@ -718,44 +716,48 @@ void AnimationPlayerEditor::_animation_edit() {
 	}
 }
 
-void AnimationPlayerEditor::_dialog_action(String p_path) {
-	switch (current_option) {
-		case RESOURCE_LOAD: {
-			ERR_FAIL_COND(!player);
+void AnimationPlayerEditor::_save_animation(String p_file) {
+	String current = animation->get_item_text(animation->get_selected());
+	if (current != "") {
+		Ref<Animation> anim = player->get_animation(current);
 
-			Ref<Resource> res = ResourceLoader::load(p_path, "Animation");
-			ERR_FAIL_COND_MSG(res.is_null(), "Cannot load Animation from file '" + p_path + "'.");
-			ERR_FAIL_COND_MSG(!res->is_class("Animation"), "Loaded resource from file '" + p_path + "' is not Animation.");
+		ERR_FAIL_COND(!Object::cast_to<Resource>(*anim));
 
-			String anim_name = p_path.get_file();
-			int ext_pos = anim_name.rfind(".");
-			if (ext_pos != -1) {
-				anim_name = anim_name.substr(0, ext_pos);
-			}
+		RES current_res = RES(Object::cast_to<Resource>(*anim));
 
-			undo_redo->create_action(TTR("Load Animation"));
-			undo_redo->add_do_method(player, "add_animation", anim_name, res);
-			undo_redo->add_undo_method(player, "remove_animation", anim_name);
-			if (player->has_animation(anim_name)) {
-				undo_redo->add_undo_method(player, "add_animation", anim_name, player->get_animation(anim_name));
-			}
-			undo_redo->add_do_method(this, "_animation_player_changed", player);
-			undo_redo->add_undo_method(this, "_animation_player_changed", player);
-			undo_redo->commit_action();
-			break;
+		_animation_save_in_path(current_res, p_file);
+	}
+}
+
+void AnimationPlayerEditor::_load_animations(Vector<String> p_files) {
+	ERR_FAIL_COND(!player);
+
+	for (int i = 0; i < p_files.size(); i++) {
+		String file = p_files[i];
+
+		Ref<Resource> res = ResourceLoader::load(file, "Animation");
+		ERR_FAIL_COND_MSG(res.is_null(), "Cannot load Animation from file '" + file + "'.");
+		ERR_FAIL_COND_MSG(!res->is_class("Animation"), "Loaded resource from file '" + file + "' is not Animation.");
+		if (file.rfind("/") != -1) {
+			file = file.substr(file.rfind("/") + 1, file.length());
 		}
-		case RESOURCE_SAVE: {
-			String current = animation->get_item_text(animation->get_selected());
-			if (current != "") {
-				Ref<Animation> anim = player->get_animation(current);
-
-				ERR_FAIL_COND(!Object::cast_to<Resource>(*anim));
-
-				RES current_res = RES(Object::cast_to<Resource>(*anim));
-
-				_animation_save_in_path(current_res, p_path);
-			}
+		if (file.rfind("\\") != -1) {
+			file = file.substr(file.rfind("\\") + 1, file.length());
 		}
+
+		if (file.find(".") != -1) {
+			file = file.substr(0, file.find("."));
+		}
+
+		undo_redo->create_action(TTR("Load Animation"));
+		undo_redo->add_do_method(player, "add_animation", file, res);
+		undo_redo->add_undo_method(player, "remove_animation", file);
+		if (player->has_animation(file)) {
+			undo_redo->add_undo_method(player, "add_animation", file, player->get_animation(file));
+		}
+		undo_redo->add_do_method(this, "_animation_player_changed", player);
+		undo_redo->add_undo_method(this, "_animation_player_changed", player);
+		undo_redo->commit_action();
 	}
 }
 
@@ -830,20 +832,20 @@ void AnimationPlayerEditor::_update_player() {
 	}
 
 	int active_idx = -1;
-	for (List<StringName>::Element *E = animlist.front(); E; E = E->next()) {
+	for (const StringName &E : animlist) {
 		Ref<Texture2D> icon;
-		if (E->get() == player->get_autoplay()) {
-			if (E->get() == "RESET") {
+		if (E == player->get_autoplay()) {
+			if (E == "RESET") {
 				icon = autoplay_reset_icon;
 			} else {
 				icon = autoplay_icon;
 			}
-		} else if (E->get() == "RESET") {
+		} else if (E == "RESET") {
 			icon = reset_icon;
 		}
-		animation->add_icon_item(icon, E->get());
+		animation->add_icon_item(icon, E);
 
-		if (player->get_assigned_animation() == E->get()) {
+		if (player->get_assigned_animation() == E) {
 			active_idx = animation->get_item_count() - 1;
 		}
 	}
@@ -966,9 +968,9 @@ void AnimationPlayerEditor::_animation_duplicate() {
 	Ref<Animation> new_anim = memnew(Animation);
 	List<PropertyInfo> plist;
 	anim->get_property_list(&plist);
-	for (List<PropertyInfo>::Element *E = plist.front(); E; E = E->next()) {
-		if (E->get().usage & PROPERTY_USAGE_STORAGE) {
-			new_anim->set(E->get().name, anim->get(E->get().name));
+	for (const PropertyInfo &E : plist) {
+		if (E.usage & PROPERTY_USAGE_STORAGE) {
+			new_anim->set(E.name, anim->get(E.name));
 		}
 	}
 	new_anim->set_path("");
@@ -1220,7 +1222,7 @@ void AnimationPlayerEditor::_onion_skinning_menu(int p_option) {
 	}
 }
 
-void AnimationPlayerEditor::_unhandled_key_input(const Ref<InputEvent> &p_ev) {
+void AnimationPlayerEditor::unhandled_key_input(const Ref<InputEvent> &p_ev) {
 	ERR_FAIL_COND(p_ev.is_null());
 
 	Ref<InputEventKey> k = p_ev;
@@ -1246,6 +1248,8 @@ void AnimationPlayerEditor::_unhandled_key_input(const Ref<InputEvent> &p_ev) {
 				}
 				accept_event();
 			} break;
+			default:
+				break;
 		}
 	}
 }
@@ -1495,7 +1499,6 @@ void AnimationPlayerEditor::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("_animation_player_changed"), &AnimationPlayerEditor::_animation_player_changed);
 	ClassDB::bind_method(D_METHOD("_list_changed"), &AnimationPlayerEditor::_list_changed);
 	ClassDB::bind_method(D_METHOD("_animation_duplicate"), &AnimationPlayerEditor::_animation_duplicate);
-	ClassDB::bind_method(D_METHOD("_unhandled_key_input"), &AnimationPlayerEditor::_unhandled_key_input);
 
 	ClassDB::bind_method(D_METHOD("_prepare_onion_layers_1"), &AnimationPlayerEditor::_prepare_onion_layers_1);
 	ClassDB::bind_method(D_METHOD("_prepare_onion_layers_2"), &AnimationPlayerEditor::_prepare_onion_layers_2);
@@ -1694,7 +1697,8 @@ AnimationPlayerEditor::AnimationPlayerEditor(EditorNode *p_editor, AnimationPlay
 
 	animation->connect("item_selected", callable_mp(this, &AnimationPlayerEditor::_animation_selected));
 
-	file->connect("file_selected", callable_mp(this, &AnimationPlayerEditor::_dialog_action));
+	file->connect("file_selected", callable_mp(this, &AnimationPlayerEditor::_save_animation));
+	file->connect("files_selected", callable_mp(this, &AnimationPlayerEditor::_load_animations));
 	frame->connect("value_changed", callable_mp(this, &AnimationPlayerEditor::_seek_value_changed), make_binds(true, false));
 	scale->connect("text_submitted", callable_mp(this, &AnimationPlayerEditor::_scale_changed));
 
@@ -1734,6 +1738,8 @@ AnimationPlayerEditor::AnimationPlayerEditor(EditorNode *p_editor, AnimationPlay
 
 	onion.capture.shader = Ref<Shader>(memnew(Shader));
 	onion.capture.shader->set_code(R"(
+// Animation editor onion skinning shader.
+
 shader_type canvas_item;
 
 uniform vec4 bkg_color;

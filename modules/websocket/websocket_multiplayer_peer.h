@@ -75,10 +75,11 @@ protected:
 	void _send_add(int32_t p_peer_id);
 	void _send_sys(Ref<WebSocketPeer> p_peer, uint8_t p_type, int32_t p_peer_id);
 	void _send_del(int32_t p_peer_id);
-	int _gen_unique_id() const;
 
 public:
 	/* MultiplayerPeer */
+	void set_transfer_channel(int p_channel) override;
+	int get_transfer_channel() const override;
 	void set_transfer_mode(TransferMode p_mode) override;
 	TransferMode get_transfer_mode() const override;
 	void set_target_peer(int p_target_peer) override;

@@ -62,7 +62,8 @@ void EditorAudioBus::_update_visible_channels() {
 
 void EditorAudioBus::_notification(int p_what) {
 	switch (p_what) {
-		case NOTIFICATION_READY: {
+		case NOTIFICATION_ENTER_TREE:
+		case NOTIFICATION_THEME_CHANGED: {
 			for (int i = 0; i < CHANNELS_MAX; i++) {
 				channel[i].vu_l->set_under_texture(get_theme_icon(SNAME("BusVuEmpty"), SNAME("EditorIcons")));
 				channel[i].vu_l->set_progress_texture(get_theme_icon(SNAME("BusVuFull"), SNAME("EditorIcons")));
@@ -86,6 +87,12 @@ void EditorAudioBus::_notification(int p_what) {
 
 			bus_options->set_icon(get_theme_icon(SNAME("GuiTabMenuHl"), SNAME("EditorIcons")));
 
+			audio_value_preview_label->add_theme_color_override("font_color", get_theme_color(SNAME("font_color"), SNAME("TooltipLabel")));
+			audio_value_preview_label->add_theme_color_override("font_shadow_color", get_theme_color(SNAME("font_shadow_color"), SNAME("TooltipLabel")));
+			audio_value_preview_box->add_theme_style_override("panel", get_theme_stylebox(SNAME("panel"), SNAME("TooltipPanel")));
+		} break;
+
+		case NOTIFICATION_READY: {
 			update_bus();
 			set_process(true);
 		} break;
@@ -157,26 +164,7 @@ void EditorAudioBus::_notification(int p_what) {
 
 			set_process(is_visible_in_tree());
 		} break;
-		case NOTIFICATION_THEME_CHANGED: {
-			for (int i = 0; i < CHANNELS_MAX; i++) {
-				channel[i].vu_l->set_under_texture(get_theme_icon(SNAME("BusVuEmpty"), SNAME("EditorIcons")));
-				channel[i].vu_l->set_progress_texture(get_theme_icon(SNAME("BusVuFull"), SNAME("EditorIcons")));
-				channel[i].vu_r->set_under_texture(get_theme_icon(SNAME("BusVuEmpty"), SNAME("EditorIcons")));
-				channel[i].vu_r->set_progress_texture(get_theme_icon(SNAME("BusVuFull"), SNAME("EditorIcons")));
-				channel[i].prev_active = true;
-			}
 
-			disabled_vu = get_theme_icon(SNAME("BusVuFrozen"), SNAME("EditorIcons"));
-
-			solo->set_icon(get_theme_icon(SNAME("AudioBusSolo"), SNAME("EditorIcons")));
-			mute->set_icon(get_theme_icon(SNAME("AudioBusMute"), SNAME("EditorIcons")));
-			bypass->set_icon(get_theme_icon(SNAME("AudioBusBypass"), SNAME("EditorIcons")));
-
-			bus_options->set_icon(get_theme_icon(SNAME("GuiTabMenuHl"), SNAME("EditorIcons")));
-
-			audio_value_preview_box->add_theme_color_override("font_color", get_theme_color(SNAME("font_color"), SNAME("TooltipLabel")));
-			audio_value_preview_box->add_theme_style_override("panel", get_theme_stylebox(SNAME("panel"), SNAME("TooltipPanel")));
-		} break;
 		case NOTIFICATION_MOUSE_EXIT:
 		case NOTIFICATION_DRAG_END: {
 			if (hovering_drop) {
@@ -542,7 +530,7 @@ void EditorAudioBus::_effect_add(int p_which) {
 	ur->commit_action();
 }
 
-void EditorAudioBus::_gui_input(const Ref<InputEvent> &p_event) {
+void EditorAudioBus::gui_input(const Ref<InputEvent> &p_event) {
 	ERR_FAIL_COND(p_event.is_null());
 
 	Ref<InputEventMouseButton> mb = p_event;
@@ -756,7 +744,7 @@ void EditorAudioBus::_effect_rmb(const Vector2 &p_pos) {
 void EditorAudioBus::_bind_methods() {
 	ClassDB::bind_method("update_bus", &EditorAudioBus::update_bus);
 	ClassDB::bind_method("update_send", &EditorAudioBus::update_send);
-	ClassDB::bind_method("_gui_input", &EditorAudioBus::_gui_input);
+
 	ClassDB::bind_method("_get_drag_data_fw", &EditorAudioBus::get_drag_data_fw);
 	ClassDB::bind_method("_can_drop_data_fw", &EditorAudioBus::can_drop_data_fw);
 	ClassDB::bind_method("_drop_data_fw", &EditorAudioBus::drop_data_fw);
@@ -833,6 +821,11 @@ EditorAudioBus::EditorAudioBus(EditorAudioBuses *p_buses, bool p_is_master) {
 	slider->set_clip_contents(false);
 
 	audio_value_preview_box = memnew(Panel);
+	slider->add_child(audio_value_preview_box);
+	audio_value_preview_box->set_as_top_level(true);
+	audio_value_preview_box->set_mouse_filter(MOUSE_FILTER_PASS);
+	audio_value_preview_box->hide();
+
 	HBoxContainer *audioprev_hbc = memnew(HBoxContainer);
 	audioprev_hbc->set_v_size_flags(SIZE_EXPAND_FILL);
 	audioprev_hbc->set_h_size_flags(SIZE_EXPAND_FILL);
@@ -842,15 +835,7 @@ EditorAudioBus::EditorAudioBus(EditorAudioBuses *p_buses, bool p_is_master) {
 	audio_value_preview_label->set_v_size_flags(SIZE_EXPAND_FILL);
 	audio_value_preview_label->set_h_size_flags(SIZE_EXPAND_FILL);
 	audio_value_preview_label->set_mouse_filter(MOUSE_FILTER_PASS);
-	audio_value_preview_box->add_theme_color_override("font_color", get_theme_color(SNAME("font_color"), SNAME("TooltipLabel")));
-
 	audioprev_hbc->add_child(audio_value_preview_label);
-
-	slider->add_child(audio_value_preview_box);
-	audio_value_preview_box->set_as_top_level(true);
-	audio_value_preview_box->add_theme_style_override("panel", get_theme_stylebox(SNAME("panel"), SNAME("TooltipPanel")));
-	audio_value_preview_box->set_mouse_filter(MOUSE_FILTER_PASS);
-	audio_value_preview_box->hide();
 
 	preview_timer = memnew(Timer);
 	preview_timer->set_wait_time(0.8f);
@@ -920,15 +905,15 @@ EditorAudioBus::EditorAudioBus(EditorAudioBuses *p_buses, bool p_is_master) {
 	List<StringName> effects;
 	ClassDB::get_inheriters_from_class("AudioEffect", &effects);
 	effects.sort_custom<StringName::AlphCompare>();
-	for (List<StringName>::Element *E = effects.front(); E; E = E->next()) {
-		if (!ClassDB::can_instantiate(E->get())) {
+	for (const StringName &E : effects) {
+		if (!ClassDB::can_instantiate(E)) {
 			continue;
 		}
 
-		Ref<Texture2D> icon = EditorNode::get_singleton()->get_class_icon(E->get());
-		String name = E->get().operator String().replace("AudioEffect", "");
+		Ref<Texture2D> icon = EditorNode::get_singleton()->get_class_icon(E);
+		String name = E.operator String().replace("AudioEffect", "");
 		effect_options->add_item(name);
-		effect_options->set_item_metadata(effect_options->get_item_count() - 1, E->get());
+		effect_options->set_item_metadata(effect_options->get_item_count() - 1, E);
 		effect_options->set_item_icon(effect_options->get_item_count() - 1, icon);
 	}
 
@@ -1331,8 +1316,8 @@ EditorAudioBuses::EditorAudioBuses() {
 	file_dialog = memnew(EditorFileDialog);
 	List<String> ext;
 	ResourceLoader::get_recognized_extensions_for_type("AudioBusLayout", &ext);
-	for (List<String>::Element *E = ext.front(); E; E = E->next()) {
-		file_dialog->add_filter("*." + E->get() + "; Audio Bus Layout");
+	for (const String &E : ext) {
+		file_dialog->add_filter("*." + E + "; Audio Bus Layout");
 	}
 	add_child(file_dialog);
 	file_dialog->connect("file_selected", callable_mp(this, &EditorAudioBuses::_file_dialog_callback));

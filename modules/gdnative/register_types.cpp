@@ -38,7 +38,6 @@
 #include "net/register_types.h"
 #include "pluginscript/register_types.h"
 #include "videodecoder/register_types.h"
-#include "xr/register_types.h"
 
 #include "core/config/engine.h"
 #include "core/config/project_settings.h"
@@ -79,9 +78,7 @@ void GDNativeExportPlugin::_export_file(const String &p_path, const String &p_ty
 		List<String> entry_keys;
 		config->get_section_keys("entry", &entry_keys);
 
-		for (List<String>::Element *E = entry_keys.front(); E; E = E->next()) {
-			String key = E->get();
-
+		for (const String &key : entry_keys) {
 			Vector<String> tags = key.split(".");
 
 			bool skip = false;
@@ -112,9 +109,7 @@ void GDNativeExportPlugin::_export_file(const String &p_path, const String &p_ty
 		List<String> dependency_keys;
 		config->get_section_keys("dependencies", &dependency_keys);
 
-		for (List<String>::Element *E = dependency_keys.front(); E; E = E->next()) {
-			String key = E->get();
-
+		for (const String &key : dependency_keys) {
 			Vector<String> tags = key.split(".");
 
 			bool skip = false;
@@ -149,9 +144,7 @@ void GDNativeExportPlugin::_export_file(const String &p_path, const String &p_ty
 		List<String> entry_keys;
 		config->get_section_keys("entry", &entry_keys);
 
-		for (List<String>::Element *E = entry_keys.front(); E; E = E->next()) {
-			String key = E->get();
-
+		for (const String &key : entry_keys) {
 			Vector<String> tags = key.split(".");
 
 			bool skip = false;
@@ -273,7 +266,6 @@ void register_gdnative_types() {
 	GDNativeCallRegistry::singleton->register_native_call_type("standard_varcall", cb_standard_varcall);
 
 	register_net_types();
-	register_xr_types();
 	register_nativescript_types();
 	register_pluginscript_types();
 	register_videodecoder_types();
@@ -337,7 +329,6 @@ void unregister_gdnative_types() {
 	unregister_videodecoder_types();
 	unregister_pluginscript_types();
 	unregister_nativescript_types();
-	unregister_xr_types();
 	unregister_net_types();
 
 	memdelete(GDNativeCallRegistry::singleton);

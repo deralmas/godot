@@ -51,6 +51,11 @@ protected:
 	Node *import_scene_from_other_importer(const String &p_path, uint32_t p_flags, int p_bake_fps);
 	Ref<Animation> import_animation_from_other_importer(const String &p_path, uint32_t p_flags, int p_bake_fps);
 
+	GDVIRTUAL0RC(int, _get_import_flags)
+	GDVIRTUAL0RC(Vector<String>, _get_extensions)
+	GDVIRTUAL3R(Object *, _import_scene, String, uint32_t, uint32_t)
+	GDVIRTUAL3R(Ref<Animation>, _import_animation, String, uint32_t, uint32_t)
+
 public:
 	enum ImportFlags {
 		IMPORT_SCENE = 1,
@@ -76,6 +81,8 @@ class EditorScenePostImport : public RefCounted {
 
 protected:
 	static void _bind_methods();
+
+	GDVIRTUAL1R(Object *, _post_import, Node *)
 
 public:
 	String get_source_file() const;
@@ -155,7 +162,8 @@ public:
 
 	virtual void get_import_options(List<ImportOption> *r_options, int p_preset = 0) const override;
 	virtual bool get_option_visibility(const String &p_option, const Map<StringName, Variant> &p_options) const override;
-	virtual int get_import_order() const override { return 100; } //after everything
+	// Import scenes *after* everything else (such as textures).
+	virtual int get_import_order() const override { return ResourceImporter::IMPORT_ORDER_SCENE; }
 
 	Node *_pre_fix_node(Node *p_node, Node *p_root, Map<Ref<EditorSceneImporterMesh>, List<Ref<Shape3D>>> &collision_map);
 	Node *_post_fix_node(Node *p_node, Node *p_root, Map<Ref<EditorSceneImporterMesh>, List<Ref<Shape3D>>> &collision_map, Set<Ref<EditorSceneImporterMesh>> &r_scanned_meshes, const Dictionary &p_node_data, const Dictionary &p_material_data, const Dictionary &p_animation_data, float p_animation_fps);

@@ -32,6 +32,7 @@
 
 #include "core/input/input.h"
 #include "core/os/keyboard.h"
+#include "scene/2d/tile_map.h"
 #include "scene/gui/box_container.h"
 #include "scene/gui/label.h"
 #include "scene/gui/panel.h"
@@ -40,7 +41,7 @@
 #include "editor/editor_scale.h"
 #include "editor/editor_settings.h"
 
-void TileAtlasView::_gui_input(const Ref<InputEvent> &p_event) {
+void TileAtlasView::gui_input(const Ref<InputEvent> &p_event) {
 	Ref<InputEventMouseButton> mb = p_event;
 	if (mb.is_valid()) {
 		drag_type = DRAG_TYPE_NONE;
@@ -259,7 +260,7 @@ void TileAtlasView::_draw_base_tiles() {
 			Vector2i offset_pos = (margins + (atlas_coords * texture_region_size) + tile_set_atlas_source->get_tile_texture_region(atlas_coords).size / 2 + tile_set_atlas_source->get_tile_effective_texture_offset(atlas_coords, 0));
 
 			// Draw the tile.
-			TileSetPluginAtlasRendering::draw_tile(base_tiles_draw->get_canvas_item(), offset_pos, tile_set, source_id, atlas_coords, 0);
+			TileMap::draw_tile(base_tiles_draw->get_canvas_item(), offset_pos, tile_set, source_id, atlas_coords, 0);
 		}
 	}
 }
@@ -375,7 +376,7 @@ void TileAtlasView::_draw_alternatives() {
 				}
 
 				// Draw the tile.
-				TileSetPluginAtlasRendering::draw_tile(alternatives_draw->get_canvas_item(), offset_pos, tile_set, source_id, atlas_coords, alternative_id);
+				TileMap::draw_tile(alternatives_draw->get_canvas_item(), offset_pos, tile_set, source_id, atlas_coords, alternative_id);
 
 				// Increment the x position.
 				current_pos.x += transposed ? texture_region.size.y : texture_region.size.x;
@@ -547,8 +548,6 @@ void TileAtlasView::_notification(int p_what) {
 }
 
 void TileAtlasView::_bind_methods() {
-	ClassDB::bind_method("_gui_input", &TileAtlasView::_gui_input);
-
 	ADD_SIGNAL(MethodInfo("transform_changed", PropertyInfo(Variant::FLOAT, "zoom"), PropertyInfo(Variant::VECTOR2, "scroll")));
 }
 
@@ -581,7 +580,7 @@ TileAtlasView::TileAtlasView() {
 	center_container = memnew(CenterContainer);
 	center_container->set_mouse_filter(Control::MOUSE_FILTER_IGNORE);
 	center_container->set_anchors_preset(Control::PRESET_CENTER);
-	center_container->connect("gui_input", callable_mp(this, &TileAtlasView::_gui_input));
+	center_container->connect("gui_input", callable_mp(this, &TileAtlasView::gui_input));
 	panel->add_child(center_container);
 
 	missing_source_label = memnew(Label);

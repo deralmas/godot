@@ -66,11 +66,11 @@ void SceneTreeTimer::_bind_methods() {
 	ADD_SIGNAL(MethodInfo("timeout"));
 }
 
-void SceneTreeTimer::set_time_left(float p_time) {
+void SceneTreeTimer::set_time_left(double p_time) {
 	time_left = p_time;
 }
 
-float SceneTreeTimer::get_time_left() const {
+double SceneTreeTimer::get_time_left() const {
 	return time_left;
 }
 
@@ -82,12 +82,19 @@ bool SceneTreeTimer::is_process_always() {
 	return process_always;
 }
 
+void SceneTreeTimer::set_ignore_time_scale(bool p_ignore) {
+	ignore_time_scale = p_ignore;
+}
+
+bool SceneTreeTimer::is_ignore_time_scale() {
+	return ignore_time_scale;
+}
+
 void SceneTreeTimer::release_connections() {
 	List<Connection> connections;
 	get_all_signal_connections(&connections);
 
-	for (List<Connection>::Element *E = connections.front(); E; E = E->next()) {
-		Connection const &connection = E->get();
+	for (const Connection &connection : connections) {
 		disconnect(connection.signal.get_name(), connection.callable);
 	}
 }
@@ -396,7 +403,7 @@ void SceneTree::initialize() {
 	MainLoop::initialize();
 }
 
-bool SceneTree::physics_process(float p_time) {
+bool SceneTree::physics_process(double p_time) {
 	root_lock++;
 
 	current_frame++;
@@ -425,7 +432,7 @@ bool SceneTree::physics_process(float p_time) {
 	return _quit;
 }
 
-bool SceneTree::process(float p_time) {
+bool SceneTree::process(double p_time) {
 	root_lock++;
 
 	MainLoop::process(p_time);
@@ -466,8 +473,13 @@ bool SceneTree::process(float p_time) {
 			E = N;
 			continue;
 		}
-		float time_left = E->get()->get_time_left();
-		time_left -= p_time;
+
+		double time_left = E->get()->get_time_left();
+		if (E->get()->is_ignore_time_scale()) {
+			time_left -= Engine::get_singleton()->get_process_step();
+		} else {
+			time_left -= p_time;
+		}
 		E->get()->set_time_left(time_left);
 
 		if (time_left < 0) {
@@ -487,7 +499,7 @@ bool SceneTree::process(float p_time) {
 	_call_idle_callbacks();
 
 #ifdef TOOLS_ENABLED
-
+#ifndef _3D_DISABLED
 	if (Engine::get_singleton()->is_editor_hint()) {
 		//simple hack to reload fallback environment if it changed from editor
 		String env_path = ProjectSettings::get_singleton()->get(SNAME("rendering/environment/defaults/default_environment"));
@@ -510,8 +522,8 @@ bool SceneTree::process(float p_time) {
 			get_root()->get_world_3d()->set_fallback_environment(fallback);
 		}
 	}
-
-#endif
+#endif // _3D_DISABLED
+#endif // TOOLS_ENABLED
 
 	return _quit;
 }
@@ -559,8 +571,8 @@ void SceneTree::finalize() {
 	}
 
 	// cleanup timers
-	for (List<Ref<SceneTreeTimer>>::Element *E = timers.front(); E; E = E->next()) {
-		E->get()->release_connections();
+	for (Ref<SceneTreeTimer> &timer : timers) {
+		timer->release_connections();
 	}
 	timers.clear();
 }
@@ -855,7 +867,7 @@ void SceneMainLoop::_update_listener_2d() {
 
 */
 
-void SceneTree::_call_input_pause(const StringName &p_group, const StringName &p_method, const Ref<InputEvent> &p_input, Viewport *p_viewport) {
+void SceneTree::_call_input_pause(const StringName &p_group, CallInputType p_call_type, const Ref<InputEvent> &p_input, Viewport *p_viewport) {
 	Map<StringName, Group>::Element *E = group_map.find(p_group);
 	if (!E) {
 		return;
@@ -874,9 +886,6 @@ void SceneTree::_call_input_pause(const StringName &p_group, const StringName &p
 	int node_count = nodes_copy.size();
 	Node **nodes = nodes_copy.ptrw();
 
-	Variant arg = p_input;
-	const Variant *v[1] = { &arg };
-
 	call_lock++;
 
 	for (int i = node_count - 1; i >= 0; i--) {
@@ -893,14 +902,16 @@ void SceneTree::_call_input_pause(const StringName &p_group, const StringName &p
 			continue;
 		}
 
-		Callable::CallError err;
-		// Call both script and native method.
-		if (n->get_script_instance()) {
-			n->get_script_instance()->call(p_method, (const Variant **)v, 1, err);
-		}
-		MethodBind *method = ClassDB::get_method(n->get_class_name(), p_method);
-		if (method) {
-			method->call(n, (const Variant **)v, 1, err);
+		switch (p_call_type) {
+			case CALL_INPUT_TYPE_INPUT:
+				n->_call_input(p_input);
+				break;
+			case CALL_INPUT_TYPE_UNHANDLED_INPUT:
+				n->_call_unhandled_input(p_input);
+				break;
+			case CALL_INPUT_TYPE_UNHANDLED_KEY_INPUT:
+				n->_call_unhandled_key_input(p_input);
+				break;
 		}
 	}
 
@@ -1112,7 +1123,7 @@ void SceneTree::add_current_scene(Node *p_current) {
 	root->add_child(p_current);
 }
 
-Ref<SceneTreeTimer> SceneTree::create_timer(float p_delay_sec, bool p_process_always) {
+Ref<SceneTreeTimer> SceneTree::create_timer(double p_delay_sec, bool p_process_always) {
 	Ref<SceneTreeTimer> stt;
 	stt.instantiate();
 	stt->set_process_always(p_process_always);
@@ -1134,8 +1145,8 @@ Array SceneTree::get_processed_tweens() {
 	ret.resize(tweens.size());
 
 	int i = 0;
-	for (List<Ref<Tween>>::Element *E = tweens.front(); E; E = E->next()) {
-		ret[i] = E->get();
+	for (const Ref<Tween> &tween : tweens) {
+		ret[i] = tween;
 		i++;
 	}
 
@@ -1321,20 +1332,21 @@ SceneTree::SceneTree() {
 
 	root = memnew(Window);
 	root->set_name("root");
+#ifndef _3D_DISABLED
 	if (!root->get_world_3d().is_valid()) {
 		root->set_world_3d(Ref<World3D>(memnew(World3D)));
 	}
+	root->set_as_audio_listener_3d(true);
+#endif // _3D_DISABLED
 
 	// Initialize network state.
 	set_multiplayer(Ref<MultiplayerAPI>(memnew(MultiplayerAPI)));
 
-	//root->set_world_2d( Ref<World2D>( memnew( World2D )));
-	root->set_as_audio_listener(true);
 	root->set_as_audio_listener_2d(true);
 	current_scene = nullptr;
 
 	const int msaa_mode = GLOBAL_DEF("rendering/anti_aliasing/quality/msaa", 0);
-	ProjectSettings::get_singleton()->set_custom_property_info("rendering/anti_aliasing/quality/msaa", PropertyInfo(Variant::INT, "rendering/anti_aliasing/quality/msaa", PROPERTY_HINT_ENUM, "Disabled (Fastest),2x (Fast),4x (Average),8x (Slow),16x (Slower)"));
+	ProjectSettings::get_singleton()->set_custom_property_info("rendering/anti_aliasing/quality/msaa", PropertyInfo(Variant::INT, "rendering/anti_aliasing/quality/msaa", PROPERTY_HINT_ENUM, String::utf8("Disabled (Fastest),2× (Fast),4× (Average),8× (Slow),16× (Slower)")));
 	root->set_msaa(Viewport::MSAA(msaa_mode));
 
 	const int ssaa_mode = GLOBAL_DEF("rendering/anti_aliasing/quality/screen_space_aa", 0);
@@ -1385,16 +1397,17 @@ SceneTree::SceneTree() {
 	ProjectSettings::get_singleton()->set_custom_property_info("rendering/2d/sdf/oversize", PropertyInfo(Variant::INT, "rendering/2d/sdf/oversize", PROPERTY_HINT_ENUM, "100%,120%,150%,200%"));
 	ProjectSettings::get_singleton()->set_custom_property_info("rendering/2d/sdf/scale", PropertyInfo(Variant::INT, "rendering/2d/sdf/scale", PROPERTY_HINT_ENUM, "100%,50%,25%"));
 
+#ifndef _3D_DISABLED
 	{ // Load default fallback environment.
 		// Get possible extensions.
 		List<String> exts;
 		ResourceLoader::get_recognized_extensions_for_type("Environment", &exts);
 		String ext_hint;
-		for (List<String>::Element *E = exts.front(); E; E = E->next()) {
+		for (const String &E : exts) {
 			if (ext_hint != String()) {
 				ext_hint += ",";
 			}
-			ext_hint += "*." + E->get();
+			ext_hint += "*." + E;
 		}
 		// Get path.
 		String env_path = GLOBAL_DEF("rendering/environment/defaults/default_environment", "");
@@ -1416,6 +1429,7 @@ SceneTree::SceneTree() {
 			}
 		}
 	}
+#endif // _3D_DISABLED
 
 	root->set_physics_object_picking(GLOBAL_DEF("physics/common/enable_object_picking", true));
 

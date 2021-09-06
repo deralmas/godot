@@ -49,7 +49,11 @@
 #if defined(VULKAN_ENABLED)
 #include "servers/rendering/renderer_rd/renderer_compositor_rd.h"
 #import <QuartzCore/CAMetalLayer.h>
-#include <vulkan/vulkan_metal.h>
+#ifdef USE_VOLK
+#include <volk.h>
+#else
+#include <vulkan/vulkan.h>
+#endif
 #endif
 
 // Initialization order between compilation units is not guaranteed,
@@ -114,6 +118,12 @@ OSIPhone::OSIPhone(String p_data_dir) {
 
 OSIPhone::~OSIPhone() {}
 
+void OSIPhone::alert(const String &p_alert, const String &p_title) {
+	const CharString utf8_alert = p_alert.utf8();
+	const CharString utf8_title = p_title.utf8();
+	iOS::alert(utf8_alert.get_data(), utf8_title.get_data());
+}
+
 void OSIPhone::initialize_core() {
 	OS_Unix::initialize_core();
 
@@ -139,8 +149,6 @@ void OSIPhone::deinitialize_modules() {
 	if (ios) {
 		memdelete(ios);
 	}
-
-	godot_ios_plugins_deinitialize();
 }
 
 void OSIPhone::set_main_loop(MainLoop *p_main_loop) {
@@ -177,8 +185,6 @@ bool OSIPhone::iterate() {
 }
 
 void OSIPhone::start() {
-	godot_ios_plugins_initialize();
-
 	Main::start();
 
 	if (joypad_iphone) {
@@ -219,12 +225,6 @@ Error OSIPhone::get_dynamic_library_symbol_handle(void *p_library_handle, const 
 		}
 	}
 	return OS_Unix::get_dynamic_library_symbol_handle(p_library_handle, p_name, p_symbol_handle, p_optional);
-}
-
-void OSIPhone::alert(const String &p_alert, const String &p_title) {
-	const CharString utf8_alert = p_alert.utf8();
-	const CharString utf8_title = p_title.utf8();
-	iOS::alert(utf8_alert.get_data(), utf8_title.get_data());
 }
 
 String OSIPhone::get_name() const {

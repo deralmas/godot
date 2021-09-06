@@ -184,7 +184,7 @@ public:
 		light = vs->instance_create2(lightaux, scenario);
 		Transform3D lla;
 		//lla.set_look_at(Vector3(),Vector3(1, -1, 1));
-		lla.set_look_at(Vector3(), Vector3(0.0, -0.836026, -0.548690));
+		lla.basis = Basis::looking_at(Vector3(0.0, -0.836026, -0.548690));
 
 		vs->instance_set_transform(light, lla);
 
@@ -199,7 +199,7 @@ public:
 		ofs = 0;
 		quit = false;
 	}
-	virtual bool iteration(float p_time) {
+	virtual bool iteration(double p_time) {
 		RenderingServer *vs = RenderingServer::get_singleton();
 		//Transform3D t;
 		//t.rotate(Vector3(0, 1, 0), ofs);
@@ -210,12 +210,12 @@ public:
 
 		//return quit;
 
-		for (List<InstanceInfo>::Element *E = instances.front(); E; E = E->next()) {
-			Transform3D pre(Basis(E->get().rot_axis, ofs), Vector3());
-			vs->instance_set_transform(E->get().instance, pre * E->get().base);
+		for (const InstanceInfo &E : instances) {
+			Transform3D pre(Basis(E.rot_axis, ofs), Vector3());
+			vs->instance_set_transform(E.instance, pre * E.base);
 			/*
 			if( !E->next() ) {
-				vs->free( E->get().instance );
+				vs->free( E.instance );
 				instances.erase(E );
 			}*/
 		}
@@ -223,7 +223,7 @@ public:
 		return quit;
 	}
 
-	virtual bool idle(float p_time) {
+	virtual bool idle(double p_time) {
 		return quit;
 	}
 

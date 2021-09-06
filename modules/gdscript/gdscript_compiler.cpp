@@ -107,7 +107,7 @@ GDScriptDataType GDScriptCompiler::_gdtype_from_datatype(const GDScriptParser::D
 			// Locate class by constructing the path to it and following that path
 			GDScriptParser::ClassNode *class_type = p_datatype.class_type;
 			if (class_type) {
-				if (class_type->fqcn.begins_with(main_script->path) || (!main_script->name.is_empty() && class_type->fqcn.begins_with(main_script->name))) {
+				if ((!main_script->path.is_empty() && class_type->fqcn.begins_with(main_script->path)) || (!main_script->name.is_empty() && class_type->fqcn.begins_with(main_script->name))) {
 					// Local class.
 					List<StringName> names;
 					while (class_type->outer) {
@@ -126,8 +126,7 @@ GDScriptDataType GDScriptCompiler::_gdtype_from_datatype(const GDScriptParser::D
 						names.pop_back();
 					}
 					result.kind = GDScriptDataType::GDSCRIPT;
-					result.script_type_ref = script;
-					result.script_type = result.script_type_ref.ptr();
+					result.script_type = script.ptr();
 					result.native_type = script->get_instance_base_type();
 				} else {
 					result.kind = GDScriptDataType::GDSCRIPT;
@@ -981,8 +980,7 @@ GDScriptCodeGenerator::Address GDScriptCompiler::_parse_expression(CodeGen &code
 				assigned = prev_base;
 
 				// Set back the values into their bases.
-				for (List<ChainInfo>::Element *E = set_chain.front(); E; E = E->next()) {
-					const ChainInfo &info = E->get();
+				for (const ChainInfo &info : set_chain) {
 					if (!info.is_named) {
 						gen->write_set(info.base, info.key, assigned);
 						if (info.key.mode == GDScriptCodeGenerator::Address::TEMPORARY) {
@@ -2188,6 +2186,13 @@ Error GDScriptCompiler::_parse_class_level(GDScript *p_script, const GDScriptPar
 	p_script->tool = parser->is_tool();
 	p_script->name = p_class->identifier ? p_class->identifier->name : "";
 
+	if (p_script->name != "") {
+		if (ClassDB::class_exists(p_script->name) && ClassDB::is_class_exposed(p_script->name)) {
+			_set_error("The class '" + p_script->name + "' shadows a native class", p_class);
+			return ERR_ALREADY_EXISTS;
+		}
+	}
+
 	Ref<GDScriptNativeClass> native;
 
 	GDScriptDataType base_type = _gdtype_from_datatype(p_class->base_type);
@@ -2338,28 +2343,6 @@ Error GDScriptCompiler::_parse_class_level(GDScript *p_script, const GDScriptPar
 			case GDScriptParser::ClassNode::Member::SIGNAL: {
 				const GDScriptParser::SignalNode *signal = member.signal;
 				StringName name = signal->identifier->name;
-
-				GDScript *c = p_script;
-
-				while (c) {
-					if (c->_signals.has(name)) {
-						_set_error("Signal '" + name + "' redefined (in current or parent class)", p_class);
-						return ERR_ALREADY_EXISTS;
-					}
-
-					if (c->base.is_valid()) {
-						c = c->base.ptr();
-					} else {
-						c = nullptr;
-					}
-				}
-
-				if (native.is_valid()) {
-					if (ClassDB::has_signal(native->get_name(), name)) {
-						_set_error("Signal '" + name + "' redefined (original in native class '" + String(native->get_name()) + "')", p_class);
-						return ERR_ALREADY_EXISTS;
-					}
-				}
 
 				Vector<StringName> parameters_names;
 				parameters_names.resize(signal->parameters.size());

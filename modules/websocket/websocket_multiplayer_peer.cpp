@@ -39,35 +39,15 @@ WebSocketMultiplayerPeer::~WebSocketMultiplayerPeer() {
 	_clear();
 }
 
-int WebSocketMultiplayerPeer::_gen_unique_id() const {
-	uint32_t hash = 0;
-
-	while (hash == 0 || hash == 1) {
-		hash = hash_djb2_one_32(
-				(uint32_t)OS::get_singleton()->get_ticks_usec());
-		hash = hash_djb2_one_32(
-				(uint32_t)OS::get_singleton()->get_unix_time(), hash);
-		hash = hash_djb2_one_32(
-				(uint32_t)OS::get_singleton()->get_data_path().hash64(), hash);
-		hash = hash_djb2_one_32(
-				(uint32_t)((uint64_t)this), hash); //rely on aslr heap
-		hash = hash_djb2_one_32(
-				(uint32_t)((uint64_t)&hash), hash); //rely on aslr stack
-		hash = hash & 0x7FFFFFFF; // make it compatible with unsigned, since negative id is used for exclusion
-	}
-
-	return hash;
-}
-
 void WebSocketMultiplayerPeer::_clear() {
 	_peer_map.clear();
 	if (_current_packet.data != nullptr) {
 		memfree(_current_packet.data);
 	}
 
-	for (List<Packet>::Element *E = _incoming_packets.front(); E; E = E->next()) {
-		memfree(E->get().data);
-		E->get().data = nullptr;
+	for (Packet &E : _incoming_packets) {
+		memfree(E.data);
+		E.data = nullptr;
 	}
 
 	_incoming_packets.clear();
@@ -125,6 +105,14 @@ Error WebSocketMultiplayerPeer::put_packet(const uint8_t *p_buffer, int p_buffer
 //
 // MultiplayerPeer
 //
+void WebSocketMultiplayerPeer::set_transfer_channel(int p_channel) {
+	// Websocket does not have channels.
+}
+
+int WebSocketMultiplayerPeer::get_transfer_channel() const {
+	return 0;
+}
+
 void WebSocketMultiplayerPeer::set_transfer_mode(TransferMode p_mode) {
 	// Websocket uses TCP, reliable
 }

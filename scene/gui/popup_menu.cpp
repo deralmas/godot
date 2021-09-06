@@ -74,7 +74,7 @@ Size2 PopupMenu::_get_contents_minimum_size() const {
 		size.width += items[i].text_buf->get_size().x;
 		size.height += vseparation;
 
-		if (items[i].accel || (items[i].shortcut.is_valid() && items[i].shortcut->is_valid())) {
+		if (items[i].accel || (items[i].shortcut.is_valid() && items[i].shortcut->has_valid_event())) {
 			int accel_w = hseparation * 2;
 			accel_w += items[i].accel_text_buf->get_size().x;
 			accel_max_w = MAX(accel_w, accel_max_w);
@@ -228,6 +228,7 @@ void PopupMenu::_activate_submenu(int p_over) {
 	// Set autohide areas
 	PopupMenu *submenu_pum = Object::cast_to<PopupMenu>(submenu_popup);
 	if (submenu_pum) {
+		submenu_pum->take_mouse_focus();
 		// Make the position of the parent popup relative to submenu popup
 		this_rect.position = this_rect.position - submenu_pum->get_position();
 
@@ -251,7 +252,7 @@ void PopupMenu::_submenu_timeout() {
 	submenu_over = -1;
 }
 
-void PopupMenu::_gui_input(const Ref<InputEvent> &p_event) {
+void PopupMenu::gui_input(const Ref<InputEvent> &p_event) {
 	ERR_FAIL_COND(p_event.is_null());
 
 	if (p_event->is_action("ui_down") && p_event->is_pressed()) {
@@ -358,9 +359,10 @@ void PopupMenu::_gui_input(const Ref<InputEvent> &p_event) {
 		}
 
 		int button_idx = b->get_button_index();
-		if (b->is_pressed() || (!b->is_pressed() && during_grabbed_click)) {
-			// Allow activating item by releasing the LMB or any that was down when the popup appeared.
-			// However, if button was not held when opening menu, do not allow release to activate item.
+		if (!b->is_pressed()) {
+			// Activate the item on release of either the left mouse button or
+			// any mouse button held down when the popup was opened.
+			// This allows for opening the popup and triggering an action in a single mouse click.
 			if (button_idx == MOUSE_BUTTON_LEFT || (initial_button_mask & (1 << (button_idx - 1)))) {
 				bool was_during_grabbed_click = during_grabbed_click;
 				during_grabbed_click = false;
@@ -397,15 +399,15 @@ void PopupMenu::_gui_input(const Ref<InputEvent> &p_event) {
 	Ref<InputEventMouseMotion> m = p_event;
 
 	if (m.is_valid()) {
-		if (!item_clickable_area.has_point(m->get_position())) {
-			return;
-		}
-
-		for (List<Rect2>::Element *E = autohide_areas.front(); E; E = E->next()) {
-			if (!Rect2(Point2(), get_size()).has_point(m->get_position()) && E->get().has_point(m->get_position())) {
+		for (const Rect2 &E : autohide_areas) {
+			if (!Rect2(Point2(), get_size()).has_point(m->get_position()) && E.has_point(m->get_position())) {
 				_close_pressed();
 				return;
 			}
+		}
+
+		if (!item_clickable_area.has_point(m->get_position())) {
+			return;
 		}
 
 		int over = _get_mouse_over(m->get_position());
@@ -635,7 +637,7 @@ void PopupMenu::_draw_items() {
 		}
 
 		// Accelerator / Shortcut
-		if (items[i].accel || (items[i].shortcut.is_valid() && items[i].shortcut->is_valid())) {
+		if (items[i].accel || (items[i].shortcut.is_valid() && items[i].shortcut->has_valid_event())) {
 			if (rtl) {
 				item_ofs.x = scroll_width + style->get_margin(SIDE_LEFT) + item_end_padding;
 			} else {
@@ -722,7 +724,7 @@ void PopupMenu::_notification(int p_what) {
 		case Control::NOTIFICATION_LAYOUT_DIRECTION_CHANGED:
 		case NOTIFICATION_TRANSLATION_CHANGED: {
 			for (int i = 0; i < items.size(); i++) {
-				items.write[i].xl_text = tr(items[i].text);
+				items.write[i].xl_text = atr(items[i].text);
 				items.write[i].dirty = true;
 				_shape_item(i);
 			}
@@ -747,12 +749,12 @@ void PopupMenu::_notification(int p_what) {
 		} break;
 		case NOTIFICATION_INTERNAL_PROCESS: {
 			//only used when using operating system windows
-			if (get_window_id() != DisplayServer::INVALID_WINDOW_ID && autohide_areas.size()) {
+			if (!is_embedded() && autohide_areas.size()) {
 				Point2 mouse_pos = DisplayServer::get_singleton()->mouse_get_position();
 				mouse_pos -= get_position();
 
-				for (List<Rect2>::Element *E = autohide_areas.front(); E; E = E->next()) {
-					if (!Rect2(Point2(), get_size()).has_point(mouse_pos) && E->get().has_point(mouse_pos)) {
+				for (const Rect2 &E : autohide_areas) {
+					if (!Rect2(Point2(), get_size()).has_point(mouse_pos) && E.has_point(mouse_pos)) {
 						_close_pressed();
 						return;
 					}
@@ -786,7 +788,7 @@ void PopupMenu::_notification(int p_what) {
 
 				set_process_internal(false);
 			} else {
-				if (get_window_id() != DisplayServer::INVALID_WINDOW_ID) {
+				if (!is_embedded()) {
 					set_process_internal(true);
 				}
 
@@ -807,7 +809,7 @@ void PopupMenu::_notification(int p_what) {
 
 #define ITEM_SETUP_WITH_ACCEL(p_label, p_id, p_accel) \
 	item.text = p_label;                              \
-	item.xl_text = tr(p_label);                       \
+	item.xl_text = atr(p_label);                      \
 	item.id = p_id == -1 ? items.size() : p_id;       \
 	item.accel = p_accel;
 
@@ -887,7 +889,7 @@ void PopupMenu::add_multistate_item(const String &p_label, int p_max_states, int
 	ERR_FAIL_COND_MSG(p_shortcut.is_null(), "Cannot add item with invalid Shortcut."); \
 	_ref_shortcut(p_shortcut);                                                         \
 	item.text = p_shortcut->get_name();                                                \
-	item.xl_text = tr(item.text);                                                      \
+	item.xl_text = atr(item.text);                                                     \
 	item.id = p_id == -1 ? items.size() : p_id;                                        \
 	item.shortcut = p_shortcut;                                                        \
 	item.shortcut_is_global = p_global;
@@ -956,7 +958,7 @@ void PopupMenu::add_icon_radio_check_shortcut(const Ref<Texture2D> &p_icon, cons
 void PopupMenu::add_submenu_item(const String &p_label, const String &p_submenu, int p_id) {
 	Item item;
 	item.text = p_label;
-	item.xl_text = tr(p_label);
+	item.xl_text = atr(p_label);
 	item.id = p_id == -1 ? items.size() : p_id;
 	item.submenu = p_submenu;
 	items.push_back(item);
@@ -973,7 +975,7 @@ void PopupMenu::add_submenu_item(const String &p_label, const String &p_submenu,
 void PopupMenu::set_item_text(int p_idx, const String &p_text) {
 	ERR_FAIL_INDEX(p_idx, items.size());
 	items.write[p_idx].text = p_text;
-	items.write[p_idx].xl_text = tr(p_text);
+	items.write[p_idx].xl_text = atr(p_text);
 	_shape_item(p_idx);
 
 	control->update();
@@ -1274,13 +1276,13 @@ int PopupMenu::get_item_count() const {
 }
 
 bool PopupMenu::activate_item_by_event(const Ref<InputEvent> &p_event, bool p_for_global_only) {
-	uint32_t code = 0;
+	Key code = KEY_NONE;
 	Ref<InputEventKey> k = p_event;
 
 	if (k.is_valid()) {
 		code = k->get_keycode();
-		if (code == 0) {
-			code = k->get_unicode();
+		if (code == KEY_NONE) {
+			code = (Key)k->get_unicode();
 		}
 		if (k->is_ctrl_pressed()) {
 			code |= KEY_MASK_CTRL;
@@ -1301,7 +1303,7 @@ bool PopupMenu::activate_item_by_event(const Ref<InputEvent> &p_event, bool p_fo
 			continue;
 		}
 
-		if (items[i].shortcut.is_valid() && items[i].shortcut->is_shortcut(p_event) && (items[i].shortcut_is_global || !p_for_global_only)) {
+		if (items[i].shortcut.is_valid() && items[i].shortcut->matches_event(p_event) && (items[i].shortcut_is_global || !p_for_global_only)) {
 			activate_item(i);
 			return true;
 		}
@@ -1402,7 +1404,7 @@ void PopupMenu::add_separator(const String &p_text, int p_id) {
 	sep.id = p_id;
 	if (p_text != String()) {
 		sep.text = p_text;
-		sep.xl_text = tr(p_text);
+		sep.xl_text = atr(p_text);
 	}
 	items.push_back(sep);
 	control->update();
@@ -1580,8 +1582,6 @@ void PopupMenu::take_mouse_focus() {
 }
 
 void PopupMenu::_bind_methods() {
-	ClassDB::bind_method(D_METHOD("_gui_input"), &PopupMenu::_gui_input);
-
 	ClassDB::bind_method(D_METHOD("add_item", "label", "id", "accel"), &PopupMenu::add_item, DEFVAL(-1), DEFVAL(0));
 	ClassDB::bind_method(D_METHOD("add_icon_item", "texture", "label", "id", "accel"), &PopupMenu::add_icon_item, DEFVAL(-1), DEFVAL(0));
 	ClassDB::bind_method(D_METHOD("add_check_item", "label", "id", "accel"), &PopupMenu::add_check_item, DEFVAL(-1), DEFVAL(0));
@@ -1690,7 +1690,7 @@ PopupMenu::PopupMenu() {
 	// Margin Container
 	margin_container = memnew(MarginContainer);
 	margin_container->set_anchors_and_offsets_preset(Control::PRESET_WIDE);
-	add_child(margin_container);
+	add_child(margin_container, false, INTERNAL_MODE_FRONT);
 	margin_container->connect("draw", callable_mp(this, &PopupMenu::_draw_background));
 
 	// Scroll Container
@@ -1704,22 +1704,22 @@ PopupMenu::PopupMenu() {
 	control->set_anchors_and_offsets_preset(Control::PRESET_WIDE);
 	control->set_h_size_flags(Control::SIZE_EXPAND_FILL);
 	control->set_v_size_flags(Control::SIZE_EXPAND_FILL);
-	scroll_container->add_child(control);
+	scroll_container->add_child(control, false, INTERNAL_MODE_FRONT);
 	control->connect("draw", callable_mp(this, &PopupMenu::_draw_items));
 
-	connect("window_input", callable_mp(this, &PopupMenu::_gui_input));
+	connect("window_input", callable_mp(this, &PopupMenu::gui_input));
 
 	submenu_timer = memnew(Timer);
 	submenu_timer->set_wait_time(0.3);
 	submenu_timer->set_one_shot(true);
 	submenu_timer->connect("timeout", callable_mp(this, &PopupMenu::_submenu_timeout));
-	add_child(submenu_timer);
+	add_child(submenu_timer, false, INTERNAL_MODE_FRONT);
 
 	minimum_lifetime_timer = memnew(Timer);
 	minimum_lifetime_timer->set_wait_time(0.3);
 	minimum_lifetime_timer->set_one_shot(true);
 	minimum_lifetime_timer->connect("timeout", callable_mp(this, &PopupMenu::_minimum_lifetime_timeout));
-	add_child(minimum_lifetime_timer);
+	add_child(minimum_lifetime_timer, false, INTERNAL_MODE_FRONT);
 }
 
 PopupMenu::~PopupMenu() {

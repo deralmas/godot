@@ -46,8 +46,8 @@ void Tween::start_tweeners() {
 		ERR_FAIL_MSG("Tween without commands, aborting.");
 	}
 
-	for (List<Ref<Tweener>>::Element *E = tweeners.write[current_step].front(); E; E = E->next()) {
-		E->get()->start();
+	for (Ref<Tweener> &tweener : tweeners.write[current_step]) {
+		tweener->start();
 	}
 }
 
@@ -140,6 +140,8 @@ bool Tween::is_valid() {
 }
 
 Ref<Tween> Tween::bind_node(Node *p_node) {
+	ERR_FAIL_NULL_V(p_node, this);
+
 	bound_node = p_node->get_instance_id();
 	is_bound = true;
 	return this;
@@ -253,11 +255,11 @@ bool Tween::step(float p_delta) {
 		float step_delta = rem_delta;
 		step_active = false;
 
-		for (List<Ref<Tweener>>::Element *E = tweeners.write[current_step].front(); E; E = E->next()) {
+		for (Ref<Tweener> &tweener : tweeners.write[current_step]) {
 			// Modified inside Tweener.step().
 			float temp_delta = rem_delta;
 			// Turns to true if any Tweener returns true (i.e. is still not finished).
-			step_active = E->get()->step(temp_delta) || step_active;
+			step_active = tweener->step(temp_delta) || step_active;
 			step_delta = MIN(temp_delta, rem_delta);
 		}
 

@@ -87,12 +87,12 @@ void InspectorDock::_menu_option(int p_option) {
 				List<PropertyInfo> props;
 				current->get_property_list(&props);
 				Map<RES, RES> duplicates;
-				for (List<PropertyInfo>::Element *E = props.front(); E; E = E->next()) {
-					if (!(E->get().usage & PROPERTY_USAGE_STORAGE)) {
+				for (const PropertyInfo &E : props) {
+					if (!(E.usage & PROPERTY_USAGE_STORAGE)) {
 						continue;
 					}
 
-					Variant v = current->get(E->get().name);
+					Variant v = current->get(E.name);
 					if (v.is_ref()) {
 						REF ref = v;
 						if (ref.is_valid()) {
@@ -103,8 +103,8 @@ void InspectorDock::_menu_option(int p_option) {
 								}
 								res = duplicates[res];
 
-								current->set(E->get().name, res);
-								editor->get_inspector()->update_property(E->get().name);
+								current->set(E.name, res);
+								editor->get_inspector()->update_property(E.name);
 							}
 						}
 					}
@@ -207,6 +207,12 @@ void InspectorDock::_paste_resource() {
 	if (r.is_valid()) {
 		editor->push_item(EditorSettings::get_singleton()->get_resource_clipboard().ptr(), String());
 	}
+}
+
+void InspectorDock::_prepare_resource_extra_popup() {
+	RES r = EditorSettings::get_singleton()->get_resource_clipboard();
+	PopupMenu *popup = resource_extra_button->get_popup();
+	popup->set_item_disabled(popup->get_item_index(RESOURCE_EDIT_CLIPBOARD), r.is_null());
 }
 
 void InspectorDock::_prepare_history() {
@@ -408,27 +414,26 @@ void InspectorDock::update(Object *p_object) {
 
 	current = p_object;
 
-	if (!p_object) {
-		object_menu->set_disabled(true);
-		warning->hide();
-		search->set_editable(false);
-		editor_path->clear_path();
-		return;
-	}
+	const bool is_object = p_object != nullptr;
+	const bool is_resource = is_object && p_object->is_class("Resource");
+	const bool is_node = is_object && p_object->is_class("Node");
 
-	bool is_resource = p_object->is_class("Resource");
-	bool is_node = p_object->is_class("Node");
-
-	object_menu->set_disabled(false);
-	search->set_editable(true);
-	editor_path->enable_path();
-
+	object_menu->set_disabled(!is_object);
+	search->set_editable(is_object);
 	resource_save_button->set_disabled(!is_resource);
-	open_docs_button->set_visible(is_resource || is_node);
+	open_docs_button->set_disabled(!is_resource && !is_node);
 
 	PopupMenu *resource_extra_popup = resource_extra_button->get_popup();
 	resource_extra_popup->set_item_disabled(resource_extra_popup->get_item_index(RESOURCE_COPY), !is_resource);
 	resource_extra_popup->set_item_disabled(resource_extra_popup->get_item_index(RESOURCE_MAKE_BUILT_IN), !is_resource);
+
+	if (!is_object) {
+		warning->hide();
+		editor_path->clear_path();
+		return;
+	}
+
+	editor_path->enable_path();
 
 	PopupMenu *p = object_menu->get_popup();
 
@@ -526,6 +531,7 @@ InspectorDock::InspectorDock(EditorNode *p_editor, EditorData &p_editor_data) {
 	resource_extra_button->set_icon(get_theme_icon(SNAME("GuiTabMenuHl"), SNAME("EditorIcons")));
 	resource_extra_button->set_tooltip(TTR("Extra resource options."));
 	general_options_hb->add_child(resource_extra_button);
+	resource_extra_button->connect("about_to_popup", callable_mp(this, &InspectorDock::_prepare_resource_extra_popup));
 	resource_extra_button->get_popup()->add_icon_shortcut(get_theme_icon(SNAME("ActionPaste"), SNAME("EditorIcons")), ED_SHORTCUT("property_editor/paste_resource", TTR("Edit Resource from Clipboard")), RESOURCE_EDIT_CLIPBOARD);
 	resource_extra_button->get_popup()->add_icon_shortcut(get_theme_icon(SNAME("ActionCopy"), SNAME("EditorIcons")), ED_SHORTCUT("property_editor/copy_resource", TTR("Copy Resource")), RESOURCE_COPY);
 	resource_extra_button->get_popup()->set_item_disabled(1, true);
@@ -575,7 +581,7 @@ InspectorDock::InspectorDock(EditorNode *p_editor, EditorData &p_editor_data) {
 
 	open_docs_button = memnew(Button);
 	open_docs_button->set_flat(true);
-	open_docs_button->set_visible(false);
+	open_docs_button->set_disabled(true);
 	open_docs_button->set_tooltip(TTR("Open documentation for this object."));
 	open_docs_button->set_icon(get_theme_icon(SNAME("HelpSearch"), SNAME("EditorIcons")));
 	open_docs_button->set_shortcut(ED_SHORTCUT("property_editor/open_help", TTR("Open Documentation")));

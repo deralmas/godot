@@ -33,8 +33,6 @@
 #include "collision_shape_3d.h"
 #include "core/core_string_names.h"
 #include "physics_body_3d.h"
-#include "scene/resources/material.h"
-#include "skeleton_3d.h"
 
 bool MeshInstance3D::_set(const StringName &p_name, const Variant &p_value) {
 	//this is not _too_ bad performance wise, really. it only arrives here if the property was not set anywhere else.
@@ -94,8 +92,8 @@ void MeshInstance3D::_get_property_list(List<PropertyInfo> *p_list) const {
 
 	ls.sort();
 
-	for (List<String>::Element *E = ls.front(); E; E = E->next()) {
-		p_list->push_back(PropertyInfo(Variant::FLOAT, E->get(), PROPERTY_HINT_RANGE, "-1,1,0.00001"));
+	for (const String &E : ls) {
+		p_list->push_back(PropertyInfo(Variant::FLOAT, E, PROPERTY_HINT_RANGE, "-1,1,0.00001"));
 	}
 
 	if (mesh.is_valid()) {
@@ -133,7 +131,7 @@ void MeshInstance3D::set_mesh(const Ref<Mesh> &p_mesh) {
 		set_base(RID());
 	}
 
-	update_gizmo();
+	update_gizmos();
 
 	notify_property_list_changed();
 }
@@ -356,7 +354,7 @@ Ref<Material> MeshInstance3D::get_active_material(int p_surface) const {
 void MeshInstance3D::_mesh_changed() {
 	ERR_FAIL_COND(mesh.is_null());
 	surface_override_materials.resize(mesh->get_surface_count());
-	update_gizmo();
+	update_gizmos();
 }
 
 void MeshInstance3D::create_debug_tangents() {

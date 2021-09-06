@@ -41,7 +41,7 @@ class RDAttachmentFormat;
 class RDSamplerState;
 class RDVertexAttribute;
 class RDShaderSource;
-class RDShaderBytecode;
+class RDShaderSPIRV;
 class RDUniforms;
 class RDPipelineRasterizationState;
 class RDPipelineMultisampleState;
@@ -105,14 +105,14 @@ public:
 		bool supports_multiview = false; // If true this device supports multiview options
 	};
 
-	typedef String (*ShaderGetCacheKeyFunction)(const Capabilities *p_capabilities);
-	typedef Vector<uint8_t> (*ShaderCompileFunction)(ShaderStage p_stage, const String &p_source_code, ShaderLanguage p_language, String *r_error, const Capabilities *p_capabilities);
+	typedef String (*ShaderSPIRVGetCacheKeyFunction)(const Capabilities *p_capabilities);
+	typedef Vector<uint8_t> (*ShaderCompileToSPIRVFunction)(ShaderStage p_stage, const String &p_source_code, ShaderLanguage p_language, String *r_error, const Capabilities *p_capabilities);
 	typedef Vector<uint8_t> (*ShaderCacheFunction)(ShaderStage p_stage, const String &p_source_code, ShaderLanguage p_language);
 
 private:
-	static ShaderCompileFunction compile_function;
+	static ShaderCompileToSPIRVFunction compile_to_spirv_function;
 	static ShaderCacheFunction cache_function;
-	static ShaderGetCacheKeyFunction get_cache_key_function;
+	static ShaderSPIRVGetCacheKeyFunction get_spirv_cache_key_function;
 
 	static RenderingDevice *singleton;
 
@@ -422,7 +422,7 @@ public:
 		TEXTURE_USAGE_CAN_UPDATE_BIT = (1 << 6),
 		TEXTURE_USAGE_CAN_COPY_FROM_BIT = (1 << 7),
 		TEXTURE_USAGE_CAN_COPY_TO_BIT = (1 << 8),
-		TEXTURE_USAGE_RESOLVE_ATTACHMENT_BIT = (1 << 9),
+		TEXTURE_USAGE_INPUT_ATTACHMENT_BIT = (1 << 9),
 	};
 
 	enum TextureSwizzle {
@@ -495,6 +495,7 @@ public:
 	virtual bool texture_is_format_supported_for_usage(DataFormat p_format, uint32_t p_usage) const = 0;
 	virtual bool texture_is_shared(RID p_texture) = 0;
 	virtual bool texture_is_valid(RID p_texture) = 0;
+	virtual Size2i texture_size(RID p_texture) = 0;
 
 	virtual Error texture_copy(RID p_from_texture, RID p_to_texture, const Vector3 &p_from, const Vector3 &p_to, const Vector3 &p_size, uint32_t p_src_mipmap, uint32_t p_dst_mipmap, uint32_t p_src_layer, uint32_t p_dst_layer, uint32_t p_post_barrier = BARRIER_MASK_ALL) = 0;
 	virtual Error texture_clear(RID p_texture, const Color &p_color, uint32_t p_base_mipmap, uint32_t p_mipmaps, uint32_t p_base_layer, uint32_t p_layers, uint32_t p_post_barrier = BARRIER_MASK_ALL) = 0;
@@ -651,24 +652,28 @@ public:
 
 	const Capabilities *get_device_capabilities() const { return &device_capabilities; };
 
-	virtual Vector<uint8_t> shader_compile_from_source(ShaderStage p_stage, const String &p_source_code, ShaderLanguage p_language = SHADER_LANGUAGE_GLSL, String *r_error = nullptr, bool p_allow_cache = true);
-	virtual String shader_get_cache_key() const;
+	virtual Vector<uint8_t> shader_compile_spirv_from_source(ShaderStage p_stage, const String &p_source_code, ShaderLanguage p_language = SHADER_LANGUAGE_GLSL, String *r_error = nullptr, bool p_allow_cache = true);
+	virtual String shader_get_spirv_cache_key() const;
 
-	static void shader_set_compile_function(ShaderCompileFunction p_function);
-	static void shader_set_cache_function(ShaderCacheFunction p_function);
-	static void shader_set_get_cache_key_function(ShaderGetCacheKeyFunction p_function);
+	static void shader_set_compile_to_spirv_function(ShaderCompileToSPIRVFunction p_function);
+	static void shader_set_spirv_cache_function(ShaderCacheFunction p_function);
+	static void shader_set_get_cache_key_function(ShaderSPIRVGetCacheKeyFunction p_function);
 
-	struct ShaderStageData {
+	struct ShaderStageSPIRVData {
 		ShaderStage shader_stage;
 		Vector<uint8_t> spir_v;
 
-		ShaderStageData() {
+		ShaderStageSPIRVData() {
 			shader_stage = SHADER_STAGE_VERTEX;
 		}
 	};
 
-	RID shader_create_from_bytecode(const Ref<RDShaderBytecode> &p_bytecode);
-	virtual RID shader_create(const Vector<ShaderStageData> &p_stages) = 0;
+	virtual String shader_get_binary_cache_key() const = 0;
+	virtual Vector<uint8_t> shader_compile_binary_from_spirv(const Vector<ShaderStageSPIRVData> &p_spirv, const String &p_shader_name = "") = 0;
+
+	virtual RID shader_create_from_spirv(const Vector<ShaderStageSPIRVData> &p_spirv, const String &p_shader_name = "");
+	virtual RID shader_create_from_bytecode(const Vector<uint8_t> &p_shader_binary) = 0;
+
 	virtual uint32_t shader_get_vertex_input_attribute_mask(RID p_shader) = 0;
 
 	/******************/
@@ -1061,6 +1066,7 @@ public:
 	virtual void draw_list_enable_scissor(DrawListID p_list, const Rect2 &p_rect) = 0;
 	virtual void draw_list_disable_scissor(DrawListID p_list) = 0;
 
+	virtual uint32_t draw_list_get_current_pass() = 0;
 	virtual DrawListID draw_list_switch_to_next_pass() = 0;
 	virtual Error draw_list_switch_to_next_pass_split(uint32_t p_splits, DrawListID *r_split_ids) = 0;
 
@@ -1194,7 +1200,9 @@ protected:
 	VertexFormatID _vertex_format_create(const TypedArray<RDVertexAttribute> &p_vertex_formats);
 	RID _vertex_array_create(uint32_t p_vertex_count, VertexFormatID p_vertex_format, const TypedArray<RID> &p_src_buffers);
 
-	Ref<RDShaderBytecode> _shader_compile_from_source(const Ref<RDShaderSource> &p_source, bool p_allow_cache = true);
+	Ref<RDShaderSPIRV> _shader_compile_spirv_from_source(const Ref<RDShaderSource> &p_source, bool p_allow_cache = true);
+	Vector<uint8_t> _shader_compile_binary_from_spirv(const Ref<RDShaderSPIRV> &p_bytecode, const String &p_shader_name = "");
+	RID _shader_create_from_spirv(const Ref<RDShaderSPIRV> &p_spirv, const String &p_shader_name = "");
 
 	RID _uniform_set_create(const Array &p_uniforms, RID p_shader, uint32_t p_shader_set);
 

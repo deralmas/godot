@@ -98,6 +98,7 @@ public:
 	StringName animation_started;
 
 	StringName pose_updated;
+	StringName bone_pose_changed;
 
 	StringName body_shape_entered;
 	StringName body_entered;
@@ -156,6 +157,7 @@ public:
 
 	StringName _spatial_editor_group;
 	StringName _request_gizmo;
+	StringName _clear_subgizmo_selection;
 
 	StringName offset;
 	StringName unit_offset;

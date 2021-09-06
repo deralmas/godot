@@ -72,13 +72,13 @@ void Shader::get_param_list(List<PropertyInfo> *p_params) const {
 	params_cache.clear();
 	params_cache_dirty = false;
 
-	for (List<PropertyInfo>::Element *E = local.front(); E; E = E->next()) {
-		PropertyInfo pi = E->get();
+	for (PropertyInfo &pi : local) {
 		if (default_textures.has(pi.name)) { //do not show default textures
 			continue;
 		}
+		String original_name = pi.name;
 		pi.name = "shader_param/" + pi.name;
-		params_cache[pi.name] = E->get().name;
+		params_cache[pi.name] = original_name;
 		if (p_params) {
 			//small little hack
 			if (pi.type == Variant::RID) {

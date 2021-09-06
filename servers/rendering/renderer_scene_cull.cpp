@@ -1259,7 +1259,7 @@ void RendererSceneCull::_update_instance_visibility_depth(Instance *p_instance) 
 	}
 
 	if (cycle_detected) {
-		ERR_PRINT("Cycle detected in the visibility dependecies tree.");
+		ERR_PRINT("Cycle detected in the visibility dependencies tree.");
 		for (Set<Instance *>::Element *E = traversed_nodes.front(); E; E = E->next()) {
 			Instance *instance = E->get();
 			InstanceGeometryData *geom = static_cast<InstanceGeometryData *>(instance->base_data);
@@ -1866,7 +1866,7 @@ void RendererSceneCull::_update_instance_lightmap_captures(Instance *p_instance)
 		//rotate it
 		Basis rot = lightmap->transform.basis.orthonormalized();
 		for (int i = 0; i < 3; i++) {
-			float csh[9];
+			real_t csh[9];
 			for (int j = 0; j < 9; j++) {
 				csh[j] = sh[j][i];
 			}
@@ -1878,7 +1878,7 @@ void RendererSceneCull::_update_instance_lightmap_captures(Instance *p_instance)
 
 		Vector3 inner_pos = ((lm_pos - bounds.position) / bounds.size) * 2.0 - Vector3(1.0, 1.0, 1.0);
 
-		float blend = MAX(inner_pos.x, MAX(inner_pos.y, inner_pos.z));
+		real_t blend = MAX(inner_pos.x, MAX(inner_pos.y, inner_pos.z));
 		//make blend more rounded
 		blend = Math::lerp(inner_pos.length(), blend, blend);
 		blend *= blend;
@@ -1955,10 +1955,6 @@ void RendererSceneCull::_light_instance_setup_directional_shadow(int p_shadow_in
 
 	bool overlap = RSG::storage->light_directional_get_blend_splits(p_instance->base);
 
-	real_t first_radius = 0.0;
-
-	real_t min_distance_bias_scale = distances[1];
-
 	cull.shadow_count = p_shadow_index + 1;
 	cull.shadows[p_shadow_index].cascade_count = splits;
 	cull.shadows[p_shadow_index].light_instance = light->instance;
@@ -2006,8 +2002,8 @@ void RendererSceneCull::_light_instance_setup_directional_shadow(int p_shadow_in
 		real_t z_min_cam = 0.f;
 		//real_t z_max_cam = 0.f;
 
-		real_t bias_scale = 1.0;
-		real_t aspect_bias_scale = 1.0;
+		//real_t bias_scale = 1.0;
+		//real_t aspect_bias_scale = 1.0;
 
 		//used for culling
 
@@ -2061,12 +2057,6 @@ void RendererSceneCull::_light_instance_setup_directional_shadow(int p_shadow_in
 
 			radius *= texture_size / (texture_size - 2.0); //add a texel by each side
 
-			if (i == 0) {
-				first_radius = radius;
-			} else {
-				bias_scale = radius / first_radius;
-			}
-
 			z_min_cam = z_vec.dot(center) - radius;
 
 			{
@@ -2110,64 +2100,7 @@ void RendererSceneCull::_light_instance_setup_directional_shadow(int p_shadow_in
 
 		// a pre pass will need to be needed to determine the actual z-near to be used
 
-		if (pancake_size > 0) {
-			z_max = z_vec.dot(center) + radius + pancake_size;
-		}
-
-		if (aspect != 1.0) {
-			// if the aspect is different, then the radius will become larger.
-			// if this happens, then bias needs to be adjusted too, as depth will increase
-			// to do this, compare the depth of one that would have resulted from a square frustum
-
-			CameraMatrix camera_matrix_square;
-			if (p_cam_orthogonal) {
-				Vector2 vp_he = camera_matrix.get_viewport_half_extents();
-				if (p_cam_vaspect) {
-					camera_matrix_square.set_orthogonal(vp_he.x * 2.0, 1.0, distances[(i == 0 || !overlap) ? i : i - 1], distances[i + 1], true);
-				} else {
-					camera_matrix_square.set_orthogonal(vp_he.y * 2.0, 1.0, distances[(i == 0 || !overlap) ? i : i - 1], distances[i + 1], false);
-				}
-			} else {
-				Vector2 vp_he = camera_matrix.get_viewport_half_extents();
-				if (p_cam_vaspect) {
-					camera_matrix_square.set_frustum(vp_he.x * 2.0, 1.0, Vector2(), distances[(i == 0 || !overlap) ? i : i - 1], distances[i + 1], true);
-				} else {
-					camera_matrix_square.set_frustum(vp_he.y * 2.0, 1.0, Vector2(), distances[(i == 0 || !overlap) ? i : i - 1], distances[i + 1], false);
-				}
-			}
-
-			Vector3 endpoints_square[8]; // frustum plane endpoints
-			res = camera_matrix_square.get_endpoints(p_cam_transform, endpoints_square);
-			ERR_CONTINUE(!res);
-			Vector3 center_square;
-
-			for (int j = 0; j < 8; j++) {
-				center_square += endpoints_square[j];
-			}
-
-			center_square /= 8.0;
-
-			real_t radius_square = 0;
-
-			for (int j = 0; j < 8; j++) {
-				real_t d = center_square.distance_to(endpoints_square[j]);
-				if (d > radius_square) {
-					radius_square = d;
-				}
-			}
-
-			radius_square *= texture_size / (texture_size - 2.0); //add a texel by each side
-
-			float z_max_square = z_vec.dot(center_square) + radius_square + pancake_size;
-
-			real_t z_min_cam_square = z_vec.dot(center_square) - radius_square;
-
-			aspect_bias_scale = (z_max - z_min_cam) / (z_max_square - z_min_cam_square);
-
-			// this is not entirely perfect, because the cull-adjusted z-max may be different
-			// but at least it's warranted that it results in a greater bias, so no acne should be present either way.
-			// pancaking also helps with this.
-		}
+		z_max = z_vec.dot(center) + radius + pancake_size;
 
 		{
 			CameraMatrix ortho_camera;
@@ -2188,7 +2121,7 @@ void RendererSceneCull::_light_instance_setup_directional_shadow(int p_shadow_in
 			cull.shadows[p_shadow_index].cascades[i].zfar = z_max - z_min_cam;
 			cull.shadows[p_shadow_index].cascades[i].split = distances[i + 1];
 			cull.shadows[p_shadow_index].cascades[i].shadow_texel_size = radius * 2.0 / texture_size;
-			cull.shadows[p_shadow_index].cascades[i].bias_scale = bias_scale * aspect_bias_scale * min_distance_bias_scale;
+			cull.shadows[p_shadow_index].cascades[i].bias_scale = (z_max - z_min_cam);
 			cull.shadows[p_shadow_index].cascades[i].range_begin = z_max;
 			cull.shadows[p_shadow_index].cascades[i].uv_scale = uv_scale;
 		}
@@ -2247,8 +2180,6 @@ bool RendererSceneCull::_light_instance_update_shadow(Instance *p_instance, cons
 
 					p_scenario->indexers[Scenario::INDEXER_GEOMETRY].convex_query(planes.ptr(), planes.size(), points.ptr(), points.size(), cull_convex);
 
-					Plane near_plane(light_transform.origin, light_transform.basis.get_axis(2) * z);
-
 					RendererSceneRender::RenderShadowData &shadow_data = render_shadow_data[max_shadows_used++];
 
 					for (int j = 0; j < (int)instance_shadow_cull_result.size(); j++) {
@@ -2282,7 +2213,7 @@ bool RendererSceneCull::_light_instance_update_shadow(Instance *p_instance, cons
 
 				real_t radius = RSG::storage->light_get_param(p_instance->base, RS::LIGHT_PARAM_RANGE);
 				CameraMatrix cm;
-				cm.set_perspective(90, 1, 0.01, radius);
+				cm.set_perspective(90, 1, radius * 0.005f, radius);
 
 				for (int i = 0; i < 6; i++) {
 					RENDER_TIMESTAMP("Culling Shadow Cube side" + itos(i));
@@ -2368,7 +2299,7 @@ bool RendererSceneCull::_light_instance_update_shadow(Instance *p_instance, cons
 			real_t angle = RSG::storage->light_get_param(p_instance->base, RS::LIGHT_PARAM_SPOT_ANGLE);
 
 			CameraMatrix cm;
-			cm.set_perspective(angle * 2.0, 1.0, 0.01, radius);
+			cm.set_perspective(angle * 2.0, 1.0, 0.005f * radius, radius);
 
 			Vector<Plane> planes = cm.get_projection_planes(light_transform);
 
@@ -2861,12 +2792,9 @@ void RendererSceneCull::_render_scene(const RendererSceneRender::CameraData *p_c
 
 	//rasterizer->set_camera(p_camera_data->main_transform, p_camera_data.main_projection, p_camera_data.is_ortogonal);
 
-	Vector<Plane> planes = p_camera_data->main_projection.get_projection_planes(p_camera_data->main_transform);
-
-	Plane near_plane(p_camera_data->main_transform.origin, -p_camera_data->main_transform.basis.get_axis(2).normalized());
-
 	/* STEP 2 - CULL */
 
+	Vector<Plane> planes = p_camera_data->main_projection.get_projection_planes(p_camera_data->main_transform);
 	cull.frustum = Frustum(planes);
 
 	Vector<RID> directional_lights;
@@ -2876,8 +2804,8 @@ void RendererSceneCull::_render_scene(const RendererSceneRender::CameraData *p_c
 
 		Vector<Instance *> lights_with_shadow;
 
-		for (List<Instance *>::Element *E = scenario->directional_lights.front(); E; E = E->next()) {
-			if (!E->get()->visible) {
+		for (Instance *E : scenario->directional_lights) {
+			if (!E->visible) {
 				continue;
 			}
 
@@ -2885,13 +2813,13 @@ void RendererSceneCull::_render_scene(const RendererSceneRender::CameraData *p_c
 				break;
 			}
 
-			InstanceLightData *light = static_cast<InstanceLightData *>(E->get()->base_data);
+			InstanceLightData *light = static_cast<InstanceLightData *>(E->base_data);
 
 			//check shadow..
 
 			if (light) {
-				if (p_using_shadows && p_shadow_atlas.is_valid() && RSG::storage->light_has_shadow(E->get()->base) && !(RSG::storage->light_get_type(E->get()->base) == RS::LIGHT_DIRECTIONAL && RSG::storage->light_directional_is_sky_only(E->get()->base))) {
-					lights_with_shadow.push_back(E->get());
+				if (p_using_shadows && p_shadow_atlas.is_valid() && RSG::storage->light_has_shadow(E->base) && !(RSG::storage->light_get_type(E->base) == RS::LIGHT_DIRECTIONAL && RSG::storage->light_directional_is_sky_only(E->base))) {
+					lights_with_shadow.push_back(E);
 				}
 				//add to list
 				directional_lights.push_back(light->instance);
@@ -3391,8 +3319,7 @@ void RendererSceneCull::render_probes() {
 				idx++;
 			}
 
-			for (List<Instance *>::Element *E = probe->owner->scenario->directional_lights.front(); E; E = E->next()) {
-				Instance *instance = E->get();
+			for (const Instance *instance : probe->owner->scenario->directional_lights) {
 				InstanceLightData *instance_light = (InstanceLightData *)instance->base_data;
 				if (!instance->visible) {
 					continue;
@@ -3465,8 +3392,7 @@ void RendererSceneCull::render_probes() {
 
 					idx++;
 				}
-				for (List<Instance *>::Element *E = probe->owner->scenario->directional_lights.front(); E; E = E->next()) {
-					Instance *instance = E->get();
+				for (const Instance *instance : probe->owner->scenario->directional_lights) {
 					InstanceLightData *instance_light = (InstanceLightData *)instance->base_data;
 					if (!instance->visible) {
 						continue;
@@ -3573,26 +3499,26 @@ void RendererSceneCull::render_particle_colliders() {
 void RendererSceneCull::_update_instance_shader_parameters_from_material(Map<StringName, Instance::InstanceShaderParameter> &isparams, const Map<StringName, Instance::InstanceShaderParameter> &existing_isparams, RID p_material) {
 	List<RendererStorage::InstanceShaderParam> plist;
 	RSG::storage->material_get_instance_shader_parameters(p_material, &plist);
-	for (List<RendererStorage::InstanceShaderParam>::Element *E = plist.front(); E; E = E->next()) {
-		StringName name = E->get().info.name;
+	for (const RendererStorage::InstanceShaderParam &E : plist) {
+		StringName name = E.info.name;
 		if (isparams.has(name)) {
-			if (isparams[name].info.type != E->get().info.type) {
-				WARN_PRINT("More than one material in instance export the same instance shader uniform '" + E->get().info.name + "', but they do it with different data types. Only the first one (in order) will display correctly.");
+			if (isparams[name].info.type != E.info.type) {
+				WARN_PRINT("More than one material in instance export the same instance shader uniform '" + E.info.name + "', but they do it with different data types. Only the first one (in order) will display correctly.");
 			}
-			if (isparams[name].index != E->get().index) {
-				WARN_PRINT("More than one material in instance export the same instance shader uniform '" + E->get().info.name + "', but they do it with different indices. Only the first one (in order) will display correctly.");
+			if (isparams[name].index != E.index) {
+				WARN_PRINT("More than one material in instance export the same instance shader uniform '" + E.info.name + "', but they do it with different indices. Only the first one (in order) will display correctly.");
 			}
 			continue; //first one found always has priority
 		}
 
 		Instance::InstanceShaderParameter isp;
-		isp.index = E->get().index;
-		isp.info = E->get().info;
-		isp.default_value = E->get().default_value;
+		isp.index = E.index;
+		isp.info = E.info;
+		isp.default_value = E.default_value;
 		if (existing_isparams.has(name)) {
 			isp.value = existing_isparams[name].value;
 		} else {
-			isp.value = E->get().default_value;
+			isp.value = E.default_value;
 		}
 		isparams[name] = isp;
 	}

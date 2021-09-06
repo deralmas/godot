@@ -162,12 +162,14 @@ Node *SceneState::instantiate(GenEditState p_edit_state) const {
 				}
 				WARN_PRINT(vformat("Node %s of type %s cannot be created. A placeholder will be created instead.", snames[n.name], snames[n.type]).ascii().get_data());
 				if (n.parent >= 0 && n.parent < nc && ret_nodes[n.parent]) {
-					if (Object::cast_to<Node3D>(ret_nodes[n.parent])) {
-						obj = memnew(Node3D);
-					} else if (Object::cast_to<Control>(ret_nodes[n.parent])) {
+					if (Object::cast_to<Control>(ret_nodes[n.parent])) {
 						obj = memnew(Control);
 					} else if (Object::cast_to<Node2D>(ret_nodes[n.parent])) {
 						obj = memnew(Node2D);
+#ifndef _3D_DISABLED
+					} else if (Object::cast_to<Node3D>(ret_nodes[n.parent])) {
+						obj = memnew(Node3D);
+#endif // _3D_DISABLED
 					}
 				}
 
@@ -206,8 +208,8 @@ Node *SceneState::instantiate(GenEditState p_edit_state) const {
 						node->set(snames[nprops[j].name], props[nprops[j].value], &valid);
 
 						//restore old state for new script, if exists
-						for (List<Pair<StringName, Variant>>::Element *E = old_state.front(); E; E = E->next()) {
-							node->set(E->get().first, E->get().second);
+						for (const Pair<StringName, Variant> &E : old_state) {
+							node->set(E.first, E.second);
 						}
 					} else {
 						Variant value = props[nprops[j].value];
@@ -377,10 +379,17 @@ Error SceneState::_parse_node(Node *p_owner, Node *p_node, int p_parent_idx, Map
 		return OK;
 	}
 
+	bool is_editable_instance = false;
+
 	// save the child instantiated scenes that are chosen as editable, so they can be restored
 	// upon load back
 	if (p_node != p_owner && p_node->get_filename() != String() && p_owner->is_editable_instance(p_node)) {
 		editable_instances.push_back(p_owner->get_path_to(p_node));
+		// Node is the root of an editable instance.
+		is_editable_instance = true;
+	} else if (p_node->get_owner() && p_node->get_owner() != p_owner && p_owner->is_editable_instance(p_node->get_owner())) {
+		// Node is part of an editable instance.
+		is_editable_instance = true;
 	}
 
 	NodeData nd;
@@ -477,13 +486,13 @@ Error SceneState::_parse_node(Node *p_owner, Node *p_node, int p_parent_idx, Map
 		script->update_exports();
 	}
 
-	for (List<PropertyInfo>::Element *E = plist.front(); E; E = E->next()) {
-		if (!(E->get().usage & PROPERTY_USAGE_STORAGE)) {
+	for (const PropertyInfo &E : plist) {
+		if (!(E.usage & PROPERTY_USAGE_STORAGE)) {
 			continue;
 		}
 
-		String name = E->get().name;
-		Variant value = p_node->get(E->get().name);
+		String name = E.name;
+		Variant value = p_node->get(E.name);
 
 		bool isdefault = false;
 		Variant default_value = ClassDB::class_get_default_property_value(type, name);
@@ -497,7 +506,7 @@ Error SceneState::_parse_node(Node *p_owner, Node *p_node, int p_parent_idx, Map
 		}
 		// the version above makes more sense, because it does not rely on placeholder or usage flag
 		// in the script, just the default value function.
-		// if (E->get().usage & PROPERTY_USAGE_SCRIPT_DEFAULT_VALUE) {
+		// if (E.usage & PROPERTY_USAGE_SCRIPT_DEFAULT_VALUE) {
 		// 	isdefault = true; //is script default value
 		// }
 
@@ -507,7 +516,7 @@ Error SceneState::_parse_node(Node *p_owner, Node *p_node, int p_parent_idx, Map
 			// only save what has been changed
 			// only save changed properties in instance
 
-			if ((E->get().usage & PROPERTY_USAGE_NO_INSTANCE_STATE) || E->get().name == "__meta__") {
+			if ((E.usage & PROPERTY_USAGE_NO_INSTANCE_STATE) || E.name == "__meta__") {
 				//property has requested that no instance state is saved, sorry
 				//also, meta won't be overridden or saved
 				continue;
@@ -520,7 +529,7 @@ Error SceneState::_parse_node(Node *p_owner, Node *p_node, int p_parent_idx, Map
 				//check all levels of pack to see if the property exists somewhere
 				const PackState &ps = F->get();
 
-				original = ps.state->get_property_value(ps.node, E->get().name, exists);
+				original = ps.state->get_property_value(ps.node, E.name, exists);
 				if (exists) {
 					break;
 				}
@@ -565,9 +574,7 @@ Error SceneState::_parse_node(Node *p_owner, Node *p_node, int p_parent_idx, Map
 
 	List<Node::GroupInfo> groups;
 	p_node->get_groups(&groups);
-	for (List<Node::GroupInfo>::Element *E = groups.front(); E; E = E->next()) {
-		Node::GroupInfo &gi = E->get();
-
+	for (const Node::GroupInfo &gi : groups) {
 		if (!gi.persistent) {
 			continue;
 		}
@@ -577,9 +584,9 @@ Error SceneState::_parse_node(Node *p_owner, Node *p_node, int p_parent_idx, Map
 		*/
 
 		bool skip = false;
-		for (List<PackState>::Element *F = pack_state_stack.front(); F; F = F->next()) {
+		for (const PackState &F : pack_state_stack) {
 			//check all levels of pack to see if the group was added somewhere
-			const PackState &ps = F->get();
+			const PackState &ps = F;
 			if (ps.state->is_node_in_group(ps.node, gi.name)) {
 				skip = true;
 				break;
@@ -610,7 +617,7 @@ Error SceneState::_parse_node(Node *p_owner, Node *p_node, int p_parent_idx, Map
 
 	// Save the right type. If this node was created by an instance
 	// then flag that the node should not be created but reused
-	if (pack_state_stack.is_empty()) {
+	if (pack_state_stack.is_empty() && !is_editable_instance) {
 		//this node is not part of an instancing process, so save the type
 		nd.type = _nm_get_string(p_node->get_class(), name_map);
 	} else {
@@ -679,14 +686,14 @@ Error SceneState::_parse_connections(Node *p_owner, Node *p_node, Map<StringName
 	//ERR_FAIL_COND_V( !node_map.has(p_node), ERR_BUG);
 	//NodeData &nd = nodes[node_map[p_node]];
 
-	for (List<MethodInfo>::Element *E = _signals.front(); E; E = E->next()) {
+	for (const MethodInfo &E : _signals) {
 		List<Node::Connection> conns;
-		p_node->get_signal_connection_list(E->get().name, &conns);
+		p_node->get_signal_connection_list(E.name, &conns);
 
 		conns.sort();
 
-		for (List<Node::Connection>::Element *F = conns.front(); F; F = F->next()) {
-			const Node::Connection &c = F->get();
+		for (const Node::Connection &F : conns) {
+			const Node::Connection &c = F;
 
 			if (!(c.flags & CONNECT_PERSIST)) { //only persistent connections get saved
 				continue;

@@ -41,7 +41,11 @@
 #include "vulkan_context_iphone.h"
 
 #import <QuartzCore/CAMetalLayer.h>
-#include <vulkan/vulkan_metal.h>
+#ifdef USE_VOLK
+#include <volk.h>
+#else
+#include <vulkan/vulkan.h>
+#endif
 #endif
 
 class DisplayServerIPhone : public DisplayServer {
@@ -105,7 +109,7 @@ public:
 
 	// MARK: Keyboard
 
-	void key(uint32_t p_key, bool p_pressed);
+	void key(Key p_key, bool p_pressed);
 
 	// MARK: Motion
 
@@ -118,8 +122,6 @@ public:
 
 	virtual bool has_feature(Feature p_feature) const override;
 	virtual String get_name() const override;
-
-	virtual void alert(const String &p_alert, const String &p_title = "ALERT!") override;
 
 	virtual int get_screen_count() const override;
 	virtual Point2i screen_get_position(int p_screen = SCREEN_OF_MAIN_WINDOW) const override;

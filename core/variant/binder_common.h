@@ -33,6 +33,7 @@
 
 #include "core/input/input_enums.h"
 #include "core/object/object.h"
+#include "core/os/keyboard.h"
 #include "core/templates/list.h"
 #include "core/templates/simple_type.h"
 #include "core/typedefs.h"
@@ -69,17 +70,17 @@ struct VariantCaster<const T &> {
 	template <>                                                              \
 	struct VariantCaster<m_enum> {                                           \
 		static _FORCE_INLINE_ m_enum cast(const Variant &p_variant) {        \
-			return (m_enum)p_variant.operator int();                         \
+			return (m_enum)p_variant.operator int64_t();                     \
 		}                                                                    \
 	};                                                                       \
 	template <>                                                              \
 	struct PtrToArg<m_enum> {                                                \
 		_FORCE_INLINE_ static m_enum convert(const void *p_ptr) {            \
-			return m_enum(*reinterpret_cast<const int *>(p_ptr));            \
+			return m_enum(*reinterpret_cast<const int64_t *>(p_ptr));        \
 		}                                                                    \
 		typedef int64_t EncodeT;                                             \
 		_FORCE_INLINE_ static void encode(m_enum p_val, const void *p_ptr) { \
-			*(int *)p_ptr = p_val;                                           \
+			*(int64_t *)p_ptr = p_val;                                       \
 		}                                                                    \
 	};
 
@@ -96,11 +97,14 @@ VARIANT_ENUM_CAST(HatDir);
 VARIANT_ENUM_CAST(HatMask);
 VARIANT_ENUM_CAST(JoyAxis);
 VARIANT_ENUM_CAST(JoyButton);
+VARIANT_ENUM_CAST(Key);
+VARIANT_ENUM_CAST(KeyModifierMask);
 VARIANT_ENUM_CAST(MIDIMessage);
 VARIANT_ENUM_CAST(MouseButton);
 VARIANT_ENUM_CAST(Orientation);
 VARIANT_ENUM_CAST(HAlign);
 VARIANT_ENUM_CAST(VAlign);
+VARIANT_ENUM_CAST(InlineAlign);
 VARIANT_ENUM_CAST(PropertyHint);
 VARIANT_ENUM_CAST(PropertyUsageFlags);
 VARIANT_ENUM_CAST(Variant::Type);

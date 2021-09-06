@@ -30,9 +30,8 @@
 
 #include "voxel_gi.h"
 
-#include "core/os/os.h"
-
 #include "mesh_instance_3d.h"
+#include "multimesh_instance_3d.h"
 #include "voxelizer.h"
 
 void VoxelGIData::_set_data(const Dictionary &p_data) {
@@ -265,7 +264,7 @@ Ref<VoxelGIData> VoxelGI::get_probe_data() const {
 void VoxelGI::set_subdiv(Subdiv p_subdiv) {
 	ERR_FAIL_INDEX(p_subdiv, SUBDIV_MAX);
 	subdiv = p_subdiv;
-	update_gizmo();
+	update_gizmos();
 }
 
 VoxelGI::Subdiv VoxelGI::get_subdiv() const {
@@ -274,7 +273,7 @@ VoxelGI::Subdiv VoxelGI::get_subdiv() const {
 
 void VoxelGI::set_extents(const Vector3 &p_extents) {
 	extents = p_extents;
-	update_gizmo();
+	update_gizmos();
 }
 
 Vector3 VoxelGI::get_extents() const {
@@ -384,14 +383,14 @@ void VoxelGI::bake(Node *p_from_node, bool p_create_visual_debug) {
 
 	int pmc = 0;
 
-	for (List<PlotMesh>::Element *E = mesh_list.front(); E; E = E->next()) {
+	for (PlotMesh &E : mesh_list) {
 		if (bake_step_function) {
 			bake_step_function(pmc, RTR("Plotting Meshes") + " " + itos(pmc) + "/" + itos(mesh_list.size()));
 		}
 
 		pmc++;
 
-		baker.plot_mesh(E->get().local_xform, E->get().mesh, E->get().instance_materials, E->get().override_material);
+		baker.plot_mesh(E.local_xform, E.mesh, E.instance_materials, E.override_material);
 	}
 	if (bake_step_function) {
 		bake_step_function(pmc++, RTR("Finishing Plot"));

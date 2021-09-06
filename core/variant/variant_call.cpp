@@ -750,6 +750,42 @@ struct _VariantCall {
 		return 0;
 	}
 
+	static PackedInt32Array func_PackedByteArray_decode_s32_array(PackedByteArray *p_instance) {
+		uint64_t size = p_instance->size();
+		const uint8_t *r = p_instance->ptr();
+		PackedInt32Array dest;
+		dest.resize(size / sizeof(int32_t));
+		memcpy(dest.ptrw(), r, size);
+		return dest;
+	}
+
+	static PackedInt64Array func_PackedByteArray_decode_s64_array(PackedByteArray *p_instance) {
+		uint64_t size = p_instance->size();
+		const uint8_t *r = p_instance->ptr();
+		PackedInt64Array dest;
+		dest.resize(size / sizeof(int64_t));
+		memcpy(dest.ptrw(), r, size);
+		return dest;
+	}
+
+	static PackedFloat32Array func_PackedByteArray_decode_float_array(PackedByteArray *p_instance) {
+		uint64_t size = p_instance->size();
+		const uint8_t *r = p_instance->ptr();
+		PackedFloat32Array dest;
+		dest.resize(size / sizeof(float));
+		memcpy(dest.ptrw(), r, size);
+		return dest;
+	}
+
+	static PackedFloat64Array func_PackedByteArray_decode_double_array(PackedByteArray *p_instance) {
+		uint64_t size = p_instance->size();
+		const uint8_t *r = p_instance->ptr();
+		PackedFloat64Array dest;
+		dest.resize(size / sizeof(double));
+		memcpy(dest.ptrw(), r, size);
+		return dest;
+	}
+
 	static void func_PackedByteArray_encode_u8(PackedByteArray *p_instance, int64_t p_offset, int64_t p_value) {
 		uint64_t size = p_instance->size();
 		ERR_FAIL_COND(p_offset < 0 || p_offset > int64_t(size) - 1);
@@ -1088,8 +1124,8 @@ bool Variant::has_builtin_method_return_value(Variant::Type p_type, const String
 
 void Variant::get_builtin_method_list(Variant::Type p_type, List<StringName> *p_list) {
 	ERR_FAIL_INDEX(p_type, Variant::VARIANT_MAX);
-	for (List<StringName>::Element *E = builtin_method_names[p_type].front(); E; E = E->next()) {
-		p_list->push_back(E->get());
+	for (const StringName &E : builtin_method_names[p_type]) {
+		p_list->push_back(E);
 	}
 }
 
@@ -1152,12 +1188,12 @@ void Variant::get_method_list(List<MethodInfo> *p_list) const {
 			obj->get_method_list(p_list);
 		}
 	} else {
-		for (List<StringName>::Element *E = builtin_method_names[type].front(); E; E = E->next()) {
-			const VariantBuiltInMethodInfo *method = builtin_method_info[type].lookup_ptr(E->get());
+		for (const StringName &E : builtin_method_names[type]) {
+			const VariantBuiltInMethodInfo *method = builtin_method_info[type].lookup_ptr(E);
 			ERR_CONTINUE(!method);
 
 			MethodInfo mi;
-			mi.name = E->get();
+			mi.name = E;
 
 			//return type
 			if (method->has_return_type) {
@@ -1385,7 +1421,8 @@ static void _register_variant_builtin_methods() {
 	//bind_method(String, humanize_size, sarray("size"), varray());
 
 	bind_method(String, is_absolute_path, sarray(), varray());
-	bind_method(String, is_rel_path, sarray(), varray());
+	bind_method(String, is_relative_path, sarray(), varray());
+	bind_method(String, simplify_path, sarray(), varray());
 	bind_method(String, get_base_dir, sarray(), varray());
 	bind_method(String, get_file, sarray(), varray());
 	bind_method(String, xml_escape, sarray("escape_quotes"), varray(false));
@@ -1464,6 +1501,8 @@ static void _register_variant_builtin_methods() {
 	bind_method(Vector2, sign, sarray(), varray());
 	bind_method(Vector2, clamp, sarray("min", "max"), varray());
 	bind_method(Vector2, snapped, sarray("step"), varray());
+
+	bind_static_method(Vector2, from_angle, sarray("angle"), varray());
 
 	/* Vector2i */
 
@@ -1673,7 +1712,7 @@ static void _register_variant_builtin_methods() {
 	bind_method(Transform2D, interpolate_with, sarray("xform", "weight"), varray());
 	bind_method(Transform2D, is_equal_approx, sarray("xform"), varray());
 	bind_method(Transform2D, set_rotation, sarray("rotation"), varray());
-	bind_method(Transform2D, looking_at, sarray("target"), varray(Transform2D()));
+	bind_method(Transform2D, looking_at, sarray("target"), varray(Vector2()));
 
 	/* Basis */
 
@@ -1692,6 +1731,7 @@ static void _register_variant_builtin_methods() {
 	bind_method(Basis, slerp, sarray("to", "weight"), varray());
 	bind_method(Basis, is_equal_approx, sarray("b"), varray());
 	bind_method(Basis, get_rotation_quaternion, sarray(), varray());
+	bind_static_method(Basis, looking_at, sarray("target", "up"), varray(Vector3(0, 1, 0)));
 
 	/* AABB */
 
@@ -1769,6 +1809,7 @@ static void _register_variant_builtin_methods() {
 	bind_method(Array, has, sarray("value"), varray());
 	bind_method(Array, pop_back, sarray(), varray());
 	bind_method(Array, pop_front, sarray(), varray());
+	bind_method(Array, pop_at, sarray("position"), varray());
 	bind_method(Array, sort, sarray(), varray());
 	bind_method(Array, sort_custom, sarray("func"), varray());
 	bind_method(Array, shuffle, sarray(), varray());
@@ -1823,6 +1864,11 @@ static void _register_variant_builtin_methods() {
 	bind_function(PackedByteArray, has_encoded_var, _VariantCall::func_PackedByteArray_has_encoded_var, sarray("byte_offset", "allow_objects"), varray(false));
 	bind_function(PackedByteArray, decode_var, _VariantCall::func_PackedByteArray_decode_var, sarray("byte_offset", "allow_objects"), varray(false));
 	bind_function(PackedByteArray, decode_var_size, _VariantCall::func_PackedByteArray_decode_var_size, sarray("byte_offset", "allow_objects"), varray(false));
+
+	bind_function(PackedByteArray, to_int32_array, _VariantCall::func_PackedByteArray_decode_s32_array, sarray(), varray());
+	bind_function(PackedByteArray, to_int64_array, _VariantCall::func_PackedByteArray_decode_s64_array, sarray(), varray());
+	bind_function(PackedByteArray, to_float32_array, _VariantCall::func_PackedByteArray_decode_float_array, sarray(), varray());
+	bind_function(PackedByteArray, to_float64_array, _VariantCall::func_PackedByteArray_decode_double_array, sarray(), varray());
 
 	bind_functionnc(PackedByteArray, encode_u8, _VariantCall::func_PackedByteArray_encode_u8, sarray("byte_offset", "value"), varray());
 	bind_functionnc(PackedByteArray, encode_s8, _VariantCall::func_PackedByteArray_encode_s8, sarray("byte_offset", "value"), varray());

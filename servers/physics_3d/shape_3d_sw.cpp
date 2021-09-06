@@ -39,7 +39,7 @@
 
 /*
 Bullet Continuous Collision Detection and Physics Library
-Copyright (c) 2003-2009 Erwin Coumans  http://bulletphysics.org
+Copyright (c) 2003-2009 Erwin Coumans  https://bulletphysics.org
 
 This software is provided 'as-is', without any express or implied warranty.
 In no event will the authors be held liable for any damages arising from the use of this software.
@@ -166,21 +166,21 @@ PlaneShape3DSW::PlaneShape3DSW() {
 
 //
 
-real_t RayShape3DSW::get_length() const {
+real_t SeparationRayShape3DSW::get_length() const {
 	return length;
 }
 
-bool RayShape3DSW::get_slips_on_slope() const {
-	return slips_on_slope;
+bool SeparationRayShape3DSW::get_slide_on_slope() const {
+	return slide_on_slope;
 }
 
-void RayShape3DSW::project_range(const Vector3 &p_normal, const Transform3D &p_transform, real_t &r_min, real_t &r_max) const {
+void SeparationRayShape3DSW::project_range(const Vector3 &p_normal, const Transform3D &p_transform, real_t &r_min, real_t &r_max) const {
 	// don't think this will be even used
 	r_min = 0;
 	r_max = 1;
 }
 
-Vector3 RayShape3DSW::get_support(const Vector3 &p_normal) const {
+Vector3 SeparationRayShape3DSW::get_support(const Vector3 &p_normal) const {
 	if (p_normal.z > 0) {
 		return Vector3(0, 0, length);
 	} else {
@@ -188,7 +188,7 @@ Vector3 RayShape3DSW::get_support(const Vector3 &p_normal) const {
 	}
 }
 
-void RayShape3DSW::get_supports(const Vector3 &p_normal, int p_max, Vector3 *r_supports, int &r_amount, FeatureType &r_type) const {
+void SeparationRayShape3DSW::get_supports(const Vector3 &p_normal, int p_max, Vector3 *r_supports, int &r_amount, FeatureType &r_type) const {
 	if (Math::abs(p_normal.z) < _EDGE_IS_VALID_SUPPORT_THRESHOLD) {
 		r_amount = 2;
 		r_type = FEATURE_EDGE;
@@ -205,15 +205,15 @@ void RayShape3DSW::get_supports(const Vector3 &p_normal, int p_max, Vector3 *r_s
 	}
 }
 
-bool RayShape3DSW::intersect_segment(const Vector3 &p_begin, const Vector3 &p_end, Vector3 &r_result, Vector3 &r_normal) const {
+bool SeparationRayShape3DSW::intersect_segment(const Vector3 &p_begin, const Vector3 &p_end, Vector3 &r_result, Vector3 &r_normal) const {
 	return false; //simply not possible
 }
 
-bool RayShape3DSW::intersect_point(const Vector3 &p_point) const {
+bool SeparationRayShape3DSW::intersect_point(const Vector3 &p_point) const {
 	return false; //simply not possible
 }
 
-Vector3 RayShape3DSW::get_closest_point_to(const Vector3 &p_point) const {
+Vector3 SeparationRayShape3DSW::get_closest_point_to(const Vector3 &p_point) const {
 	Vector3 s[2] = {
 		Vector3(0, 0, 0),
 		Vector3(0, 0, length)
@@ -222,31 +222,31 @@ Vector3 RayShape3DSW::get_closest_point_to(const Vector3 &p_point) const {
 	return Geometry3D::get_closest_point_to_segment(p_point, s);
 }
 
-Vector3 RayShape3DSW::get_moment_of_inertia(real_t p_mass) const {
+Vector3 SeparationRayShape3DSW::get_moment_of_inertia(real_t p_mass) const {
 	return Vector3();
 }
 
-void RayShape3DSW::_setup(real_t p_length, bool p_slips_on_slope) {
+void SeparationRayShape3DSW::_setup(real_t p_length, bool p_slide_on_slope) {
 	length = p_length;
-	slips_on_slope = p_slips_on_slope;
+	slide_on_slope = p_slide_on_slope;
 	configure(AABB(Vector3(0, 0, 0), Vector3(0.1, 0.1, length)));
 }
 
-void RayShape3DSW::set_data(const Variant &p_data) {
+void SeparationRayShape3DSW::set_data(const Variant &p_data) {
 	Dictionary d = p_data;
-	_setup(d["length"], d["slips_on_slope"]);
+	_setup(d["length"], d["slide_on_slope"]);
 }
 
-Variant RayShape3DSW::get_data() const {
+Variant SeparationRayShape3DSW::get_data() const {
 	Dictionary d;
 	d["length"] = length;
-	d["slips_on_slope"] = slips_on_slope;
+	d["slide_on_slope"] = slide_on_slope;
 	return d;
 }
 
-RayShape3DSW::RayShape3DSW() {
+SeparationRayShape3DSW::SeparationRayShape3DSW() {
 	length = 1;
-	slips_on_slope = false;
+	slide_on_slope = false;
 }
 
 /********** SPHERE *************/
@@ -509,10 +509,10 @@ BoxShape3DSW::BoxShape3DSW() {
 
 void CapsuleShape3DSW::project_range(const Vector3 &p_normal, const Transform3D &p_transform, real_t &r_min, real_t &r_max) const {
 	Vector3 n = p_transform.basis.xform_inv(p_normal).normalized();
-	real_t h = (n.y > 0) ? height : -height;
+	real_t h = height * 0.5 - radius;
 
 	n *= radius;
-	n.y += h * 0.5;
+	n.y += (n.y > 0) ? h : -h;
 
 	r_max = p_normal.dot(p_transform.xform(n));
 	r_min = p_normal.dot(p_transform.xform(-n));
@@ -521,10 +521,10 @@ void CapsuleShape3DSW::project_range(const Vector3 &p_normal, const Transform3D 
 Vector3 CapsuleShape3DSW::get_support(const Vector3 &p_normal) const {
 	Vector3 n = p_normal;
 
-	real_t h = (n.y > 0) ? height : -height;
+	real_t h = height * 0.5 - radius;
 
 	n *= radius;
-	n.y += h * 0.5;
+	n.y += (n.y > 0) ? h : -h;
 	return n;
 }
 
@@ -542,15 +542,15 @@ void CapsuleShape3DSW::get_supports(const Vector3 &p_normal, int p_max, Vector3 
 		r_amount = 2;
 		r_type = FEATURE_EDGE;
 		r_supports[0] = n;
-		r_supports[0].y += height * 0.5;
+		r_supports[0].y += height * 0.5 - radius;
 		r_supports[1] = n;
-		r_supports[1].y -= height * 0.5;
+		r_supports[1].y -= height * 0.5 - radius;
 
 	} else {
-		real_t h = (d > 0) ? height : -height;
+		real_t h = height * 0.5 - radius;
 
 		n *= radius;
-		n.y += h * 0.5;
+		n.y += (d > 0) ? h : -h;
 		r_amount = 1;
 		r_type = FEATURE_POINT;
 		*r_supports = n;
@@ -569,7 +569,7 @@ bool CapsuleShape3DSW::intersect_segment(const Vector3 &p_begin, const Vector3 &
 
 	// test against cylinder and spheres :-|
 
-	collided = Geometry3D::segment_intersects_cylinder(p_begin, p_end, height, radius, &auxres, &auxn, 1);
+	collided = Geometry3D::segment_intersects_cylinder(p_begin, p_end, height - radius * 2.0, radius, &auxres, &auxn, 1);
 
 	if (collided) {
 		real_t d = norm.dot(auxres);
@@ -581,7 +581,7 @@ bool CapsuleShape3DSW::intersect_segment(const Vector3 &p_begin, const Vector3 &
 		}
 	}
 
-	collided = Geometry3D::segment_intersects_sphere(p_begin, p_end, Vector3(0, height * 0.5, 0), radius, &auxres, &auxn);
+	collided = Geometry3D::segment_intersects_sphere(p_begin, p_end, Vector3(0, height * 0.5 - radius, 0), radius, &auxres, &auxn);
 
 	if (collided) {
 		real_t d = norm.dot(auxres);
@@ -593,7 +593,7 @@ bool CapsuleShape3DSW::intersect_segment(const Vector3 &p_begin, const Vector3 &
 		}
 	}
 
-	collided = Geometry3D::segment_intersects_sphere(p_begin, p_end, Vector3(0, height * -0.5, 0), radius, &auxres, &auxn);
+	collided = Geometry3D::segment_intersects_sphere(p_begin, p_end, Vector3(0, height * -0.5 + radius, 0), radius, &auxres, &auxn);
 
 	if (collided) {
 		real_t d = norm.dot(auxres);
@@ -614,19 +614,19 @@ bool CapsuleShape3DSW::intersect_segment(const Vector3 &p_begin, const Vector3 &
 }
 
 bool CapsuleShape3DSW::intersect_point(const Vector3 &p_point) const {
-	if (Math::abs(p_point.y) < height * 0.5) {
+	if (Math::abs(p_point.y) < height * 0.5 - radius) {
 		return Vector3(p_point.x, 0, p_point.z).length() < radius;
 	} else {
 		Vector3 p = p_point;
-		p.y = Math::abs(p.y) - height * 0.5;
+		p.y = Math::abs(p.y) - height * 0.5 + radius;
 		return p.length() < radius;
 	}
 }
 
 Vector3 CapsuleShape3DSW::get_closest_point_to(const Vector3 &p_point) const {
 	Vector3 s[2] = {
-		Vector3(0, -height * 0.5, 0),
-		Vector3(0, height * 0.5, 0),
+		Vector3(0, -height * 0.5 + radius, 0),
+		Vector3(0, height * 0.5 - radius, 0),
 	};
 
 	Vector3 p = Geometry3D::get_closest_point_to_segment(p_point, s);
@@ -651,7 +651,7 @@ Vector3 CapsuleShape3DSW::get_moment_of_inertia(real_t p_mass) const {
 void CapsuleShape3DSW::_setup(real_t p_height, real_t p_radius) {
 	height = p_height;
 	radius = p_radius;
-	configure(AABB(Vector3(-radius, -height * 0.5 - radius, -radius), Vector3(radius * 2, height + radius * 2.0, radius * 2)));
+	configure(AABB(Vector3(-radius, -height * 0.5, -radius), Vector3(radius * 2, height, radius * 2)));
 }
 
 void CapsuleShape3DSW::set_data(const Variant &p_data) {
@@ -1382,11 +1382,11 @@ Vector3 ConcavePolygonShape3DSW::get_closest_point_to(const Vector3 &p_point) co
 	return Vector3();
 }
 
-void ConcavePolygonShape3DSW::_cull(int p_idx, _CullParams *p_params) const {
+bool ConcavePolygonShape3DSW::_cull(int p_idx, _CullParams *p_params) const {
 	const BVH *bvh = &p_params->bvh[p_idx];
 
 	if (!p_params->aabb.intersects(bvh->aabb)) {
-		return;
+		return false;
 	}
 
 	if (bvh->face_index >= 0) {
@@ -1396,20 +1396,27 @@ void ConcavePolygonShape3DSW::_cull(int p_idx, _CullParams *p_params) const {
 		face->vertex[0] = p_params->vertices[f->indices[0]];
 		face->vertex[1] = p_params->vertices[f->indices[1]];
 		face->vertex[2] = p_params->vertices[f->indices[2]];
-		p_params->callback(p_params->userdata, face);
-
+		if (p_params->callback(p_params->userdata, face)) {
+			return true;
+		}
 	} else {
 		if (bvh->left >= 0) {
-			_cull(bvh->left, p_params);
+			if (_cull(bvh->left, p_params)) {
+				return true;
+			}
 		}
 
 		if (bvh->right >= 0) {
-			_cull(bvh->right, p_params);
+			if (_cull(bvh->right, p_params)) {
+				return true;
+			}
 		}
 	}
+
+	return false;
 }
 
-void ConcavePolygonShape3DSW::cull(const AABB &p_local_aabb, Callback p_callback, void *p_userdata) const {
+void ConcavePolygonShape3DSW::cull(const AABB &p_local_aabb, QueryCallback p_callback, void *p_userdata) const {
 	// make matrix local to concave
 	if (faces.size() == 0) {
 		return;
@@ -1635,7 +1642,7 @@ ConcavePolygonShape3DSW::ConcavePolygonShape3DSW() {
 
 /* HEIGHT MAP SHAPE */
 
-Vector<float> HeightMapShape3DSW::get_heights() const {
+Vector<real_t> HeightMapShape3DSW::get_heights() const {
 	return heights;
 }
 
@@ -1875,7 +1882,7 @@ void HeightMapShape3DSW::_get_cell(const Vector3 &p_point, int &r_x, int &r_y, i
 	r_z = (clamped_point.z < 0.0) ? (clamped_point.z - 0.5) : (clamped_point.z + 0.5);
 }
 
-void HeightMapShape3DSW::cull(const AABB &p_local_aabb, Callback p_callback, void *p_userdata) const {
+void HeightMapShape3DSW::cull(const AABB &p_local_aabb, QueryCallback p_callback, void *p_userdata) const {
 	if (heights.is_empty()) {
 		return;
 	}
@@ -1911,13 +1918,17 @@ void HeightMapShape3DSW::cull(const AABB &p_local_aabb, Callback p_callback, voi
 			_get_point(x + 1, z, face.vertex[1]);
 			_get_point(x, z + 1, face.vertex[2]);
 			face.normal = Plane(face.vertex[0], face.vertex[2], face.vertex[1]).normal;
-			p_callback(p_userdata, &face);
+			if (p_callback(p_userdata, &face)) {
+				return;
+			}
 
 			// Second triangle.
 			face.vertex[0] = face.vertex[1];
 			_get_point(x + 1, z + 1, face.vertex[1]);
 			face.normal = Plane(face.vertex[0], face.vertex[2], face.vertex[1]).normal;
-			p_callback(p_userdata, &face);
+			if (p_callback(p_userdata, &face)) {
+				return;
+			}
 		}
 	}
 }
@@ -1932,7 +1943,7 @@ Vector3 HeightMapShape3DSW::get_moment_of_inertia(real_t p_mass) const {
 			(p_mass / 3.0) * (extents.x * extents.x + extents.y * extents.y));
 }
 
-void HeightMapShape3DSW::_setup(const Vector<float> &p_heights, int p_width, int p_depth, real_t p_min_height, real_t p_max_height) {
+void HeightMapShape3DSW::_setup(const Vector<real_t> &p_heights, int p_width, int p_depth, real_t p_min_height, real_t p_max_height) {
 	heights = p_heights;
 	width = p_width;
 	depth = p_depth;
@@ -1966,8 +1977,12 @@ void HeightMapShape3DSW::set_data(const Variant &p_data) {
 	ERR_FAIL_COND(depth <= 0.0);
 
 	Variant heights_variant = d["heights"];
-	Vector<float> heights_buffer;
+	Vector<real_t> heights_buffer;
+#ifdef REAL_T_IS_DOUBLE
+	if (heights_variant.get_type() == Variant::PACKED_FLOAT64_ARRAY) {
+#else
 	if (heights_variant.get_type() == Variant::PACKED_FLOAT32_ARRAY) {
+#endif
 		// Ready-to-use heights can be passed.
 		heights_buffer = heights_variant;
 	} else if (heights_variant.get_type() == Variant::OBJECT) {
@@ -1980,13 +1995,17 @@ void HeightMapShape3DSW::set_data(const Variant &p_data) {
 		PackedByteArray im_data = image->get_data();
 		heights_buffer.resize(image->get_width() * image->get_height());
 
-		float *w = heights_buffer.ptrw();
-		float *rp = (float *)im_data.ptr();
+		real_t *w = heights_buffer.ptrw();
+		real_t *rp = (real_t *)im_data.ptr();
 		for (int i = 0; i < heights_buffer.size(); ++i) {
 			w[i] = rp[i];
 		}
 	} else {
+#ifdef REAL_T_IS_DOUBLE
+		ERR_FAIL_MSG("Expected PackedFloat64Array or float Image.");
+#else
 		ERR_FAIL_MSG("Expected PackedFloat32Array or float Image.");
+#endif
 	}
 
 	// Compute min and max heights or use precomputed values.

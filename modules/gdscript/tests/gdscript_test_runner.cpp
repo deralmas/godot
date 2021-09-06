@@ -48,11 +48,11 @@
 namespace GDScriptTests {
 
 void init_autoloads() {
-	Map<StringName, ProjectSettings::AutoloadInfo> autoloads = ProjectSettings::get_singleton()->get_autoload_list();
+	OrderedHashMap<StringName, ProjectSettings::AutoloadInfo> autoloads = ProjectSettings::get_singleton()->get_autoload_list();
 
 	// First pass, add the constants so they exist before any script is loaded.
-	for (Map<StringName, ProjectSettings::AutoloadInfo>::Element *E = autoloads.front(); E; E = E->next()) {
-		const ProjectSettings::AutoloadInfo &info = E->get();
+	for (OrderedHashMap<StringName, ProjectSettings::AutoloadInfo>::Element E = autoloads.front(); E; E = E.next()) {
+		const ProjectSettings::AutoloadInfo &info = E.get();
 
 		if (info.is_singleton) {
 			for (int i = 0; i < ScriptServer::get_language_count(); i++) {
@@ -62,8 +62,8 @@ void init_autoloads() {
 	}
 
 	// Second pass, load into global constants.
-	for (Map<StringName, ProjectSettings::AutoloadInfo>::Element *E = autoloads.front(); E; E = E->next()) {
-		const ProjectSettings::AutoloadInfo &info = E->get();
+	for (OrderedHashMap<StringName, ProjectSettings::AutoloadInfo>::Element E = autoloads.front(); E; E = E.next()) {
+		const ProjectSettings::AutoloadInfo &info = E.get();
 
 		if (!info.is_singleton) {
 			// Skip non-singletons since we don't have a scene tree here anyway.
@@ -295,7 +295,7 @@ void GDScriptTestRunner::handle_cmdline() {
 	String test_cmd = "--gdscript-test";
 	String gen_cmd = "--gdscript-generate-tests";
 
-	for (List<String>::Element *E = cmdline_args.front(); E != nullptr; E = E->next()) {
+	for (List<String>::Element *E = cmdline_args.front(); E; E = E->next()) {
 		String &cmd = E->get();
 		if (cmd == test_cmd || cmd == gen_cmd) {
 			if (E->next() == nullptr) {
@@ -440,8 +440,8 @@ GDScriptTest::TestResult GDScriptTest::execute_test_code(bool p_is_generating) {
 		result.output = get_text_for_status(result.status) + "\n";
 
 		const List<GDScriptParser::ParserError> &errors = parser.get_errors();
-		for (const List<GDScriptParser::ParserError>::Element *E = errors.front(); E; E = E->next()) {
-			result.output += E->get().message + "\n"; // TODO: line, column?
+		for (const GDScriptParser::ParserError &E : errors) {
+			result.output += E.message + "\n"; // TODO: line, column?
 			break; // Only the first error since the following might be cascading.
 		}
 		if (!p_is_generating) {
@@ -459,8 +459,8 @@ GDScriptTest::TestResult GDScriptTest::execute_test_code(bool p_is_generating) {
 		result.output = get_text_for_status(result.status) + "\n";
 
 		const List<GDScriptParser::ParserError> &errors = parser.get_errors();
-		for (const List<GDScriptParser::ParserError>::Element *E = errors.front(); E; E = E->next()) {
-			result.output += E->get().message + "\n"; // TODO: line, column?
+		for (const GDScriptParser::ParserError &E : errors) {
+			result.output += E.message + "\n"; // TODO: line, column?
 			break; // Only the first error since the following might be cascading.
 		}
 		if (!p_is_generating) {
@@ -470,8 +470,8 @@ GDScriptTest::TestResult GDScriptTest::execute_test_code(bool p_is_generating) {
 	}
 
 	StringBuilder warning_string;
-	for (const List<GDScriptWarning>::Element *E = parser.get_warnings().front(); E != nullptr; E = E->next()) {
-		const GDScriptWarning warning = E->get();
+	for (const GDScriptWarning &E : parser.get_warnings()) {
+		const GDScriptWarning warning = E;
 		warning_string.append(">> WARNING");
 		warning_string.append("\n>> Line: ");
 		warning_string.append(itos(warning.start_line));

@@ -90,7 +90,7 @@ Size2 Tabs::get_minimum_size() const {
 	return ms;
 }
 
-void Tabs::_gui_input(const Ref<InputEvent> &p_event) {
+void Tabs::gui_input(const Ref<InputEvent> &p_event) {
 	ERR_FAIL_COND(p_event.is_null());
 
 	Ref<InputEventMouseMotion> mm = p_event;
@@ -239,7 +239,7 @@ void Tabs::_shape(int p_tab) {
 	Ref<Font> font = get_theme_font(SNAME("font"));
 	int font_size = get_theme_font_size(SNAME("font_size"));
 
-	tabs.write[p_tab].xl_text = tr(tabs[p_tab].text);
+	tabs.write[p_tab].xl_text = atr(tabs[p_tab].text);
 	tabs.write[p_tab].text_buf->clear();
 	if (tabs[p_tab].text_direction == Control::TEXT_DIRECTION_INHERITED) {
 		tabs.write[p_tab].text_buf->set_direction(is_layout_rtl() ? TextServer::DIRECTION_RTL : TextServer::DIRECTION_LTR);
@@ -529,7 +529,7 @@ bool Tabs::get_offset_buttons_visible() const {
 void Tabs::set_tab_title(int p_tab, const String &p_title) {
 	ERR_FAIL_INDEX(p_tab, tabs.size());
 	tabs.write[p_tab].text = p_title;
-	tabs.write[p_tab].xl_text = tr(p_title);
+	tabs.write[p_tab].xl_text = atr(p_title);
 	_shape(p_tab);
 	update();
 	minimum_size_changed();
@@ -742,7 +742,7 @@ void Tabs::_on_mouse_exited() {
 void Tabs::add_tab(const String &p_str, const Ref<Texture2D> &p_icon) {
 	Tab t;
 	t.text = p_str;
-	t.xl_text = tr(p_str);
+	t.xl_text = atr(p_str);
 	t.text_buf.instantiate();
 	t.text_buf->set_direction(is_layout_rtl() ? TextServer::DIRECTION_RTL : TextServer::DIRECTION_LTR);
 	t.text_buf->add_string(t.xl_text, get_theme_font(SNAME("font")), get_theme_font_size(SNAME("font_size")), Dictionary(), TranslationServer::get_singleton()->get_tool_locale());
@@ -1107,7 +1107,6 @@ bool Tabs::get_select_with_rmb() const {
 }
 
 void Tabs::_bind_methods() {
-	ClassDB::bind_method(D_METHOD("_gui_input"), &Tabs::_gui_input);
 	ClassDB::bind_method(D_METHOD("_update_hover"), &Tabs::_update_hover);
 	ClassDB::bind_method(D_METHOD("get_tab_count"), &Tabs::get_tab_count);
 	ClassDB::bind_method(D_METHOD("set_current_tab", "tab_idx"), &Tabs::set_current_tab);

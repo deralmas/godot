@@ -45,7 +45,7 @@ static bool _is_bin_symbol(char32_t c) {
 	return (c == '0' || c == '1');
 }
 
-Dictionary GDScriptSyntaxHighlighter::_get_line_syntax_highlighting(int p_line) {
+Dictionary GDScriptSyntaxHighlighter::_get_line_syntax_highlighting_impl(int p_line) {
 	Dictionary color_map;
 
 	Type next_type = NONE;
@@ -449,35 +449,31 @@ void GDScriptSyntaxHighlighter::_update_cache() {
 	color_region_cache.clear();
 
 	font_color = text_edit->get_theme_color(SNAME("font_color"));
-	symbol_color = EDITOR_GET("text_editor/highlighting/symbol_color");
-	function_color = EDITOR_GET("text_editor/highlighting/function_color");
-	number_color = EDITOR_GET("text_editor/highlighting/number_color");
-	member_color = EDITOR_GET("text_editor/highlighting/member_variable_color");
+	symbol_color = EDITOR_GET("text_editor/theme/highlighting/symbol_color");
+	function_color = EDITOR_GET("text_editor/theme/highlighting/function_color");
+	number_color = EDITOR_GET("text_editor/theme/highlighting/number_color");
+	member_color = EDITOR_GET("text_editor/theme/highlighting/member_variable_color");
 
 	/* Engine types. */
-	const Color types_color = EDITOR_GET("text_editor/highlighting/engine_type_color");
+	const Color types_color = EDITOR_GET("text_editor/theme/highlighting/engine_type_color");
 	List<StringName> types;
 	ClassDB::get_class_list(&types);
-	for (List<StringName>::Element *E = types.front(); E; E = E->next()) {
-		String n = E->get();
-		if (n.begins_with("_")) {
-			n = n.substr(1, n.length());
-		}
-		keywords[n] = types_color;
+	for (const StringName &E : types) {
+		keywords[E] = types_color;
 	}
 
 	/* User types. */
-	const Color usertype_color = EDITOR_GET("text_editor/highlighting/user_type_color");
+	const Color usertype_color = EDITOR_GET("text_editor/theme/highlighting/user_type_color");
 	List<StringName> global_classes;
 	ScriptServer::get_global_class_list(&global_classes);
-	for (List<StringName>::Element *E = global_classes.front(); E; E = E->next()) {
-		keywords[String(E->get())] = usertype_color;
+	for (const StringName &E : global_classes) {
+		keywords[String(E)] = usertype_color;
 	}
 
 	/* Autoloads. */
-	Map<StringName, ProjectSettings::AutoloadInfo> autoloads = ProjectSettings::get_singleton()->get_autoload_list();
-	for (Map<StringName, ProjectSettings::AutoloadInfo>::Element *E = autoloads.front(); E; E = E->next()) {
-		const ProjectSettings::AutoloadInfo &info = E->value();
+	OrderedHashMap<StringName, ProjectSettings::AutoloadInfo> autoloads = ProjectSettings::get_singleton()->get_autoload_list();
+	for (OrderedHashMap<StringName, ProjectSettings::AutoloadInfo>::Element E = autoloads.front(); E; E = E.next()) {
+		const ProjectSettings::AutoloadInfo &info = E.value();
 		if (info.is_singleton) {
 			keywords[info.name] = usertype_color;
 		}
@@ -486,43 +482,41 @@ void GDScriptSyntaxHighlighter::_update_cache() {
 	const GDScriptLanguage *gdscript = GDScriptLanguage::get_singleton();
 
 	/* Core types. */
-	const Color basetype_color = EDITOR_GET("text_editor/highlighting/base_type_color");
+	const Color basetype_color = EDITOR_GET("text_editor/theme/highlighting/base_type_color");
 	List<String> core_types;
 	gdscript->get_core_type_words(&core_types);
-	for (List<String>::Element *E = core_types.front(); E; E = E->next()) {
-		keywords[E->get()] = basetype_color;
+	for (const String &E : core_types) {
+		keywords[E] = basetype_color;
 	}
 
 	/* Reserved words. */
-	const Color keyword_color = EDITOR_GET("text_editor/highlighting/keyword_color");
-	const Color control_flow_keyword_color = EDITOR_GET("text_editor/highlighting/control_flow_keyword_color");
+	const Color keyword_color = EDITOR_GET("text_editor/theme/highlighting/keyword_color");
+	const Color control_flow_keyword_color = EDITOR_GET("text_editor/theme/highlighting/control_flow_keyword_color");
 	List<String> keyword_list;
 	gdscript->get_reserved_words(&keyword_list);
-	for (List<String>::Element *E = keyword_list.front(); E; E = E->next()) {
-		if (gdscript->is_control_flow_keyword(E->get())) {
-			keywords[E->get()] = control_flow_keyword_color;
+	for (const String &E : keyword_list) {
+		if (gdscript->is_control_flow_keyword(E)) {
+			keywords[E] = control_flow_keyword_color;
 		} else {
-			keywords[E->get()] = keyword_color;
+			keywords[E] = keyword_color;
 		}
 	}
 
 	/* Comments */
-	const Color comment_color = EDITOR_GET("text_editor/highlighting/comment_color");
+	const Color comment_color = EDITOR_GET("text_editor/theme/highlighting/comment_color");
 	List<String> comments;
 	gdscript->get_comment_delimiters(&comments);
-	for (List<String>::Element *E = comments.front(); E; E = E->next()) {
-		String comment = E->get();
+	for (const String &comment : comments) {
 		String beg = comment.get_slice(" ", 0);
 		String end = comment.get_slice_count(" ") > 1 ? comment.get_slice(" ", 1) : String();
 		add_color_region(beg, end, comment_color, end == "");
 	}
 
 	/* Strings */
-	const Color string_color = EDITOR_GET("text_editor/highlighting/string_color");
+	const Color string_color = EDITOR_GET("text_editor/theme/highlighting/string_color");
 	List<String> strings;
 	gdscript->get_string_delimiters(&strings);
-	for (List<String>::Element *E = strings.front(); E; E = E->next()) {
-		String string = E->get();
+	for (const String &string : strings) {
 		String beg = string.get_slice(" ", 0);
 		String end = string.get_slice_count(" ") > 1 ? string.get_slice(" ", 1) : String();
 		add_color_region(beg, end, string_color, end == "");
@@ -531,14 +525,14 @@ void GDScriptSyntaxHighlighter::_update_cache() {
 	const Ref<Script> script = _get_edited_resource();
 	if (script.is_valid()) {
 		/* Member types. */
-		const Color member_variable_color = EDITOR_GET("text_editor/highlighting/member_variable_color");
+		const Color member_variable_color = EDITOR_GET("text_editor/theme/highlighting/member_variable_color");
 		StringName instance_base = script->get_instance_base_type();
 		if (instance_base != StringName()) {
 			List<PropertyInfo> plist;
 			ClassDB::get_property_list(instance_base, &plist);
-			for (List<PropertyInfo>::Element *E = plist.front(); E; E = E->next()) {
-				String name = E->get().name;
-				if (E->get().usage & PROPERTY_USAGE_CATEGORY || E->get().usage & PROPERTY_USAGE_GROUP || E->get().usage & PROPERTY_USAGE_SUBGROUP) {
+			for (const PropertyInfo &E : plist) {
+				String name = E.name;
+				if (E.usage & PROPERTY_USAGE_CATEGORY || E.usage & PROPERTY_USAGE_GROUP || E.usage & PROPERTY_USAGE_SUBGROUP) {
 					continue;
 				}
 				if (name.find("/") != -1) {
@@ -549,8 +543,8 @@ void GDScriptSyntaxHighlighter::_update_cache() {
 
 			List<String> clist;
 			ClassDB::get_integer_constant_list(instance_base, &clist);
-			for (List<String>::Element *E = clist.front(); E; E = E->next()) {
-				member_keywords[E->get()] = member_variable_color;
+			for (const String &E : clist) {
+				member_keywords[E] = member_variable_color;
 			}
 		}
 	}
@@ -568,28 +562,28 @@ void GDScriptSyntaxHighlighter::_update_cache() {
 		annotation_color = Color(0.8, 0.5, 0.25);
 	}
 
-	EDITOR_DEF("text_editor/highlighting/gdscript/function_definition_color", function_definition_color);
-	EDITOR_DEF("text_editor/highlighting/gdscript/node_path_color", node_path_color);
-	EDITOR_DEF("text_editor/highlighting/gdscript/annotation_color", annotation_color);
+	EDITOR_DEF("text_editor/theme/highlighting/gdscript/function_definition_color", function_definition_color);
+	EDITOR_DEF("text_editor/theme/highlighting/gdscript/node_path_color", node_path_color);
+	EDITOR_DEF("text_editor/theme/highlighting/gdscript/annotation_color", annotation_color);
 	if (text_edit_color_theme == "Default" || godot_2_theme) {
 		EditorSettings::get_singleton()->set_initial_value(
-				"text_editor/highlighting/gdscript/function_definition_color",
+				"text_editor/theme/highlighting/gdscript/function_definition_color",
 				function_definition_color,
 				true);
 		EditorSettings::get_singleton()->set_initial_value(
-				"text_editor/highlighting/gdscript/node_path_color",
+				"text_editor/theme/highlighting/gdscript/node_path_color",
 				node_path_color,
 				true);
 		EditorSettings::get_singleton()->set_initial_value(
-				"text_editor/highlighting/gdscript/annotation_color",
+				"text_editor/theme/highlighting/gdscript/annotation_color",
 				annotation_color,
 				true);
 	}
 
-	function_definition_color = EDITOR_GET("text_editor/highlighting/gdscript/function_definition_color");
-	node_path_color = EDITOR_GET("text_editor/highlighting/gdscript/node_path_color");
-	annotation_color = EDITOR_GET("text_editor/highlighting/gdscript/annotation_color");
-	type_color = EDITOR_GET("text_editor/highlighting/base_type_color");
+	function_definition_color = EDITOR_GET("text_editor/theme/highlighting/gdscript/function_definition_color");
+	node_path_color = EDITOR_GET("text_editor/theme/highlighting/gdscript/node_path_color");
+	annotation_color = EDITOR_GET("text_editor/theme/highlighting/gdscript/annotation_color");
+	type_color = EDITOR_GET("text_editor/theme/highlighting/base_type_color");
 }
 
 void GDScriptSyntaxHighlighter::add_color_region(const String &p_start_key, const String &p_end_key, const Color &p_color, bool p_line_only) {

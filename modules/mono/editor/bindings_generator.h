@@ -357,9 +357,9 @@ class BindingsGenerator {
 		List<SignalInterface> signals_;
 
 		const MethodInterface *find_method_by_name(const StringName &p_cname) const {
-			for (const List<MethodInterface>::Element *E = methods.front(); E; E = E->next()) {
-				if (E->get().cname == p_cname) {
-					return &E->get();
+			for (const MethodInterface &E : methods) {
+				if (E.cname == p_cname) {
+					return &E;
 				}
 			}
 
@@ -367,9 +367,9 @@ class BindingsGenerator {
 		}
 
 		const PropertyInterface *find_property_by_name(const StringName &p_cname) const {
-			for (const List<PropertyInterface>::Element *E = properties.front(); E; E = E->next()) {
-				if (E->get().cname == p_cname) {
-					return &E->get();
+			for (const PropertyInterface &E : properties) {
+				if (E.cname == p_cname) {
+					return &E;
 				}
 			}
 
@@ -377,9 +377,9 @@ class BindingsGenerator {
 		}
 
 		const PropertyInterface *find_property_by_proxy_name(const String &p_proxy_name) const {
-			for (const List<PropertyInterface>::Element *E = properties.front(); E; E = E->next()) {
-				if (E->get().proxy_name == p_proxy_name) {
-					return &E->get();
+			for (const PropertyInterface &E : properties) {
+				if (E.proxy_name == p_proxy_name) {
+					return &E;
 				}
 			}
 
@@ -387,9 +387,9 @@ class BindingsGenerator {
 		}
 
 		const MethodInterface *find_method_by_proxy_name(const String &p_proxy_name) const {
-			for (const List<MethodInterface>::Element *E = methods.front(); E; E = E->next()) {
-				if (E->get().proxy_name == p_proxy_name) {
-					return &E->get();
+			for (const MethodInterface &E : methods) {
+				if (E.proxy_name == p_proxy_name) {
+					return &E;
 				}
 			}
 
@@ -536,6 +536,8 @@ class BindingsGenerator {
 		StringName type_Object = StaticCString::create("Object");
 		StringName type_RefCounted = StaticCString::create("RefCounted");
 		StringName type_RID = StaticCString::create("RID");
+		StringName type_Callable = StaticCString::create("Callable");
+		StringName type_Signal = StaticCString::create("Signal");
 		StringName type_String = StaticCString::create("String");
 		StringName type_StringName = StaticCString::create("StringName");
 		StringName type_NodePath = StaticCString::create("NodePath");
@@ -573,7 +575,7 @@ class BindingsGenerator {
 
 			StaticCString::create(_STR(PackedByteArray)),
 			StaticCString::create(_STR(PackedInt32Array)),
-			StaticCString::create(_STR(PackedInt64rray)),
+			StaticCString::create(_STR(PackedInt64Array)),
 			StaticCString::create(_STR(PackedFloat32Array)),
 			StaticCString::create(_STR(PackedFloat64Array)),
 			StaticCString::create(_STR(PackedStringArray)),
@@ -613,9 +615,9 @@ class BindingsGenerator {
 	}
 
 	const ConstantInterface *find_constant_by_name(const String &p_name, const List<ConstantInterface> &p_constants) const {
-		for (const List<ConstantInterface>::Element *E = p_constants.front(); E; E = E->next()) {
-			if (E->get().name == p_name) {
-				return &E->get();
+		for (const ConstantInterface &E : p_constants) {
+			if (E.name == p_name) {
+				return &E;
 			}
 		}
 

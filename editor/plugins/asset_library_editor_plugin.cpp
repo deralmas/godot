@@ -603,19 +603,18 @@ void EditorAssetLibrary::_notification(int p_what) {
 
 void EditorAssetLibrary::_update_repository_options() {
 	Dictionary default_urls;
-	default_urls["godotengine.org"] = "https://godotengine.org/asset-library/api";
-	default_urls["localhost"] = "http://127.0.0.1/asset-library/api";
+	default_urls["godotengine.org (Official)"] = "https://godotengine.org/asset-library/api";
 	Dictionary available_urls = _EDITOR_DEF("asset_library/available_urls", default_urls, true);
 	repository->clear();
 	Array keys = available_urls.keys();
-	for (int i = 0; i < available_urls.size(); i++) {
+	for (int i = 0; i < keys.size(); i++) {
 		String key = keys[i];
 		repository->add_item(key);
 		repository->set_item_metadata(i, available_urls[key]);
 	}
 }
 
-void EditorAssetLibrary::_unhandled_key_input(const Ref<InputEvent> &p_event) {
+void EditorAssetLibrary::unhandled_key_input(const Ref<InputEvent> &p_event) {
 	ERR_FAIL_COND(p_event.is_null());
 
 	const Ref<InputEventKey> key = p_event;
@@ -1323,8 +1322,6 @@ void EditorAssetLibrary::disable_community_support() {
 }
 
 void EditorAssetLibrary::_bind_methods() {
-	ClassDB::bind_method("_unhandled_key_input", &EditorAssetLibrary::_unhandled_key_input);
-
 	ADD_SIGNAL(MethodInfo("install_asset", PropertyInfo(Variant::STRING, "zip_path"), PropertyInfo(Variant::STRING, "name")));
 }
 

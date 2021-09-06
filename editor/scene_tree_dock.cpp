@@ -45,6 +45,7 @@
 #include "editor/plugins/canvas_item_editor_plugin.h"
 #include "editor/plugins/node_3d_editor_plugin.h"
 #include "editor/plugins/script_editor_plugin.h"
+#include "editor/shader_create_dialog.h"
 #include "scene/main/window.h"
 #include "scene/resources/packed_scene.h"
 #include "servers/display_server.h"
@@ -61,7 +62,7 @@ void SceneTreeDock::_quick_open() {
 	instantiate_scenes(quick_open->get_selected_files(), scene_tree->get_selected());
 }
 
-void SceneTreeDock::_input(Ref<InputEvent> p_event) {
+void SceneTreeDock::input(const Ref<InputEvent> &p_event) {
 	ERR_FAIL_COND(p_event.is_null());
 
 	Ref<InputEventMouseButton> mb = p_event;
@@ -71,7 +72,7 @@ void SceneTreeDock::_input(Ref<InputEvent> p_event) {
 	}
 }
 
-void SceneTreeDock::_unhandled_key_input(Ref<InputEvent> p_event) {
+void SceneTreeDock::unhandled_key_input(const Ref<InputEvent> &p_event) {
 	ERR_FAIL_COND(p_event.is_null());
 
 	if (get_focus_owner() && get_focus_owner()->is_text_field()) {
@@ -263,8 +264,8 @@ void SceneTreeDock::_replace_with_branch_scene(const String &p_file, Node *base)
 	List<Node *> owned;
 	base->get_owned_by(base->get_owner(), &owned);
 	Array owners;
-	for (List<Node *>::Element *F = owned.front(); F; F = F->next()) {
-		owners.push_back(F->get());
+	for (Node *F : owned) {
+		owners.push_back(F);
 	}
 	undo_redo->add_do_method(instantiated_scene, "set_owner", edited_scene);
 	undo_redo->add_undo_method(this, "_set_owners", edited_scene, owners);
@@ -441,8 +442,7 @@ void SceneTreeDock::_tool_selected(int p_tool, bool p_confirm_override) {
 
 			selection.sort_custom<Node::Comparator>();
 
-			for (List<Node *>::Element *E = selection.front(); E; E = E->next()) {
-				Node *node = E->get();
+			for (Node *node : selection) {
 				Map<const Node *, Node *> duplimap;
 				Node *dup = node->duplicate_from_editor(duplimap);
 
@@ -462,8 +462,8 @@ void SceneTreeDock::_tool_selected(int p_tool, bool p_confirm_override) {
 
 			bool has_cycle = false;
 			if (edited_scene->get_filename() != String()) {
-				for (List<Node *>::Element *E = node_clipboard.front(); E; E = E->next()) {
-					if (edited_scene->get_filename() == E->get()->get_filename()) {
+				for (Node *E : node_clipboard) {
+					if (edited_scene->get_filename() == E->get_filename()) {
 						has_cycle = true;
 						break;
 					}
@@ -496,16 +496,15 @@ void SceneTreeDock::_tool_selected(int p_tool, bool p_confirm_override) {
 			if (target_scene != clipboard_source_scene) {
 				if (!clipboard_resource_remap.has(target_scene)) {
 					Map<RES, RES> remap;
-					for (List<Node *>::Element *E = node_clipboard.front(); E; E = E->next()) {
-						_create_remap_for_node(E->get(), remap);
+					for (Node *E : node_clipboard) {
+						_create_remap_for_node(E, remap);
 					}
 					clipboard_resource_remap[target_scene] = remap;
 				}
 				resource_remap = clipboard_resource_remap[target_scene];
 			}
 
-			for (List<Node *>::Element *E = node_clipboard.front(); E; E = E->next()) {
-				Node *node = E->get();
+			for (Node *node : node_clipboard) {
 				Map<const Node *, Node *> duplimap;
 
 				Node *dup = node->duplicate_from_editor(duplimap, resource_remap);
@@ -627,8 +626,8 @@ void SceneTreeDock::_tool_selected(int p_tool, bool p_confirm_override) {
 
 			int lowest_id = common_parent->get_child_count() - 1;
 			int highest_id = 0;
-			for (List<Node *>::Element *E = selection.front(); E; E = E->next()) {
-				int index = E->get()->get_index();
+			for (Node *E : selection) {
+				int index = E->get_index();
 
 				if (index > highest_id) {
 					highest_id = index;
@@ -637,7 +636,7 @@ void SceneTreeDock::_tool_selected(int p_tool, bool p_confirm_override) {
 					lowest_id = index;
 				}
 
-				if (E->get()->get_parent() != common_parent) {
+				if (E->get_parent() != common_parent) {
 					common_parent = nullptr;
 				}
 			}
@@ -704,8 +703,7 @@ void SceneTreeDock::_tool_selected(int p_tool, bool p_confirm_override) {
 
 			Node *add_below_node = selection.back()->get();
 
-			for (List<Node *>::Element *E = selection.front(); E; E = E->next()) {
-				Node *node = E->get();
+			for (Node *node : selection) {
 				Node *parent = node->get_parent();
 
 				List<Node *> owned;
@@ -724,11 +722,11 @@ void SceneTreeDock::_tool_selected(int p_tool, bool p_confirm_override) {
 
 				editor_data->get_undo_redo().add_do_method(add_below_node, "add_sibling", dup);
 
-				for (List<Node *>::Element *F = owned.front(); F; F = F->next()) {
-					if (!duplimap.has(F->get())) {
+				for (Node *F : owned) {
+					if (!duplimap.has(F)) {
 						continue;
 					}
-					Node *d = duplimap[F->get()];
+					Node *d = duplimap[F];
 					editor_data->get_undo_redo().add_do_method(d, "set_owner", node->get_owner());
 				}
 				editor_data->get_undo_redo().add_do_method(editor_selection, "add_node", dup);
@@ -771,8 +769,8 @@ void SceneTreeDock::_tool_selected(int p_tool, bool p_confirm_override) {
 
 			List<Node *> nodes = editor_selection->get_selected_node_list();
 			Set<Node *> nodeset;
-			for (List<Node *>::Element *E = nodes.front(); E; E = E->next()) {
-				nodeset.insert(E->get());
+			for (Node *E : nodes) {
+				nodeset.insert(E);
 			}
 			reparent_dialog->set_current(nodeset);
 			reparent_dialog->popup_centered_clamped(Size2(350, 700) * EDSCALE);
@@ -1145,6 +1143,7 @@ void SceneTreeDock::_tool_selected(int p_tool, bool p_confirm_override) {
 			editor_selection->clear();
 			editor_selection->add_node(new_node);
 
+			scene_tree->get_scene_tree()->grab_focus();
 		} break;
 
 		default: {
@@ -1384,30 +1383,25 @@ void SceneTreeDock::_set_owners(Node *p_owner, const Array &p_nodes) {
 	}
 }
 
-void SceneTreeDock::_fill_path_renames(Vector<StringName> base_path, Vector<StringName> new_base_path, Node *p_node, List<Pair<NodePath, NodePath>> *p_renames) {
+void SceneTreeDock::_fill_path_renames(Vector<StringName> base_path, Vector<StringName> new_base_path, Node *p_node, Map<Node *, NodePath> *p_renames) {
 	base_path.push_back(p_node->get_name());
 	if (new_base_path.size()) {
 		new_base_path.push_back(p_node->get_name());
 	}
 
-	NodePath from(base_path, true);
-	NodePath to;
+	NodePath new_path;
 	if (new_base_path.size()) {
-		to = NodePath(new_base_path, true);
+		new_path = NodePath(new_base_path, true);
 	}
 
-	Pair<NodePath, NodePath> npp;
-	npp.first = from;
-	npp.second = to;
-
-	p_renames->push_back(npp);
+	p_renames->insert(p_node, new_path);
 
 	for (int i = 0; i < p_node->get_child_count(); i++) {
 		_fill_path_renames(base_path, new_base_path, p_node->get_child(i), p_renames);
 	}
 }
 
-void SceneTreeDock::fill_path_renames(Node *p_node, Node *p_new_parent, List<Pair<NodePath, NodePath>> *p_renames) {
+void SceneTreeDock::fill_path_renames(Node *p_node, Node *p_new_parent, Map<Node *, NodePath> *p_renames) {
 	Vector<StringName> base_path;
 	Node *n = p_node->get_parent();
 	while (n) {
@@ -1430,50 +1424,41 @@ void SceneTreeDock::fill_path_renames(Node *p_node, Node *p_new_parent, List<Pai
 	_fill_path_renames(base_path, new_base_path, p_node, p_renames);
 }
 
-bool SceneTreeDock::_update_node_path(const NodePath &p_root_path, NodePath &r_node_path, List<Pair<NodePath, NodePath>> *p_renames) {
-	NodePath root_path_new = p_root_path;
-	for (List<Pair<NodePath, NodePath>>::Element *F = p_renames->front(); F; F = F->next()) {
-		if (p_root_path == F->get().first) {
-			root_path_new = F->get().second;
-			break;
-		}
+bool SceneTreeDock::_update_node_path(Node *p_root_node, NodePath &r_node_path, Map<Node *, NodePath> *p_renames) const {
+	Node *target_node = p_root_node->get_node_or_null(r_node_path);
+	ERR_FAIL_NULL_V_MSG(target_node, false, "Found invalid node path '" + String(r_node_path) + "' on node '" + String(scene_root->get_path_to(p_root_node)) + "'");
+
+	// Try to find the target node in modified node paths.
+	Map<Node *, NodePath>::Element *found_node_path = p_renames->find(target_node);
+	if (found_node_path) {
+		Map<Node *, NodePath>::Element *found_root_path = p_renames->find(p_root_node);
+		NodePath root_path_new = found_root_path ? found_root_path->get() : p_root_node->get_path();
+		r_node_path = root_path_new.rel_path_to(found_node_path->get());
+
+		return true;
 	}
 
-	// Goes through all paths to check if it's matching.
-	for (List<Pair<NodePath, NodePath>>::Element *F = p_renames->front(); F; F = F->next()) {
-		NodePath rel_path_old = p_root_path.rel_path_to(F->get().first);
-
-		// If old path detected, then it needs to be replaced with the new one.
-		if (r_node_path == rel_path_old) {
-			NodePath rel_path_new = F->get().second;
-
-			// If not empty, get new relative path.
-			if (!rel_path_new.is_empty()) {
-				rel_path_new = root_path_new.rel_path_to(rel_path_new);
-			}
-
-			r_node_path = rel_path_new;
-			return true;
+	// Update the path if the base node has changed and has not been deleted.
+	Map<Node *, NodePath>::Element *found_root_path = p_renames->find(p_root_node);
+	if (found_root_path) {
+		NodePath root_path_new = found_root_path->get();
+		if (!root_path_new.is_empty()) {
+			NodePath old_abs_path = NodePath(String(p_root_node->get_path()).plus_file(r_node_path));
+			old_abs_path.simplify();
+			r_node_path = root_path_new.rel_path_to(old_abs_path);
 		}
 
-		// Update the node itself if it has a valid node path and has not been deleted.
-		if (p_root_path == F->get().first && r_node_path != NodePath() && F->get().second != NodePath()) {
-			NodePath abs_path = NodePath(String(root_path_new).plus_file(r_node_path)).simplified();
-			NodePath rel_path_new = F->get().second.rel_path_to(abs_path);
-
-			r_node_path = rel_path_new;
-			return true;
-		}
+		return true;
 	}
 
 	return false;
 }
 
-bool SceneTreeDock::_check_node_path_recursive(const NodePath &p_root_path, Variant &r_variant, List<Pair<NodePath, NodePath>> *p_renames) {
+bool SceneTreeDock::_check_node_path_recursive(Node *p_root_node, Variant &r_variant, Map<Node *, NodePath> *p_renames) const {
 	switch (r_variant.get_type()) {
 		case Variant::NODE_PATH: {
 			NodePath node_path = r_variant;
-			if (_update_node_path(p_root_path, node_path, p_renames)) {
+			if (!node_path.is_empty() && _update_node_path(p_root_node, node_path, p_renames)) {
 				r_variant = node_path;
 				return true;
 			}
@@ -1484,7 +1469,7 @@ bool SceneTreeDock::_check_node_path_recursive(const NodePath &p_root_path, Vari
 			bool updated = false;
 			for (int i = 0; i < a.size(); i++) {
 				Variant value = a[i];
-				if (_check_node_path_recursive(p_root_path, value, p_renames)) {
+				if (_check_node_path_recursive(p_root_node, value, p_renames)) {
 					if (!updated) {
 						a = a.duplicate(); // Need to duplicate for undo-redo to work.
 						updated = true;
@@ -1503,7 +1488,7 @@ bool SceneTreeDock::_check_node_path_recursive(const NodePath &p_root_path, Vari
 			bool updated = false;
 			for (int i = 0; i < d.size(); i++) {
 				Variant value = d.get_value_at_index(i);
-				if (_check_node_path_recursive(p_root_path, value, p_renames)) {
+				if (_check_node_path_recursive(p_root_node, value, p_renames)) {
 					if (!updated) {
 						d = d.duplicate(); // Need to duplicate for undo-redo to work.
 						updated = true;
@@ -1524,7 +1509,7 @@ bool SceneTreeDock::_check_node_path_recursive(const NodePath &p_root_path, Vari
 	return false;
 }
 
-void SceneTreeDock::perform_node_renames(Node *p_base, List<Pair<NodePath, NodePath>> *p_renames, Map<Ref<Animation>, Set<int>> *r_rem_anims) {
+void SceneTreeDock::perform_node_renames(Node *p_base, Map<Node *, NodePath> *p_renames, Map<Ref<Animation>, Set<int>> *r_rem_anims) {
 	Map<Ref<Animation>, Set<int>> rem_anims;
 	if (!r_rem_anims) {
 		r_rem_anims = &rem_anims;
@@ -1538,19 +1523,24 @@ void SceneTreeDock::perform_node_renames(Node *p_base, List<Pair<NodePath, NodeP
 		return;
 	}
 
+	// No renaming if base node is deleted.
+	Map<Node *, NodePath>::Element *found_base_path = p_renames->find(p_base);
+	if (found_base_path && found_base_path->get().is_empty()) {
+		return;
+	}
+
 	// Renaming node paths used in node properties.
 	List<PropertyInfo> properties;
 	p_base->get_property_list(&properties);
-	NodePath base_root_path = p_base->get_path();
 
-	for (List<PropertyInfo>::Element *E = properties.front(); E; E = E->next()) {
-		if (!(E->get().usage & (PROPERTY_USAGE_STORAGE | PROPERTY_USAGE_EDITOR))) {
+	for (const PropertyInfo &E : properties) {
+		if (!(E.usage & (PROPERTY_USAGE_STORAGE | PROPERTY_USAGE_EDITOR))) {
 			continue;
 		}
-		String propertyname = E->get().name;
+		String propertyname = E.name;
 		Variant old_variant = p_base->get(propertyname);
 		Variant updated_variant = old_variant;
-		if (_check_node_path_recursive(base_root_path, updated_variant, p_renames)) {
+		if (_check_node_path_recursive(p_base, updated_variant, p_renames)) {
 			editor_data->get_undo_redo().add_do_property(p_base, propertyname, updated_variant);
 			editor_data->get_undo_redo().add_undo_property(p_base, propertyname, old_variant);
 			p_base->set(propertyname, updated_variant);
@@ -1566,21 +1556,11 @@ void SceneTreeDock::perform_node_renames(Node *p_base, List<Pair<NodePath, NodeP
 		Node *root = ap->get_node(ap->get_root());
 
 		if (root) {
-			NodePath root_path = root->get_path();
-			NodePath new_root_path = root_path;
-
-			for (List<Pair<NodePath, NodePath>>::Element *E = p_renames->front(); E; E = E->next()) {
-				if (E->get().first == root_path) {
-					new_root_path = E->get().second;
-					break;
-				}
-			}
-
-			if (new_root_path != NodePath()) {
-				//will not be erased
-
-				for (List<StringName>::Element *E = anims.front(); E; E = E->next()) {
-					Ref<Animation> anim = ap->get_animation(E->get());
+			Map<Node *, NodePath>::Element *found_root_path = p_renames->find(root);
+			NodePath new_root_path = found_root_path ? found_root_path->get() : root->get_path();
+			if (!new_root_path.is_empty()) { // No renaming if root node is deleted.
+				for (const StringName &E : anims) {
+					Ref<Animation> anim = ap->get_animation(E);
 					if (!r_rem_anims->has(anim)) {
 						r_rem_anims->insert(anim, Set<int>());
 						Set<int> &ran = r_rem_anims->find(anim)->get();
@@ -1602,47 +1582,44 @@ void SceneTreeDock::perform_node_renames(Node *p_base, List<Pair<NodePath, NodeP
 							continue;
 						}
 
-						NodePath old_np = n->get_path();
-
 						if (!ran.has(i)) {
 							continue; //channel was removed
 						}
 
-						for (List<Pair<NodePath, NodePath>>::Element *F = p_renames->front(); F; F = F->next()) {
-							if (F->get().first == old_np) {
-								if (F->get().second == NodePath()) {
-									//will be erased
+						Map<Node *, NodePath>::Element *found_path = p_renames->find(n);
+						if (found_path) {
+							if (found_path->get() == NodePath()) {
+								//will be erased
 
-									int idx = 0;
-									Set<int>::Element *EI = ran.front();
-									ERR_FAIL_COND(!EI); //bug
-									while (EI->get() != i) {
-										idx++;
-										EI = EI->next();
-										ERR_FAIL_COND(!EI); //another bug
-									}
-
-									editor_data->get_undo_redo().add_do_method(anim.ptr(), "remove_track", idx);
-									editor_data->get_undo_redo().add_undo_method(anim.ptr(), "add_track", anim->track_get_type(i), idx);
-									editor_data->get_undo_redo().add_undo_method(anim.ptr(), "track_set_path", idx, track_np);
-									editor_data->get_undo_redo().add_undo_method(anim.ptr(), "track_set_interpolation_type", idx, anim->track_get_interpolation_type(i));
-									for (int j = 0; j < anim->track_get_key_count(i); j++) {
-										editor_data->get_undo_redo().add_undo_method(anim.ptr(), "track_insert_key", idx, anim->track_get_key_time(i, j), anim->track_get_key_value(i, j), anim->track_get_key_transition(i, j));
-									}
-
-									ran.erase(i); //byebye channel
-
-								} else {
-									//will be renamed
-									NodePath rel_path = new_root_path.rel_path_to(F->get().second);
-
-									NodePath new_path = NodePath(rel_path.get_names(), track_np.get_subnames(), false);
-									if (new_path == track_np) {
-										continue; //bleh
-									}
-									editor_data->get_undo_redo().add_do_method(anim.ptr(), "track_set_path", i, new_path);
-									editor_data->get_undo_redo().add_undo_method(anim.ptr(), "track_set_path", i, track_np);
+								int idx = 0;
+								Set<int>::Element *EI = ran.front();
+								ERR_FAIL_COND(!EI); //bug
+								while (EI->get() != i) {
+									idx++;
+									EI = EI->next();
+									ERR_FAIL_COND(!EI); //another bug
 								}
+
+								editor_data->get_undo_redo().add_do_method(anim.ptr(), "remove_track", idx);
+								editor_data->get_undo_redo().add_undo_method(anim.ptr(), "add_track", anim->track_get_type(i), idx);
+								editor_data->get_undo_redo().add_undo_method(anim.ptr(), "track_set_path", idx, track_np);
+								editor_data->get_undo_redo().add_undo_method(anim.ptr(), "track_set_interpolation_type", idx, anim->track_get_interpolation_type(i));
+								for (int j = 0; j < anim->track_get_key_count(i); j++) {
+									editor_data->get_undo_redo().add_undo_method(anim.ptr(), "track_insert_key", idx, anim->track_get_key_time(i, j), anim->track_get_key_value(i, j), anim->track_get_key_transition(i, j));
+								}
+
+								ran.erase(i); //byebye channel
+
+							} else {
+								//will be renamed
+								NodePath rel_path = new_root_path.rel_path_to(found_path->get());
+
+								NodePath new_path = NodePath(rel_path.get_names(), track_np.get_subnames(), false);
+								if (new_path == track_np) {
+									continue; //bleh
+								}
+								editor_data->get_undo_redo().add_do_method(anim.ptr(), "track_set_path", i, new_path);
+								editor_data->get_undo_redo().add_undo_method(anim.ptr(), "track_set_path", i, track_np);
 							}
 						}
 					}
@@ -1657,7 +1634,7 @@ void SceneTreeDock::perform_node_renames(Node *p_base, List<Pair<NodePath, NodeP
 }
 
 void SceneTreeDock::_node_prerenamed(Node *p_node, const String &p_new_name) {
-	List<Pair<NodePath, NodePath>> path_renames;
+	Map<Node *, NodePath> path_renames;
 
 	Vector<StringName> base_path;
 	Node *n = p_node->get_parent();
@@ -1672,10 +1649,8 @@ void SceneTreeDock::_node_prerenamed(Node *p_node, const String &p_new_name) {
 
 	new_base_path.push_back(p_new_name);
 
-	Pair<NodePath, NodePath> npp;
-	npp.first = NodePath(base_path, true);
-	npp.second = NodePath(new_base_path, true);
-	path_renames.push_back(npp);
+	NodePath new_path(new_base_path, true);
+	path_renames[p_node] = new_path;
 
 	for (int i = 0; i < p_node->get_child_count(); i++) {
 		_fill_path_renames(base_path, new_base_path, p_node->get_child(i), &path_renames);
@@ -1687,8 +1662,8 @@ void SceneTreeDock::_node_prerenamed(Node *p_node, const String &p_new_name) {
 bool SceneTreeDock::_validate_no_foreign() {
 	List<Node *> selection = editor_selection->get_selected_node_list();
 
-	for (List<Node *>::Element *E = selection.front(); E; E = E->next()) {
-		if (E->get() != edited_scene && E->get()->get_owner() != edited_scene) {
+	for (Node *E : selection) {
+		if (E != edited_scene && E->get_owner() != edited_scene) {
 			accept->set_text(TTR("Can't operate on nodes from a foreign scene!"));
 			accept->popup_centered();
 			return false;
@@ -1697,11 +1672,11 @@ bool SceneTreeDock::_validate_no_foreign() {
 		// When edited_scene inherits from another one the root Node will be the parent Scene,
 		// we don't want to consider that Node a foreign one otherwise we would not be able to
 		// delete it.
-		if (edited_scene->get_scene_inherited_state().is_valid() && edited_scene == E->get()) {
+		if (edited_scene->get_scene_inherited_state().is_valid() && edited_scene == E) {
 			continue;
 		}
 
-		if (edited_scene->get_scene_inherited_state().is_valid() && edited_scene->get_scene_inherited_state()->find_node_by_path(edited_scene->get_path_to(E->get())) >= 0) {
+		if (edited_scene->get_scene_inherited_state().is_valid() && edited_scene->get_scene_inherited_state()->find_node_by_path(edited_scene->get_path_to(E)) >= 0) {
 			accept->set_text(TTR("Can't operate on nodes the current scene inherits from!"));
 			accept->popup_centered();
 			return false;
@@ -1714,8 +1689,8 @@ bool SceneTreeDock::_validate_no_foreign() {
 bool SceneTreeDock::_validate_no_instance() {
 	List<Node *> selection = editor_selection->get_selected_node_list();
 
-	for (List<Node *>::Element *E = selection.front(); E; E = E->next()) {
-		if (E->get() != edited_scene && E->get()->get_filename() != "") {
+	for (Node *E : selection) {
+		if (E != edited_scene && E->get_filename() != "") {
 			accept->set_text(TTR("This operation can't be done on instantiated scenes."));
 			accept->popup_centered();
 			return false;
@@ -1737,8 +1712,8 @@ void SceneTreeDock::_node_reparent(NodePath p_path, bool p_keep_global_xform) {
 
 	Vector<Node *> nodes;
 
-	for (List<Node *>::Element *E = selection.front(); E; E = E->next()) {
-		nodes.push_back(E->get());
+	for (Node *E : selection) {
+		nodes.push_back(E);
 	}
 
 	_do_reparent(new_parent, -1, nodes, p_keep_global_xform);
@@ -1780,7 +1755,7 @@ void SceneTreeDock::_do_reparent(Node *p_new_parent, int p_position_in_parent, V
 
 	editor_data->get_undo_redo().create_action(TTR("Reparent Node"));
 
-	List<Pair<NodePath, NodePath>> path_renames;
+	Map<Node *, NodePath> path_renames;
 	Vector<StringName> former_names;
 
 	int inc = 0;
@@ -1795,8 +1770,8 @@ void SceneTreeDock::_do_reparent(Node *p_new_parent, int p_position_in_parent, V
 		List<Node *> owned;
 		node->get_owned_by(node->get_owner(), &owned);
 		Array owners;
-		for (List<Node *>::Element *E = owned.front(); E; E = E->next()) {
-			owners.push_back(E->get());
+		for (Node *E : owned) {
+			owners.push_back(E);
 		}
 
 		if (new_parent == node->get_parent() && node->get_index() < p_position_in_parent + ni) {
@@ -1817,21 +1792,24 @@ void SceneTreeDock::_do_reparent(Node *p_new_parent, int p_position_in_parent, V
 		// Name was modified, fix the path renames.
 		if (old_name.casecmp_to(new_name) != 0) {
 			// Fix the to name to have the new name.
-			NodePath old_new_name = path_renames[ni].second;
-			NodePath new_path;
+			Map<Node *, NodePath>::Element *found_path = path_renames.find(node);
+			if (found_path) {
+				NodePath old_new_name = found_path->get();
 
-			Vector<StringName> unfixed_new_names = old_new_name.get_names();
-			Vector<StringName> fixed_new_names;
+				Vector<StringName> unfixed_new_names = old_new_name.get_names();
+				Vector<StringName> fixed_new_names;
 
-			// Get last name and replace with fixed new name.
-			for (int a = 0; a < (unfixed_new_names.size() - 1); a++) {
-				fixed_new_names.push_back(unfixed_new_names[a]);
+				// Get last name and replace with fixed new name.
+				for (int a = 0; a < (unfixed_new_names.size() - 1); a++) {
+					fixed_new_names.push_back(unfixed_new_names[a]);
+				}
+				fixed_new_names.push_back(new_name);
+
+				NodePath fixed_node_path = NodePath(fixed_new_names, true);
+				path_renames[node] = fixed_node_path;
+			} else {
+				ERR_PRINT("Internal error. Can't find renamed path for node '" + node->get_path() + "'");
 			}
-			fixed_new_names.push_back(new_name);
-
-			NodePath fixed_node_path = NodePath(fixed_new_names, true);
-
-			path_renames[ni].second = fixed_node_path;
 		}
 
 		editor_data->get_undo_redo().add_do_method(ed, "live_debug_reparent_node", edited_scene->get_path_to(node), edited_scene->get_path_to(new_parent), new_name, p_position_in_parent + inc);
@@ -1868,8 +1846,8 @@ void SceneTreeDock::_do_reparent(Node *p_new_parent, int p_position_in_parent, V
 		List<Node *> owned;
 		node->get_owned_by(node->get_owner(), &owned);
 		Array owners;
-		for (List<Node *>::Element *E = owned.front(); E; E = E->next()) {
-			owners.push_back(E->get());
+		for (Node *E : owned) {
+			owners.push_back(E);
 		}
 
 		int child_pos = node->get_index();
@@ -1949,10 +1927,10 @@ void SceneTreeDock::_script_created(Ref<Script> p_script) {
 	}
 
 	editor_data->get_undo_redo().create_action(TTR("Attach Script"));
-	for (List<Node *>::Element *E = selected.front(); E; E = E->next()) {
-		Ref<Script> existing = E->get()->get_script();
-		editor_data->get_undo_redo().add_do_method(E->get(), "set_script", p_script);
-		editor_data->get_undo_redo().add_undo_method(E->get(), "set_script", existing);
+	for (Node *E : selected) {
+		Ref<Script> existing = E->get_script();
+		editor_data->get_undo_redo().add_do_method(E, "set_script", p_script);
+		editor_data->get_undo_redo().add_undo_method(E, "set_script", existing);
 		editor_data->get_undo_redo().add_do_method(this, "_update_script_button");
 		editor_data->get_undo_redo().add_undo_method(this, "_update_script_button");
 	}
@@ -1963,10 +1941,29 @@ void SceneTreeDock::_script_created(Ref<Script> p_script) {
 	_update_script_button();
 }
 
+void SceneTreeDock::_shader_created(Ref<Shader> p_shader) {
+	if (selected_shader_material.is_null()) {
+		return;
+	}
+
+	Ref<Shader> existing = selected_shader_material->get_shader();
+
+	editor_data->get_undo_redo().create_action(TTR("Set Shader"));
+	editor_data->get_undo_redo().add_do_method(selected_shader_material.ptr(), "set_shader", p_shader);
+	editor_data->get_undo_redo().add_undo_method(selected_shader_material.ptr(), "set_shader", existing);
+	editor_data->get_undo_redo().commit_action();
+}
+
 void SceneTreeDock::_script_creation_closed() {
 	script_create_dialog->disconnect("script_created", callable_mp(this, &SceneTreeDock::_script_created));
 	script_create_dialog->disconnect("confirmed", callable_mp(this, &SceneTreeDock::_script_creation_closed));
 	script_create_dialog->disconnect("cancelled", callable_mp(this, &SceneTreeDock::_script_creation_closed));
+}
+
+void SceneTreeDock::_shader_creation_closed() {
+	shader_create_dialog->disconnect("shader_created", callable_mp(this, &SceneTreeDock::_shader_created));
+	shader_create_dialog->disconnect("confirmed", callable_mp(this, &SceneTreeDock::_shader_creation_closed));
+	shader_create_dialog->disconnect("cancelled", callable_mp(this, &SceneTreeDock::_shader_creation_closed));
 }
 
 void SceneTreeDock::_toggle_editable_children_from_selection() {
@@ -2027,8 +2024,8 @@ void SceneTreeDock::_delete_confirm(bool p_cut) {
 
 	bool entire_scene = false;
 
-	for (List<Node *>::Element *E = remove_list.front(); E; E = E->next()) {
-		if (E->get() == edited_scene) {
+	for (Node *E : remove_list) {
+		if (E == edited_scene) {
 			entire_scene = true;
 		}
 	}
@@ -2042,11 +2039,10 @@ void SceneTreeDock::_delete_confirm(bool p_cut) {
 
 	} else {
 		remove_list.sort_custom<Node::Comparator>(); //sort nodes to keep positions
-		List<Pair<NodePath, NodePath>> path_renames;
+		Map<Node *, NodePath> path_renames;
 
 		//delete from animation
-		for (List<Node *>::Element *E = remove_list.front(); E; E = E->next()) {
-			Node *n = E->get();
+		for (Node *n : remove_list) {
 			if (!n->is_inside_tree() || !n->get_parent()) {
 				continue;
 			}
@@ -2056,8 +2052,7 @@ void SceneTreeDock::_delete_confirm(bool p_cut) {
 
 		perform_node_renames(nullptr, &path_renames);
 		//delete for read
-		for (List<Node *>::Element *E = remove_list.front(); E; E = E->next()) {
-			Node *n = E->get();
+		for (Node *n : remove_list) {
 			if (!n->is_inside_tree() || !n->get_parent()) {
 				continue;
 			}
@@ -2065,8 +2060,8 @@ void SceneTreeDock::_delete_confirm(bool p_cut) {
 			List<Node *> owned;
 			n->get_owned_by(n->get_owner(), &owned);
 			Array owners;
-			for (List<Node *>::Element *F = owned.front(); F; F = F->next()) {
-				owners.push_back(F->get());
+			for (Node *F : owned) {
+				owners.push_back(F);
 			}
 
 			editor_data->get_undo_redo().add_do_method(n->get_parent(), "remove_child", n);
@@ -2219,8 +2214,7 @@ void SceneTreeDock::_create() {
 		UndoRedo *ur = EditorNode::get_singleton()->get_undo_redo();
 		ur->create_action(TTR("Change type of node(s)"));
 
-		for (List<Node *>::Element *E = selection.front(); E; E = E->next()) {
-			Node *n = E->get();
+		for (Node *n : selection) {
 			ERR_FAIL_COND(!n);
 
 			Variant c = create_dialog->instance_selected();
@@ -2277,8 +2271,8 @@ void SceneTreeDock::_create() {
 		_do_create(parent);
 
 		Vector<Node *> nodes;
-		for (List<Node *>::Element *E = selection.front(); E; E = E->next()) {
-			nodes.push_back(E->get());
+		for (Node *E : selection) {
+			nodes.push_back(E);
 		}
 
 		// This works because editor_selection was cleared and populated with last created node in _do_create()
@@ -2286,7 +2280,7 @@ void SceneTreeDock::_create() {
 		_do_reparent(last_created, -1, nodes, true);
 	}
 
-	scene_tree->get_scene_tree()->call_deferred(SNAME("grab_focus"));
+	scene_tree->get_scene_tree()->grab_focus();
 }
 
 void SceneTreeDock::replace_node(Node *p_node, Node *p_by_node, bool p_keep_properties, bool p_remove_old) {
@@ -2298,13 +2292,13 @@ void SceneTreeDock::replace_node(Node *p_node, Node *p_by_node, bool p_keep_prop
 		List<PropertyInfo> pinfo;
 		n->get_property_list(&pinfo);
 
-		for (List<PropertyInfo>::Element *E = pinfo.front(); E; E = E->next()) {
-			if (!(E->get().usage & PROPERTY_USAGE_STORAGE)) {
+		for (const PropertyInfo &E : pinfo) {
+			if (!(E.usage & PROPERTY_USAGE_STORAGE)) {
 				continue;
 			}
 
-			if (E->get().name == "__meta__") {
-				Dictionary metadata = n->get(E->get().name);
+			if (E.name == "__meta__") {
+				Dictionary metadata = n->get(E.name);
 				if (metadata.has("_editor_description_")) {
 					newnode->set_meta("_editor_description_", metadata["_editor_description_"]);
 				}
@@ -2321,8 +2315,8 @@ void SceneTreeDock::replace_node(Node *p_node, Node *p_by_node, bool p_keep_prop
 				continue;
 			}
 
-			if (default_oldnode->get(E->get().name) != n->get(E->get().name)) {
-				newnode->set(E->get().name, n->get(E->get().name));
+			if (default_oldnode->get(E.name) != n->get(E.name)) {
+				newnode->set(E.name, n->get(E.name));
 			}
 		}
 
@@ -2335,12 +2329,11 @@ void SceneTreeDock::replace_node(Node *p_node, Node *p_by_node, bool p_keep_prop
 	List<MethodInfo> sl;
 
 	n->get_signal_list(&sl);
-	for (List<MethodInfo>::Element *E = sl.front(); E; E = E->next()) {
+	for (const MethodInfo &E : sl) {
 		List<Object::Connection> cl;
-		n->get_signal_connection_list(E->get().name, &cl);
+		n->get_signal_connection_list(E.name, &cl);
 
-		for (List<Object::Connection>::Element *F = cl.front(); F; F = F->next()) {
-			Object::Connection &c = F->get();
+		for (const Object::Connection &c : cl) {
 			if (!(c.flags & Object::CONNECT_PERSIST)) {
 				continue;
 			}
@@ -2546,13 +2539,13 @@ void SceneTreeDock::_files_dropped(Vector<String> p_files, NodePath p_to, int p_
 		List<PropertyInfo> pinfo;
 		node->get_property_list(&pinfo);
 
-		for (PropertyInfo &p : pinfo) {
+		for (const PropertyInfo &p : pinfo) {
 			if (!(p.usage & PROPERTY_USAGE_EDITOR) || !(p.usage & PROPERTY_USAGE_STORAGE) || p.hint != PROPERTY_HINT_RESOURCE_TYPE) {
 				continue;
 			}
 			Vector<String> valid_types = p.hint_string.split(",");
 
-			for (String &prop_type : valid_types) {
+			for (const String &prop_type : valid_types) {
 				if (res_type == prop_type || ClassDB::is_parent_class(res_type, prop_type) || EditorNode::get_editor_data().script_class_is_parent(res_type, prop_type)) {
 					valid_properties.push_back(p.name);
 					break;
@@ -2566,7 +2559,7 @@ void SceneTreeDock::_files_dropped(Vector<String> p_files, NodePath p_to, int p_
 
 			bool capitalize = bool(EDITOR_GET("interface/inspector/capitalize_properties"));
 			menu_properties->clear();
-			for (String &p : valid_properties) {
+			for (const String &p : valid_properties) {
 				menu_properties->add_item(capitalize ? p.capitalize() : p);
 				menu_properties->set_item_metadata(menu_properties->get_item_count() - 1, p);
 			}
@@ -2607,8 +2600,8 @@ void SceneTreeDock::_nodes_dragged(Array p_nodes, NodePath p_to, int p_type) {
 	}
 
 	Vector<Node *> nodes;
-	for (List<Node *>::Element *E = selection.front(); E; E = E->next()) {
-		nodes.push_back(E->get());
+	for (Node *E : selection) {
+		nodes.push_back(E);
 	}
 
 	int to_pos = -1;
@@ -2624,15 +2617,15 @@ void SceneTreeDock::_add_children_to_popup(Object *p_obj, int p_depth) {
 
 	List<PropertyInfo> pinfo;
 	p_obj->get_property_list(&pinfo);
-	for (List<PropertyInfo>::Element *E = pinfo.front(); E; E = E->next()) {
-		if (!(E->get().usage & PROPERTY_USAGE_EDITOR)) {
+	for (const PropertyInfo &E : pinfo) {
+		if (!(E.usage & PROPERTY_USAGE_EDITOR)) {
 			continue;
 		}
-		if (E->get().hint != PROPERTY_HINT_RESOURCE_TYPE) {
+		if (E.hint != PROPERTY_HINT_RESOURCE_TYPE) {
 			continue;
 		}
 
-		Variant value = p_obj->get(E->get().name);
+		Variant value = p_obj->get(E.name);
 		if (value.get_type() != Variant::OBJECT) {
 			continue;
 		}
@@ -2647,7 +2640,7 @@ void SceneTreeDock::_add_children_to_popup(Object *p_obj, int p_depth) {
 			menu->add_submenu_item(TTR("Sub-Resources"), "Sub-Resources");
 		}
 		int index = menu_subresources->get_item_count();
-		menu_subresources->add_icon_item(icon, E->get().name.capitalize(), EDIT_SUBRESOURCE_BASE + subresources.size());
+		menu_subresources->add_icon_item(icon, E.name.capitalize(), EDIT_SUBRESOURCE_BASE + subresources.size());
 		menu_subresources->set_item_h_offset(index, p_depth * 10 * EDSCALE);
 		subresources.push_back(obj->get_instance_id());
 
@@ -2729,8 +2722,8 @@ void SceneTreeDock::_tree_rmb(const Vector2 &p_menu_pos) {
 			menu->add_icon_shortcut(get_theme_icon(SNAME("ScriptRemove"), SNAME("EditorIcons")), ED_GET_SHORTCUT("scene_tree/detach_script"), TOOL_DETACH_SCRIPT);
 		} else if (full_selection.size() > 1) {
 			bool script_exists = false;
-			for (List<Node *>::Element *E = full_selection.front(); E; E = E->next()) {
-				if (!E->get()->get_script().is_null()) {
+			for (Node *E : full_selection) {
+				if (!E->get_script().is_null()) {
 					script_exists = true;
 					break;
 				}
@@ -2753,8 +2746,8 @@ void SceneTreeDock::_tree_rmb(const Vector2 &p_menu_pos) {
 		}
 
 		bool can_replace = true;
-		for (List<Node *>::Element *E = selection.front(); E; E = E->next()) {
-			if (E->get() != edited_scene && (E->get()->get_owner() != edited_scene || E->get()->get_filename() != "")) {
+		for (Node *E : selection) {
+			if (E != edited_scene && (E->get_owner() != edited_scene || E->get_filename() != "")) {
 				can_replace = false;
 				break;
 			}
@@ -2924,6 +2917,42 @@ void SceneTreeDock::open_script_dialog(Node *p_for_node, bool p_extend) {
 	}
 }
 
+void SceneTreeDock::attach_shader_to_selected() {
+	if (selected_shader_material.is_null()) {
+		return;
+	}
+
+	String path = selected_shader_material->get_path();
+	if (path == "") {
+		String root_path;
+		if (editor_data->get_edited_scene_root()) {
+			root_path = editor_data->get_edited_scene_root()->get_filename();
+		}
+		String shader_name;
+		if (selected_shader_material->get_name().is_empty()) {
+			shader_name = root_path.get_file();
+		} else {
+			shader_name = selected_shader_material->get_name();
+		}
+		if (root_path == "") {
+			path = String("res://").plus_file(shader_name);
+		} else {
+			path = root_path.get_base_dir().plus_file(shader_name);
+		}
+	}
+
+	shader_create_dialog->connect("shader_created", callable_mp(this, &SceneTreeDock::_shader_created));
+	shader_create_dialog->connect("confirmed", callable_mp(this, &SceneTreeDock::_shader_creation_closed));
+	shader_create_dialog->connect("cancelled", callable_mp(this, &SceneTreeDock::_shader_creation_closed));
+	shader_create_dialog->config(path);
+	shader_create_dialog->popup_centered();
+}
+
+void SceneTreeDock::open_shader_dialog(Ref<ShaderMaterial> &p_for_material) {
+	selected_shader_material = p_for_material;
+	attach_shader_to_selected();
+}
+
 void SceneTreeDock::open_add_child_dialog() {
 	create_dialog->set_base_type("CanvasItem");
 	_tool_selected(TOOL_NEW, true);
@@ -3067,8 +3096,8 @@ void SceneTreeDock::_feature_profile_changed() {
 }
 
 void SceneTreeDock::_clear_clipboard() {
-	for (List<Node *>::Element *E = node_clipboard.front(); E; E = E->next()) {
-		memdelete(E->get());
+	for (Node *E : node_clipboard) {
+		memdelete(E);
 	}
 	node_clipboard.clear();
 	clipboard_resource_remap.clear();
@@ -3079,18 +3108,18 @@ void SceneTreeDock::_create_remap_for_node(Node *p_node, Map<RES, RES> &r_remap)
 	p_node->get_property_list(&props);
 	bool is_instantiated = EditorPropertyRevert::may_node_be_in_instance(p_node);
 
-	for (List<PropertyInfo>::Element *E = props.front(); E; E = E->next()) {
-		if (!(E->get().usage & PROPERTY_USAGE_STORAGE)) {
+	for (const PropertyInfo &E : props) {
+		if (!(E.usage & PROPERTY_USAGE_STORAGE)) {
 			continue;
 		}
 
-		Variant v = p_node->get(E->get().name);
+		Variant v = p_node->get(E.name);
 		if (v.is_ref()) {
 			RES res = v;
 			if (res.is_valid()) {
 				if (is_instantiated) {
 					Variant orig;
-					if (EditorPropertyRevert::get_instantiated_node_original_property(p_node, E->get().name, orig)) {
+					if (EditorPropertyRevert::get_instantiated_node_original_property(p_node, E.name, orig)) {
 						if (!EditorPropertyRevert::is_node_property_different(p_node, v, orig)) {
 							continue;
 						}
@@ -3115,12 +3144,12 @@ void SceneTreeDock::_create_remap_for_resource(RES p_resource, Map<RES, RES> &r_
 	List<PropertyInfo> props;
 	p_resource->get_property_list(&props);
 
-	for (List<PropertyInfo>::Element *E = props.front(); E; E = E->next()) {
-		if (!(E->get().usage & PROPERTY_USAGE_STORAGE)) {
+	for (const PropertyInfo &E : props) {
+		if (!(E.usage & PROPERTY_USAGE_STORAGE)) {
 			continue;
 		}
 
-		Variant v = p_resource->get(E->get().name);
+		Variant v = p_resource->get(E.name);
 		if (v.is_ref()) {
 			RES res = v;
 			if (res.is_valid()) {
@@ -3134,8 +3163,7 @@ void SceneTreeDock::_create_remap_for_resource(RES p_resource, Map<RES, RES> &r_
 
 void SceneTreeDock::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("_set_owners"), &SceneTreeDock::_set_owners);
-	ClassDB::bind_method(D_METHOD("_unhandled_key_input"), &SceneTreeDock::_unhandled_key_input);
-	ClassDB::bind_method(D_METHOD("_input"), &SceneTreeDock::_input);
+
 	ClassDB::bind_method(D_METHOD("_update_script_button"), &SceneTreeDock::_update_script_button);
 
 	ClassDB::bind_method(D_METHOD("instantiate"), &SceneTreeDock::instantiate);
@@ -3294,6 +3322,9 @@ SceneTreeDock::SceneTreeDock(EditorNode *p_editor, Node *p_scene_root, EditorSel
 	script_create_dialog = memnew(ScriptCreateDialog);
 	script_create_dialog->set_inheritance_base_type("Node");
 	add_child(script_create_dialog);
+
+	shader_create_dialog = memnew(ShaderCreateDialog);
+	add_child(shader_create_dialog);
 
 	reparent_dialog = memnew(ReparentDialog);
 	add_child(reparent_dialog);

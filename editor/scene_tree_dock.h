@@ -49,6 +49,7 @@
 #include "scene_tree_editor.h"
 
 class EditorNode;
+class ShaderCreateDialog;
 
 class SceneTreeDock : public VBoxContainer {
 	GDCLASS(SceneTreeDock, VBoxContainer);
@@ -138,6 +139,7 @@ class SceneTreeDock : public VBoxContainer {
 	HashMap<String, Map<RES, RES>> clipboard_resource_remap;
 
 	ScriptCreateDialog *script_create_dialog;
+	ShaderCreateDialog *shader_create_dialog;
 	AcceptDialog *accept;
 	ConfirmationDialog *delete_dialog;
 	ConfirmationDialog *editable_instance_remove_dialog;
@@ -166,6 +168,8 @@ class SceneTreeDock : public VBoxContainer {
 	VBoxContainer *create_root_dialog;
 	String selected_favorite_root;
 
+	Ref<ShaderMaterial> selected_shader_material;
+
 	void _add_children_to_popup(Object *p_obj, int p_depth);
 
 	void _node_reparent(NodePath p_path, bool p_keep_global_xform);
@@ -192,7 +196,9 @@ class SceneTreeDock : public VBoxContainer {
 	void _node_selected();
 	void _node_renamed();
 	void _script_created(Ref<Script> p_script);
+	void _shader_created(Ref<Shader> p_shader);
 	void _script_creation_closed();
+	void _shader_creation_closed();
 
 	void _delete_confirm(bool p_cut = false);
 
@@ -204,8 +210,8 @@ class SceneTreeDock : public VBoxContainer {
 	void _node_prerenamed(Node *p_node, const String &p_new_name);
 
 	void _nodes_drag_begin();
-	void _input(Ref<InputEvent> p_event);
-	void _unhandled_key_input(Ref<InputEvent> p_event);
+	virtual void input(const Ref<InputEvent> &p_event) override;
+	virtual void unhandled_key_input(const Ref<InputEvent> &p_event) override;
 
 	void _import_subscene();
 
@@ -217,7 +223,7 @@ class SceneTreeDock : public VBoxContainer {
 	void _selection_changed();
 	void _update_script_button();
 
-	void _fill_path_renames(Vector<StringName> base_path, Vector<StringName> new_base_path, Node *p_node, List<Pair<NodePath, NodePath>> *p_renames);
+	void _fill_path_renames(Vector<StringName> base_path, Vector<StringName> new_base_path, Node *p_node, Map<Node *, NodePath> *p_renames);
 
 	void _normalize_drop(Node *&to_node, int &to_pos, int p_type);
 
@@ -253,8 +259,8 @@ class SceneTreeDock : public VBoxContainer {
 	static SceneTreeDock *singleton;
 	static void _update_configuration_warning();
 
-	static bool _update_node_path(const NodePath &p_root_path, NodePath &r_node_path, List<Pair<NodePath, NodePath>> *p_renames);
-	static bool _check_node_path_recursive(const NodePath &p_root_path, Variant &r_variant, List<Pair<NodePath, NodePath>> *p_renames);
+	bool _update_node_path(Node *p_root_node, NodePath &r_node_path, Map<Node *, NodePath> *p_renames) const;
+	bool _check_node_path_recursive(Node *p_root_node, Variant &r_variant, Map<Node *, NodePath> *p_renames) const;
 
 protected:
 	void _notification(int p_what);
@@ -272,8 +278,8 @@ public:
 	void instantiate(const String &p_file);
 	void instantiate_scenes(const Vector<String> &p_files, Node *p_parent = nullptr);
 	void set_selected(Node *p_node, bool p_emit_selected = false);
-	void fill_path_renames(Node *p_node, Node *p_new_parent, List<Pair<NodePath, NodePath>> *p_renames);
-	void perform_node_renames(Node *p_base, List<Pair<NodePath, NodePath>> *p_renames, Map<Ref<Animation>, Set<int>> *r_rem_anims = nullptr);
+	void fill_path_renames(Node *p_node, Node *p_new_parent, Map<Node *, NodePath> *p_renames);
+	void perform_node_renames(Node *p_base, Map<Node *, NodePath> *p_renames, Map<Ref<Animation>, Set<int>> *r_rem_anims = nullptr);
 	SceneTreeEditor *get_tree_editor() { return scene_tree; }
 	EditorData *get_editor_data() { return editor_data; }
 
@@ -287,6 +293,9 @@ public:
 
 	void attach_script_to_selected(bool p_extend);
 	void open_script_dialog(Node *p_for_node, bool p_extend);
+
+	void attach_shader_to_selected();
+	void open_shader_dialog(Ref<ShaderMaterial> &p_for_material);
 
 	void open_add_child_dialog();
 	void open_instance_child_dialog();

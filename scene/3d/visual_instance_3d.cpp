@@ -31,8 +31,6 @@
 #include "visual_instance_3d.h"
 
 #include "scene/scene_string_names.h"
-#include "servers/rendering_server.h"
-#include "skeleton_3d.h"
 
 AABB VisualInstance3D::get_transformed_aabb() const {
 	return get_global_transform().xform(get_aabb());
@@ -93,18 +91,22 @@ uint32_t VisualInstance3D::get_layer_mask() const {
 	return layers;
 }
 
-void VisualInstance3D::set_layer_mask_bit(int p_layer, bool p_enable) {
-	ERR_FAIL_INDEX(p_layer, 32);
-	if (p_enable) {
-		set_layer_mask(layers | (1 << p_layer));
+void VisualInstance3D::set_layer_mask_value(int p_layer_number, bool p_value) {
+	ERR_FAIL_COND_MSG(p_layer_number < 1, "Render layer number must be between 1 and 20 inclusive.");
+	ERR_FAIL_COND_MSG(p_layer_number > 20, "Render layer number must be between 1 and 20 inclusive.");
+	uint32_t mask = get_layer_mask();
+	if (p_value) {
+		mask |= 1 << (p_layer_number - 1);
 	} else {
-		set_layer_mask(layers & (~(1 << p_layer)));
+		mask &= ~(1 << (p_layer_number - 1));
 	}
+	set_layer_mask(mask);
 }
 
-bool VisualInstance3D::get_layer_mask_bit(int p_layer) const {
-	ERR_FAIL_INDEX_V(p_layer, 32, false);
-	return (layers & (1 << p_layer));
+bool VisualInstance3D::get_layer_mask_value(int p_layer_number) const {
+	ERR_FAIL_COND_V_MSG(p_layer_number < 1, false, "Render layer number must be between 1 and 20 inclusive.");
+	ERR_FAIL_COND_V_MSG(p_layer_number > 20, false, "Render layer number must be between 1 and 20 inclusive.");
+	return layers & (1 << (p_layer_number - 1));
 }
 
 void VisualInstance3D::_bind_methods() {
@@ -114,8 +116,8 @@ void VisualInstance3D::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_instance"), &VisualInstance3D::get_instance);
 	ClassDB::bind_method(D_METHOD("set_layer_mask", "mask"), &VisualInstance3D::set_layer_mask);
 	ClassDB::bind_method(D_METHOD("get_layer_mask"), &VisualInstance3D::get_layer_mask);
-	ClassDB::bind_method(D_METHOD("set_layer_mask_bit", "layer", "enabled"), &VisualInstance3D::set_layer_mask_bit);
-	ClassDB::bind_method(D_METHOD("get_layer_mask_bit", "layer"), &VisualInstance3D::get_layer_mask_bit);
+	ClassDB::bind_method(D_METHOD("set_layer_mask_value", "layer_number", "value"), &VisualInstance3D::set_layer_mask_value);
+	ClassDB::bind_method(D_METHOD("get_layer_mask_value", "layer_number"), &VisualInstance3D::get_layer_mask_value);
 
 	ClassDB::bind_method(D_METHOD("get_transformed_aabb"), &VisualInstance3D::get_transformed_aabb);
 
@@ -153,6 +155,7 @@ Ref<Material> GeometryInstance3D::get_material_override() const {
 void GeometryInstance3D::set_visibility_range_begin(float p_dist) {
 	visibility_range_begin = p_dist;
 	RS::get_singleton()->instance_geometry_set_visibility_range(get_instance(), visibility_range_begin, visibility_range_end, visibility_range_begin_margin, visibility_range_end_margin);
+	update_configuration_warnings();
 }
 
 float GeometryInstance3D::get_visibility_range_begin() const {
@@ -162,6 +165,7 @@ float GeometryInstance3D::get_visibility_range_begin() const {
 void GeometryInstance3D::set_visibility_range_end(float p_dist) {
 	visibility_range_end = p_dist;
 	RS::get_singleton()->instance_geometry_set_visibility_range(get_instance(), visibility_range_begin, visibility_range_end, visibility_range_begin_margin, visibility_range_end_margin);
+	update_configuration_warnings();
 }
 
 float GeometryInstance3D::get_visibility_range_end() const {
@@ -238,8 +242,7 @@ bool GeometryInstance3D::_get(const StringName &p_name, Variant &r_ret) const {
 void GeometryInstance3D::_get_property_list(List<PropertyInfo> *p_list) const {
 	List<PropertyInfo> pinfo;
 	RS::get_singleton()->instance_geometry_get_shader_parameter_list(get_instance(), &pinfo);
-	for (List<PropertyInfo>::Element *E = pinfo.front(); E; E = E->next()) {
-		PropertyInfo pi = E->get();
+	for (PropertyInfo &pi : pinfo) {
 		bool has_def_value = false;
 		Variant def_value = RS::get_singleton()->instance_geometry_get_shader_parameter_default_value(get_instance(), pi.name);
 		if (def_value.get_type() != Variant::NIL) {
@@ -352,6 +355,16 @@ bool GeometryInstance3D::is_ignoring_occlusion_culling() {
 	return ignore_occlusion_culling;
 }
 
+TypedArray<String> GeometryInstance3D::get_configuration_warnings() const {
+	TypedArray<String> warnings = Node::get_configuration_warnings();
+
+	if (!Math::is_zero_approx(visibility_range_end) && visibility_range_end <= visibility_range_begin) {
+		warnings.push_back(TTR("The GeometryInstance3D visibility range's End distance is set to a non-zero value, but is lower than the Begin distance.\nThis means the GeometryInstance3D will never be visible.\nTo resolve this, set the End distance to 0 or to a value greater than the Begin distance."));
+	}
+
+	return warnings;
+}
+
 void GeometryInstance3D::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_material_override", "material"), &GeometryInstance3D::set_material_override);
 	ClassDB::bind_method(D_METHOD("get_material_override"), &GeometryInstance3D::get_material_override);
@@ -401,7 +414,7 @@ void GeometryInstance3D::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "ignore_occlusion_culling"), "set_ignore_occlusion_culling", "is_ignoring_occlusion_culling");
 	ADD_GROUP("Global Illumination", "gi_");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "gi_mode", PROPERTY_HINT_ENUM, "Disabled,Baked,Dynamic"), "set_gi_mode", "get_gi_mode");
-	ADD_PROPERTY(PropertyInfo(Variant::INT, "gi_lightmap_scale", PROPERTY_HINT_ENUM, "1x,2x,4x,8x"), "set_lightmap_scale", "get_lightmap_scale");
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "gi_lightmap_scale", PROPERTY_HINT_ENUM, String::utf8("1×,2×,4×,8×")), "set_lightmap_scale", "get_lightmap_scale");
 
 	ADD_GROUP("Visibility Range", "visibility_range_");
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "visibility_range_begin", PROPERTY_HINT_RANGE, "0.0,4096.0,0.01"), "set_visibility_range_begin", "get_visibility_range_begin");

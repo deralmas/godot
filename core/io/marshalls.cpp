@@ -746,7 +746,7 @@ Error decode_variant(Variant &r_variant, const uint8_t *p_buffer, int p_len, int
 		} break;
 		case Variant::PACKED_INT64_ARRAY: {
 			ERR_FAIL_COND_V(len < 4, ERR_INVALID_DATA);
-			int64_t count = decode_uint64(buf);
+			int32_t count = decode_uint32(buf);
 			buf += 4;
 			len -= 4;
 			ERR_FAIL_MUL_OF(count, 8, ERR_INVALID_DATA);
@@ -795,7 +795,7 @@ Error decode_variant(Variant &r_variant, const uint8_t *p_buffer, int p_len, int
 		} break;
 		case Variant::PACKED_FLOAT64_ARRAY: {
 			ERR_FAIL_COND_V(len < 4, ERR_INVALID_DATA);
-			int64_t count = decode_uint64(buf);
+			int32_t count = decode_uint32(buf);
 			buf += 4;
 			len -= 4;
 			ERR_FAIL_MUL_OF(count, 8, ERR_INVALID_DATA);
@@ -804,7 +804,6 @@ Error decode_variant(Variant &r_variant, const uint8_t *p_buffer, int p_len, int
 			Vector<double> data;
 
 			if (count) {
-				//const double*rbuf=(const double*)buf;
 				data.resize(count);
 				double *w = data.ptrw();
 				for (int64_t i = 0; i < count; i++) {
@@ -1031,7 +1030,8 @@ static void _encode_string(const String &p_string, uint8_t *&buf, int &r_len) {
 	}
 }
 
-Error encode_variant(const Variant &p_variant, uint8_t *r_buffer, int &r_len, bool p_full_objects) {
+Error encode_variant(const Variant &p_variant, uint8_t *r_buffer, int &r_len, bool p_full_objects, int p_depth) {
+	ERR_FAIL_COND_V_MSG(p_depth > Variant::MAX_RECURSION_DEPTH, ERR_OUT_OF_MEMORY, "Potential inifite recursion detected. Bailing.");
 	uint8_t *buf = r_buffer;
 
 	r_len = 0;
@@ -1358,8 +1358,8 @@ Error encode_variant(const Variant &p_variant, uint8_t *r_buffer, int &r_len, bo
 					obj->get_property_list(&props);
 
 					int pc = 0;
-					for (List<PropertyInfo>::Element *E = props.front(); E; E = E->next()) {
-						if (!(E->get().usage & PROPERTY_USAGE_STORAGE)) {
+					for (const PropertyInfo &E : props) {
+						if (!(E.usage & PROPERTY_USAGE_STORAGE)) {
 							continue;
 						}
 						pc++;
@@ -1372,18 +1372,16 @@ Error encode_variant(const Variant &p_variant, uint8_t *r_buffer, int &r_len, bo
 
 					r_len += 4;
 
-					for (List<PropertyInfo>::Element *E = props.front(); E; E = E->next()) {
-						if (!(E->get().usage & PROPERTY_USAGE_STORAGE)) {
+					for (const PropertyInfo &E : props) {
+						if (!(E.usage & PROPERTY_USAGE_STORAGE)) {
 							continue;
 						}
 
-						_encode_string(E->get().name, buf, r_len);
+						_encode_string(E.name, buf, r_len);
 
 						int len;
-						Error err = encode_variant(obj->get(E->get().name), buf, len, p_full_objects);
-						if (err) {
-							return err;
-						}
+						Error err = encode_variant(obj->get(E.name), buf, len, p_full_objects, p_depth + 1);
+						ERR_FAIL_COND_V(err, err);
 						ERR_FAIL_COND_V(len % 4, ERR_BUG);
 						r_len += len;
 						if (buf) {
@@ -1418,7 +1416,7 @@ Error encode_variant(const Variant &p_variant, uint8_t *r_buffer, int &r_len, bo
 			List<Variant> keys;
 			d.get_key_list(&keys);
 
-			for (List<Variant>::Element *E = keys.front(); E; E = E->next()) {
+			for (const Variant &E : keys) {
 				/*
 				CharString utf8 = E->->utf8();
 
@@ -1433,15 +1431,17 @@ Error encode_variant(const Variant &p_variant, uint8_t *r_buffer, int &r_len, bo
 					r_len++; //pad
 				*/
 				int len;
-				encode_variant(E->get(), buf, len, p_full_objects);
+				Error err = encode_variant(E, buf, len, p_full_objects, p_depth + 1);
+				ERR_FAIL_COND_V(err, err);
 				ERR_FAIL_COND_V(len % 4, ERR_BUG);
 				r_len += len;
 				if (buf) {
 					buf += len;
 				}
-				Variant *v = d.getptr(E->get());
+				Variant *v = d.getptr(E);
 				ERR_FAIL_COND_V(!v, ERR_BUG);
-				encode_variant(*v, buf, len, p_full_objects);
+				err = encode_variant(*v, buf, len, p_full_objects, p_depth + 1);
+				ERR_FAIL_COND_V(err, err);
 				ERR_FAIL_COND_V(len % 4, ERR_BUG);
 				r_len += len;
 				if (buf) {
@@ -1462,7 +1462,8 @@ Error encode_variant(const Variant &p_variant, uint8_t *r_buffer, int &r_len, bo
 
 			for (int i = 0; i < v.size(); i++) {
 				int len;
-				encode_variant(v.get(i), buf, len, p_full_objects);
+				Error err = encode_variant(v.get(i), buf, len, p_full_objects, p_depth + 1);
+				ERR_FAIL_COND_V(err, err);
 				ERR_FAIL_COND_V(len % 4, ERR_BUG);
 				r_len += len;
 				if (buf) {
@@ -1517,7 +1518,7 @@ Error encode_variant(const Variant &p_variant, uint8_t *r_buffer, int &r_len, bo
 			int datasize = sizeof(int64_t);
 
 			if (buf) {
-				encode_uint64(datalen, buf);
+				encode_uint32(datalen, buf);
 				buf += 4;
 				const int64_t *r = data.ptr();
 				for (int64_t i = 0; i < datalen; i++) {

@@ -183,7 +183,7 @@ void RenderForwardClustered::RenderBufferDataForwardClustered::clear() {
 	}
 }
 
-void RenderForwardClustered::RenderBufferDataForwardClustered::configure(RID p_color_buffer, RID p_depth_buffer, int p_width, int p_height, RS::ViewportMSAA p_msaa, uint32_t p_view_count) {
+void RenderForwardClustered::RenderBufferDataForwardClustered::configure(RID p_color_buffer, RID p_depth_buffer, RID p_target_buffer, int p_width, int p_height, RS::ViewportMSAA p_msaa, uint32_t p_view_count) {
 	clear();
 
 	ERR_FAIL_COND_MSG(p_view_count != 1, "Multiple views is currently not supported in this renderer, please use the mobile renderer for VR support");
@@ -483,8 +483,8 @@ void RenderForwardClustered::_render_list_template(RenderingDevice::DrawListID p
 		}
 
 		if (material_uniform_set != prev_material_uniform_set) {
-			//update uniform set
-			if (material_uniform_set.is_valid()) {
+			// Update uniform set.
+			if (material_uniform_set.is_valid() && RD::get_singleton()->uniform_set_is_valid(material_uniform_set)) { // Material may not have a uniform set.
 				RD::get_singleton()->draw_list_bind_uniform_set(draw_list, material_uniform_set, MATERIAL_UNIFORM_SET);
 			}
 
@@ -1533,6 +1533,16 @@ void RenderForwardClustered::_render_scene(RenderDataRD *p_render_data, const Co
 		}
 	}
 
+	if (scene_state.used_screen_texture) {
+		// Copy screen texture to backbuffer so we can read from it
+		_render_buffers_copy_screen_texture(p_render_data);
+	}
+
+	if (scene_state.used_depth_texture) {
+		// Copy depth texture to backbuffer so we can read from it
+		_render_buffers_copy_depth_texture(p_render_data);
+	}
+
 	RENDER_TIMESTAMP("Render Transparent Pass");
 
 	RD::get_singleton()->draw_command_begin_label("Render Transparent Pass");
@@ -1555,6 +1565,14 @@ void RenderForwardClustered::_render_scene(RenderDataRD *p_render_data, const Co
 	}
 
 	RD::get_singleton()->draw_command_end_label();
+
+	if (p_render_data->render_buffers.is_valid()) {
+		_debug_draw_cluster(p_render_data->render_buffers);
+
+		RENDER_TIMESTAMP("Tonemap");
+
+		_render_buffers_post_process_and_tonemap(p_render_data);
+	}
 }
 
 void RenderForwardClustered::_render_shadow_begin() {
@@ -2211,7 +2229,8 @@ RID RenderForwardClustered::_setup_render_pass_uniform_set(RenderListType p_rend
 		RD::Uniform u;
 		u.binding = 9;
 		u.uniform_type = RD::UNIFORM_TYPE_TEXTURE;
-		RID texture = (false && rb && rb->depth.is_valid()) ? rb->depth : storage->texture_rd_get_default(RendererStorageRD::DEFAULT_RD_TEXTURE_WHITE);
+		RID dbt = rb ? render_buffers_get_back_depth_texture(p_render_data->render_buffers) : RID();
+		RID texture = (dbt.is_valid()) ? dbt : storage->texture_rd_get_default(RendererStorageRD::DEFAULT_RD_TEXTURE_WHITE);
 		u.ids.push_back(texture);
 		uniforms.push_back(u);
 	}
@@ -3043,7 +3062,7 @@ RenderForwardClustered::RenderForwardClustered(RendererStorageRD *p_storage) :
 			defines += "\n#define USE_RADIANCE_CUBEMAP_ARRAY \n";
 		}
 		defines += "\n#define SDFGI_OCT_SIZE " + itos(gi.sdfgi_get_lightprobe_octahedron_size()) + "\n";
-		defines += "\n#define MAX_DIRECTIONAL_LIGHT_DATA_STRUCTS " + itos(get_max_directional_lights()) + "\n";
+		defines += "\n#define MAX_DIRECTIONAL_LIGHT_DATA_STRUCTS " + itos(MAX_DIRECTIONAL_LIGHTS) + "\n";
 
 		{
 			//lightmaps

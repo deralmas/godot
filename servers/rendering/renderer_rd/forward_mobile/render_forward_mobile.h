@@ -65,12 +65,27 @@ protected:
 	};
 
 	enum {
-		SPEC_CONSTANT_SOFT_SHADOW_SAMPLES = 6,
-		SPEC_CONSTANT_PENUMBRA_SHADOW_SAMPLES = 7,
-		SPEC_CONSTANT_DIRECTIONAL_SOFT_SHADOW_SAMPLES = 8,
-		SPEC_CONSTANT_DIRECTIONAL_PENUMBRA_SHADOW_SAMPLES = 9,
-		SPEC_CONSTANT_DECAL_FILTER = 10,
-		SPEC_CONSTANT_PROJECTOR_FILTER = 11,
+
+		SPEC_CONSTANT_USING_PROJECTOR = 0,
+		SPEC_CONSTANT_USING_SOFT_SHADOWS = 1,
+		SPEC_CONSTANT_USING_DIRECTIONAL_SOFT_SHADOWS = 2,
+
+		SPEC_CONSTANT_SOFT_SHADOW_SAMPLES = 3,
+		SPEC_CONSTANT_PENUMBRA_SHADOW_SAMPLES = 4,
+		SPEC_CONSTANT_DIRECTIONAL_SOFT_SHADOW_SAMPLES = 5,
+		SPEC_CONSTANT_DIRECTIONAL_PENUMBRA_SHADOW_SAMPLES = 6,
+
+		SPEC_CONSTANT_DECAL_USE_MIPMAPS = 7,
+		SPEC_CONSTANT_PROJECTOR_USE_MIPMAPS = 8,
+
+		SPEC_CONSTANT_DISABLE_OMNI_LIGHTS = 9,
+		SPEC_CONSTANT_DISABLE_SPOT_LIGHTS = 10,
+		SPEC_CONSTANT_DISABLE_REFLECTION_PROBES = 11,
+		SPEC_CONSTANT_DISABLE_DIRECTIONAL_LIGHTS = 12,
+
+		SPEC_CONSTANT_DISABLE_DECALS = 13,
+		SPEC_CONSTANT_DISABLE_FOG = 14,
+
 	};
 
 	enum {
@@ -92,6 +107,18 @@ protected:
 
 	/* Render Buffer */
 
+	// We can have:
+	// - 4 subpasses combining the full render cycle
+	// - 3 subpasses + 1 normal pass for tonemapping/glow/dof/etc (using fb for 2D buffer)
+	// - 2 subpasses + 1 normal pass for transparent + 1 normal pass for tonemapping/glow/dof/etc (using fb for 2D buffer)
+	enum RenderBufferMobileFramebufferConfigType {
+		FB_CONFIG_ONE_PASS, // Single pass frame buffer for alpha pass
+		FB_CONFIG_TWO_SUBPASSES, // Opaque + Sky sub pass
+		FB_CONFIG_THREE_SUBPASSES, // Opaque + Sky + Alpha sub pass
+		FB_CONFIG_FOUR_SUBPASSES, // Opaque + Sky + Alpha sub pass + Tonemap pass
+		FB_CONFIG_MAX
+	};
+
 	struct RenderBufferDataForwardMobile : public RenderBufferData {
 		RID color;
 		RID depth;
@@ -104,12 +131,12 @@ protected:
 		RID depth_msaa;
 		// RID normal_roughness_buffer_msaa;
 
-		RID color_fb;
+		RID color_fbs[FB_CONFIG_MAX];
 		int width, height;
 		uint32_t view_count;
 
 		void clear();
-		virtual void configure(RID p_color_buffer, RID p_depth_buffer, int p_width, int p_height, RS::ViewportMSAA p_msaa, uint32_t p_view_count);
+		virtual void configure(RID p_color_buffer, RID p_depth_buffer, RID p_target_buffer, int p_width, int p_height, RS::ViewportMSAA p_msaa, uint32_t p_view_count);
 
 		~RenderBufferDataForwardMobile();
 	};
@@ -147,13 +174,15 @@ protected:
 		bool force_wireframe = false;
 		Vector2 uv_offset;
 		Plane lod_plane;
+		uint32_t spec_constant_base_flags = 0;
 		float lod_distance_multiplier = 0.0;
 		float screen_lod_threshold = 0.0;
 		RD::FramebufferFormatID framebuffer_format = 0;
 		uint32_t element_offset = 0;
 		uint32_t barrier = RD::BARRIER_MASK_ALL;
+		uint32_t subpass = 0;
 
-		RenderListParameters(GeometryInstanceSurfaceDataCache **p_elements, RenderElementInfo *p_element_info, int p_element_count, bool p_reverse_cull, PassMode p_pass_mode, RID p_render_pass_uniform_set, bool p_force_wireframe = false, const Vector2 &p_uv_offset = Vector2(), const Plane &p_lod_plane = Plane(), float p_lod_distance_multiplier = 0.0, float p_screen_lod_threshold = 0.0, uint32_t p_view_count = 1, uint32_t p_element_offset = 0, uint32_t p_barrier = RD::BARRIER_MASK_ALL) {
+		RenderListParameters(GeometryInstanceSurfaceDataCache **p_elements, RenderElementInfo *p_element_info, int p_element_count, bool p_reverse_cull, PassMode p_pass_mode, RID p_render_pass_uniform_set, uint32_t p_spec_constant_base_flags = 0, bool p_force_wireframe = false, const Vector2 &p_uv_offset = Vector2(), const Plane &p_lod_plane = Plane(), float p_lod_distance_multiplier = 0.0, float p_screen_lod_threshold = 0.0, uint32_t p_view_count = 1, uint32_t p_element_offset = 0, uint32_t p_barrier = RD::BARRIER_MASK_ALL) {
 			elements = p_elements;
 			element_info = p_element_info;
 			element_count = p_element_count;
@@ -169,9 +198,11 @@ protected:
 			screen_lod_threshold = p_screen_lod_threshold;
 			element_offset = p_element_offset;
 			barrier = p_barrier;
+			spec_constant_base_flags = p_spec_constant_base_flags;
 		}
 	};
 
+	virtual float _render_buffers_get_luminance_multiplier() override;
 	virtual RD::DataFormat _render_buffers_get_color_format() override;
 	virtual bool _render_buffers_can_be_storage() override;
 
@@ -195,7 +226,7 @@ protected:
 	virtual RID _render_buffers_get_normal_texture(RID p_render_buffers) override;
 
 	void _fill_render_list(RenderListType p_render_list, const RenderDataRD *p_render_data, PassMode p_pass_mode, bool p_append = false);
-	void _fill_instance_data(RenderListType p_render_list, uint32_t p_offset = 0, int32_t p_max_elements = -1, bool p_update_buffer = true);
+	void _fill_element_info(RenderListType p_render_list, uint32_t p_offset = 0, int32_t p_max_elements = -1);
 	// void _update_instance_data_buffer(RenderListType p_render_list);
 
 	static RenderForwardMobile *singleton;
@@ -513,6 +544,8 @@ protected:
 		RID transforms_uniform_set;
 		float depth = 0;
 		bool mirror = false;
+		bool use_projector = false;
+		bool use_soft_shadow = false;
 		Transform3D transform;
 		bool store_transform_cache = true; // if true we copy our transform into our PushConstant, if false we use our transforms UBO and clear our PushConstants transform
 		bool non_uniform_scale = false;
@@ -571,11 +604,13 @@ protected:
 				dirty_list_element(this) {}
 	};
 
-	_FORCE_INLINE_ void _fill_push_constant_instance_indices(GeometryInstanceForwardMobile::PushConstant *p_push_constant, const GeometryInstanceForwardMobile *p_instance);
+	_FORCE_INLINE_ void _fill_push_constant_instance_indices(GeometryInstanceForwardMobile::PushConstant *p_push_constant, uint32_t &spec_constants, const GeometryInstanceForwardMobile *p_instance);
 
 	void _update_shader_quality_settings() override;
 
 public:
+	virtual RID reflection_probe_create_framebuffer(RID p_color, RID p_depth) override;
+
 	static void _geometry_instance_dependency_changed(RendererStorage::DependencyChangedNotification p_notification, RendererStorage::DependencyTracker *p_tracker);
 	static void _geometry_instance_dependency_deleted(const RID &p_dependency, RendererStorage::DependencyTracker *p_tracker);
 

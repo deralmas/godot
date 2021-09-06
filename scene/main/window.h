@@ -32,10 +32,12 @@
 #define WINDOW_H
 
 #include "scene/main/viewport.h"
-#include "scene/resources/theme.h"
-#include "servers/display_server.h"
 
 class Control;
+class Font;
+class StyleBox;
+class Theme;
+
 class Window : public Viewport {
 	GDCLASS(Window, Viewport)
 public:
@@ -102,6 +104,8 @@ private:
 	bool clamp_to_embedder = false;
 
 	LayoutDirection layout_dir = LAYOUT_DIRECTION_INHERITED;
+
+	bool auto_translate = true;
 
 	void _update_child_controls();
 
@@ -255,6 +259,10 @@ public:
 	void set_layout_direction(LayoutDirection p_direction);
 	LayoutDirection get_layout_direction() const;
 	bool is_layout_rtl() const;
+
+	void set_auto_translate(bool p_enable);
+	bool is_auto_translating() const;
+	_FORCE_INLINE_ String atr(const String p_string) const { return is_auto_translating() ? tr(p_string) : p_string; };
 
 	Rect2i get_usable_parent_rect() const;
 

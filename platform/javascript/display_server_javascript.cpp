@@ -172,7 +172,7 @@ EM_BOOL DisplayServerJavaScript::keyup_callback(int p_event_type, const Emscript
 	Ref<InputEventKey> ev = setup_key_event(p_event);
 	ev->set_pressed(false);
 	Input::get_singleton()->parse_input_event(ev);
-	return ev->get_keycode() != KEY_UNKNOWN && ev->get_keycode() != 0;
+	return ev->get_keycode() != KEY_UNKNOWN && ev->get_keycode() != (Key)0;
 }
 
 // Mouse
@@ -657,10 +657,6 @@ void DisplayServerJavaScript::send_window_event_callback(int p_notification) {
 		Callable::CallError ce;
 		ds->window_event_callback.call((const Variant **)&eventp, 1, ret, ce);
 	}
-}
-
-void DisplayServerJavaScript::alert(const String &p_alert, const String &p_title) {
-	godot_js_display_alert(p_alert.utf8().get_data());
 }
 
 void DisplayServerJavaScript::set_icon(const Ref<Image> &p_icon) {

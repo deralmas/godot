@@ -356,9 +356,11 @@ void CreateDialog::_sbox_input(const Ref<InputEvent> &p_ie) {
 			case KEY_DOWN:
 			case KEY_PAGEUP:
 			case KEY_PAGEDOWN: {
-				search_options->call("_gui_input", k);
+				search_options->gui_input(k);
 				search_box->accept_event();
 			} break;
+			default:
+				break;
 		}
 	}
 }
@@ -447,8 +449,7 @@ Variant CreateDialog::instance_selected() {
 	List<PropertyInfo> pinfo;
 	((Object *)obj)->get_property_list(&pinfo);
 
-	for (List<PropertyInfo>::Element *E = pinfo.front(); E; E = E->next()) {
-		PropertyInfo pi = E->get();
+	for (const PropertyInfo &pi : pinfo) {
 		if (pi.type == Variant::OBJECT && pi.usage & PROPERTY_USAGE_EDITOR_INSTANTIATE_OBJECT) {
 			Object *prop = ClassDB::instantiate(pi.class_name);
 			((Object *)obj)->set(pi.name, prop);

@@ -88,13 +88,13 @@ Error SceneDebugger::parse_message(void *p_user, const String &p_msg, const Arra
 
 	} else if (p_msg == "override_camera_2D:transform") {
 		ERR_FAIL_COND_V(p_args.size() < 1, ERR_INVALID_DATA);
-		Transform2D transform = p_args[1];
+		Transform2D transform = p_args[0];
 		scene_tree->get_root()->set_canvas_transform_override(transform);
-
+#ifndef _3D_DISABLED
 	} else if (p_msg == "override_camera_3D:set") {
 		ERR_FAIL_COND_V(p_args.size() < 1, ERR_INVALID_DATA);
 		bool enable = p_args[0];
-		scene_tree->get_root()->enable_camera_override(enable);
+		scene_tree->get_root()->enable_camera_3d_override(enable);
 
 	} else if (p_msg == "override_camera_3D:transform") {
 		ERR_FAIL_COND_V(p_args.size() < 5, ERR_INVALID_DATA);
@@ -104,12 +104,12 @@ Error SceneDebugger::parse_message(void *p_user, const String &p_msg, const Arra
 		float near = p_args[3];
 		float far = p_args[4];
 		if (is_perspective) {
-			scene_tree->get_root()->set_camera_override_perspective(size_or_fov, near, far);
+			scene_tree->get_root()->set_camera_3d_override_perspective(size_or_fov, near, far);
 		} else {
-			scene_tree->get_root()->set_camera_override_orthogonal(size_or_fov, near, far);
+			scene_tree->get_root()->set_camera_3d_override_orthogonal(size_or_fov, near, far);
 		}
-		scene_tree->get_root()->set_camera_override_transform(transform);
-
+		scene_tree->get_root()->set_camera_3d_override_transform(transform);
+#endif // _3D_DISABLED
 	} else if (p_msg == "set_object_property") {
 		ERR_FAIL_COND_V(p_args.size() < 3, ERR_INVALID_DATA);
 		_set_object_property(p_args[0], p_args[1], p_args[2]);
@@ -292,9 +292,9 @@ SceneDebuggerObject::SceneDebuggerObject(ObjectID p_id) {
 	// Add base object properties.
 	List<PropertyInfo> pinfo;
 	obj->get_property_list(&pinfo, true);
-	for (List<PropertyInfo>::Element *E = pinfo.front(); E; E = E->next()) {
-		if (E->get().usage & (PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_CATEGORY)) {
-			properties.push_back(SceneDebuggerProperty(E->get(), obj->get(E->get().name)));
+	for (const PropertyInfo &E : pinfo) {
+		if (E.usage & (PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_CATEGORY)) {
+			properties.push_back(SceneDebuggerProperty(E, obj->get(E.name)));
 		}
 	}
 }
@@ -452,8 +452,7 @@ SceneDebuggerTree::SceneDebuggerTree(Node *p_root) {
 }
 
 void SceneDebuggerTree::serialize(Array &p_arr) {
-	for (List<RemoteNode>::Element *E = nodes.front(); E; E = E->next()) {
-		RemoteNode &n = E->get();
+	for (const RemoteNode &n : nodes) {
 		p_arr.push_back(n.child_count);
 		p_arr.push_back(n.name);
 		p_arr.push_back(n.type_name);

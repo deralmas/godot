@@ -60,8 +60,8 @@ void SpriteBase3D::_propagate_color_changed() {
 	color_dirty = true;
 	_queue_update();
 
-	for (List<SpriteBase3D *>::Element *E = children.front(); E; E = E->next()) {
-		E->get()->_propagate_color_changed();
+	for (SpriteBase3D *&E : children) {
+		E->_propagate_color_changed();
 	}
 }
 
@@ -132,12 +132,12 @@ Color SpriteBase3D::get_modulate() const {
 	return modulate;
 }
 
-void SpriteBase3D::set_pixel_size(float p_amount) {
+void SpriteBase3D::set_pixel_size(real_t p_amount) {
 	pixel_size = p_amount;
 	_queue_update();
 }
 
-float SpriteBase3D::get_pixel_size() const {
+real_t SpriteBase3D::get_pixel_size() const {
 	return pixel_size;
 }
 
@@ -174,7 +174,7 @@ void SpriteBase3D::_queue_update() {
 	}
 
 	triangle_mesh.unref();
-	update_gizmo();
+	update_gizmos();
 
 	pending_update = true;
 	call_deferred(SceneStringNames::get_singleton()->_im_update);
@@ -203,7 +203,7 @@ Ref<TriangleMesh> SpriteBase3D::generate_triangle_mesh() const {
 		return Ref<TriangleMesh>();
 	}
 
-	float pixel_size = get_pixel_size();
+	real_t pixel_size = get_pixel_size();
 
 	Vector2 vertices[4] = {
 
@@ -470,7 +470,7 @@ void Sprite3D::_draw() {
 	Color color = _get_color_accum();
 	color.a *= get_opacity();
 
-	float pixel_size = get_pixel_size();
+	real_t pixel_size = get_pixel_size();
 
 	Vector2 vertices[4] = {
 
@@ -837,7 +837,7 @@ void AnimatedSprite3D::_draw() {
 	Color color = _get_color_accum();
 	color.a *= get_opacity();
 
-	float pixel_size = get_pixel_size();
+	real_t pixel_size = get_pixel_size();
 
 	Vector2 vertices[4] = {
 
@@ -996,7 +996,7 @@ void AnimatedSprite3D::_validate_property(PropertyInfo &property) const {
 			}
 
 			property.hint_string += String(E->get());
-			if (animation == E->get()) {
+			if (animation == E) {
 				current_found = true;
 			}
 		}
@@ -1037,7 +1037,7 @@ void AnimatedSprite3D::_notification(int p_what) {
 				return; //do nothing
 			}
 
-			float remaining = get_process_delta_time();
+			double remaining = get_process_delta_time();
 
 			while (remaining) {
 				if (timeout <= 0) {
@@ -1059,7 +1059,7 @@ void AnimatedSprite3D::_notification(int p_what) {
 					emit_signal(SceneStringNames::get_singleton()->frame_changed);
 				}
 
-				float to_process = MIN(timeout, remaining);
+				double to_process = MIN(timeout, remaining);
 				remaining -= to_process;
 				timeout -= to_process;
 			}
@@ -1177,7 +1177,7 @@ void AnimatedSprite3D::stop() {
 }
 
 bool AnimatedSprite3D::is_playing() const {
-	return is_processing();
+	return playing;
 }
 
 void AnimatedSprite3D::_reset_timeout() {

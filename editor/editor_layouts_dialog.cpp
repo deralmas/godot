@@ -58,6 +58,8 @@ void EditorLayoutsDialog::_line_gui_input(const Ref<InputEvent> &p_event) {
 				hide();
 				set_input_as_handled();
 			} break;
+			default:
+				break;
 		}
 	}
 }
@@ -92,8 +94,8 @@ void EditorLayoutsDialog::_post_popup() {
 	List<String> layouts;
 	config.ptr()->get_sections(&layouts);
 
-	for (List<String>::Element *E = layouts.front(); E; E = E->next()) {
-		layout_names->add_item(**E);
+	for (const String &E : layouts) {
+		layout_names->add_item(E);
 	}
 }
 

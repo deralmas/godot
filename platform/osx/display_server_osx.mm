@@ -105,46 +105,6 @@ static NSCursor *_cursorFromSelector(SEL selector, SEL fallback = nil) {
 }
 
 /*************************************************************************/
-/* GodotApplication                                                      */
-/*************************************************************************/
-
-@interface GodotApplication : NSApplication
-@end
-
-@implementation GodotApplication
-
-- (void)sendEvent:(NSEvent *)event {
-	// special case handling of command-period, which is traditionally a special
-	// shortcut in macOS and doesn't arrive at our regular keyDown handler.
-	if ([event type] == NSEventTypeKeyDown) {
-		if (([event modifierFlags] & NSEventModifierFlagCommand) && [event keyCode] == 0x2f) {
-			Ref<InputEventKey> k;
-			k.instantiate();
-
-			_get_key_modifier_state([event modifierFlags], k);
-			k->set_window_id(DisplayServerOSX::INVALID_WINDOW_ID);
-			k->set_pressed(true);
-			k->set_keycode(KEY_PERIOD);
-			k->set_physical_keycode(KEY_PERIOD);
-			k->set_echo([event isARepeat]);
-
-			Input::get_singleton()->accumulate_input_event(k);
-		}
-	}
-
-	// From http://cocoadev.com/index.pl?GameKeyboardHandlingAlmost
-	// This works around an AppKit bug, where key up events while holding
-	// down the command key don't get sent to the key window.
-	if ([event type] == NSEventTypeKeyUp && ([event modifierFlags] & NSEventModifierFlagCommand)) {
-		[[self keyWindow] sendEvent:event];
-	} else {
-		[super sendEvent:event];
-	}
-}
-
-@end
-
-/*************************************************************************/
 /* GlobalMenuItem                                                       */
 /*************************************************************************/
 
@@ -158,121 +118,6 @@ static NSCursor *_cursorFromSelector(SEL selector, SEL fallback = nil) {
 @end
 
 @implementation GlobalMenuItem
-@end
-
-/*************************************************************************/
-/* GodotApplicationDelegate                                              */
-/*************************************************************************/
-
-@interface GodotApplicationDelegate : NSObject
-- (void)forceUnbundledWindowActivationHackStep1;
-- (void)forceUnbundledWindowActivationHackStep2;
-- (void)forceUnbundledWindowActivationHackStep3;
-@end
-
-@implementation GodotApplicationDelegate
-
-- (void)forceUnbundledWindowActivationHackStep1 {
-	// Step1: Switch focus to macOS Dock.
-	// Required to perform step 2, TransformProcessType will fail if app is already the in focus.
-	for (NSRunningApplication *app in [NSRunningApplication runningApplicationsWithBundleIdentifier:@"com.apple.dock"]) {
-		[app activateWithOptions:NSApplicationActivateIgnoringOtherApps];
-		break;
-	}
-	[self performSelector:@selector(forceUnbundledWindowActivationHackStep2) withObject:nil afterDelay:0.02];
-}
-
-- (void)forceUnbundledWindowActivationHackStep2 {
-	// Step 2: Register app as foreground process.
-	ProcessSerialNumber psn = { 0, kCurrentProcess };
-	(void)TransformProcessType(&psn, kProcessTransformToForegroundApplication);
-	[self performSelector:@selector(forceUnbundledWindowActivationHackStep3) withObject:nil afterDelay:0.02];
-}
-
-- (void)forceUnbundledWindowActivationHackStep3 {
-	// Step 3: Switch focus back to app window.
-	[[NSRunningApplication currentApplication] activateWithOptions:NSApplicationActivateIgnoringOtherApps];
-}
-
-- (void)applicationDidFinishLaunching:(NSNotification *)notice {
-	NSString *nsappname = [[[NSBundle mainBundle] infoDictionary] objectForKey:@"CFBundleName"];
-	if (nsappname == nil) {
-		// If executable is not a bundled, macOS WindowServer won't register and activate app window correctly (menu and title bar are grayed out and input ignored).
-		[self performSelector:@selector(forceUnbundledWindowActivationHackStep1) withObject:nil afterDelay:0.02];
-	}
-}
-
-- (void)applicationDidResignActive:(NSNotification *)notification {
-	if (OS_OSX::get_singleton()->get_main_loop()) {
-		OS_OSX::get_singleton()->get_main_loop()->notification(MainLoop::NOTIFICATION_APPLICATION_FOCUS_OUT);
-	}
-}
-
-- (void)applicationDidBecomeActive:(NSNotification *)notification {
-	if (OS_OSX::get_singleton()->get_main_loop()) {
-		OS_OSX::get_singleton()->get_main_loop()->notification(MainLoop::NOTIFICATION_APPLICATION_FOCUS_IN);
-	}
-}
-
-- (void)globalMenuCallback:(id)sender {
-	if (![sender representedObject]) {
-		return;
-	}
-
-	GlobalMenuItem *value = [sender representedObject];
-
-	if (value) {
-		if (value->checkable) {
-			if ([sender state] == NSControlStateValueOff) {
-				[sender setState:NSControlStateValueOn];
-			} else {
-				[sender setState:NSControlStateValueOff];
-			}
-		}
-
-		if (value->callback != Callable()) {
-			Variant tag = value->meta;
-			Variant *tagp = &tag;
-			Variant ret;
-			Callable::CallError ce;
-			value->callback.call((const Variant **)&tagp, 1, ret, ce);
-		}
-	}
-}
-
-- (NSMenu *)applicationDockMenu:(NSApplication *)sender {
-	return DS_OSX->dock_menu;
-}
-
-- (BOOL)application:(NSApplication *)sender openFile:(NSString *)filename {
-	// Note: may be called called before main loop init!
-	char *utfs = strdup([filename UTF8String]);
-	((OS_OSX *)(OS_OSX::get_singleton()))->open_with_filename.parse_utf8(utfs);
-	free(utfs);
-
-#ifdef TOOLS_ENABLED
-	// Open new instance
-	if (OS_OSX::get_singleton()->get_main_loop()) {
-		List<String> args;
-		args.push_back(((OS_OSX *)(OS_OSX::get_singleton()))->open_with_filename);
-		String exec = OS::get_singleton()->get_executable_path();
-		OS::get_singleton()->create_process(exec, args);
-	}
-#endif
-	return YES;
-}
-
-- (NSApplicationTerminateReply)applicationShouldTerminate:(NSApplication *)sender {
-	DS_OSX->_send_window_event(DS_OSX->windows[DisplayServerOSX::MAIN_WINDOW_ID], DisplayServerOSX::WINDOW_EVENT_CLOSE_REQUEST);
-	return NSTerminateCancel;
-}
-
-- (void)showAbout:(id)sender {
-	if (OS_OSX::get_singleton()->get_main_loop()) {
-		OS_OSX::get_singleton()->get_main_loop()->notification(MainLoop::NOTIFICATION_WM_ABOUT);
-	}
-}
-
 @end
 
 /*************************************************************************/
@@ -345,6 +190,8 @@ static NSCursor *_cursorFromSelector(SEL selector, SEL fallback = nil) {
 
 	[wd.window_object setContentMinSize:NSMakeSize(0, 0)];
 	[wd.window_object setContentMaxSize:NSMakeSize(FLT_MAX, FLT_MAX)];
+	// Force window resize event.
+	[self windowDidResize:notification];
 }
 
 - (void)windowDidExitFullScreen:(NSNotification *)notification {
@@ -372,6 +219,8 @@ static NSCursor *_cursorFromSelector(SEL selector, SEL fallback = nil) {
 	if (wd.on_top) {
 		[wd.window_object setLevel:NSFloatingWindowLevel];
 	}
+	// Force window resize event.
+	[self windowDidResize:notification];
 }
 
 - (void)windowDidChangeBackingProperties:(NSNotification *)notification {
@@ -473,8 +322,16 @@ static NSCursor *_cursorFromSelector(SEL selector, SEL fallback = nil) {
 	}
 	DisplayServerOSX::WindowData &wd = DS_OSX->windows[window_id];
 
-	_get_mouse_pos(wd, [wd.window_object mouseLocationOutsideOfEventStream]);
-	Input::get_singleton()->set_mouse_position(wd.mouse_pos);
+	if (DS_OSX->mouse_mode == DisplayServer::MOUSE_MODE_CAPTURED) {
+		const NSRect contentRect = [wd.window_view frame];
+		NSRect pointInWindowRect = NSMakeRect(contentRect.size.width / 2, contentRect.size.height / 2, 0, 0);
+		NSPoint pointOnScreen = [[wd.window_view window] convertRectToScreen:pointInWindowRect].origin;
+		CGPoint lMouseWarpPos = { pointOnScreen.x, CGDisplayBounds(CGMainDisplayID()).size.height - pointOnScreen.y };
+		CGWarpMouseCursorPosition(lMouseWarpPos);
+	} else {
+		_get_mouse_pos(wd, [wd.window_object mouseLocationOutsideOfEventStream]);
+		Input::get_singleton()->set_mouse_position(wd.mouse_pos);
+	}
 
 	DS_OSX->window_focused = true;
 	DS_OSX->_send_window_event(wd, DisplayServerOSX::WINDOW_EVENT_FOCUS_IN);
@@ -732,7 +589,7 @@ static const NSRange kEmptyRange = { NSNotFound, 0 };
 		ke.pressed = true;
 		ke.echo = false;
 		ke.raw = false; // IME input event
-		ke.keycode = 0;
+		ke.keycode = KEY_NONE;
 		ke.physical_keycode = 0;
 		ke.unicode = codepoint;
 
@@ -837,7 +694,7 @@ static void _mouseDownEvent(DisplayServer::WindowID window_id, NSEvent *event, M
 		mb->set_double_click([event clickCount] == 2);
 	}
 
-	Input::get_singleton()->accumulate_input_event(mb);
+	Input::get_singleton()->parse_input_event(mb);
 }
 
 - (void)mouseDown:(NSEvent *)event {
@@ -946,7 +803,7 @@ static void _mouseDownEvent(DisplayServer::WindowID window_id, NSEvent *event, M
 	_get_key_modifier_state([event modifierFlags], mm);
 
 	Input::get_singleton()->set_mouse_position(wd.mouse_pos);
-	Input::get_singleton()->accumulate_input_event(mm);
+	Input::get_singleton()->parse_input_event(mm);
 }
 
 - (void)rightMouseDown:(NSEvent *)event {
@@ -1022,7 +879,7 @@ static void _mouseDownEvent(DisplayServer::WindowID window_id, NSEvent *event, M
 	ev->set_position(_get_mouse_pos(wd, [event locationInWindow]));
 	ev->set_factor([event magnification] + 1.0);
 
-	Input::get_singleton()->accumulate_input_event(ev);
+	Input::get_singleton()->parse_input_event(ev);
 }
 
 - (void)viewDidChangeBackingProperties {
@@ -1075,9 +932,9 @@ static bool isNumpadKey(unsigned int key) {
 
 // Translates a OS X keycode to a Godot keycode
 //
-static int translateKey(unsigned int key) {
+static Key translateKey(unsigned int key) {
 	// Keyboard symbol translation table
-	static const unsigned int table[128] = {
+	static const Key table[128] = {
 		/* 00 */ KEY_A,
 		/* 01 */ KEY_S,
 		/* 02 */ KEY_D,
@@ -1217,7 +1074,7 @@ static int translateKey(unsigned int key) {
 
 struct _KeyCodeMap {
 	UniChar kchar;
-	int kcode;
+	Key kcode;
 };
 
 static const _KeyCodeMap _keycodes[55] = {
@@ -1278,7 +1135,7 @@ static const _KeyCodeMap _keycodes[55] = {
 	{ '/', KEY_SLASH }
 };
 
-static int remapKey(unsigned int key, unsigned int state) {
+static Key remapKey(unsigned int key, unsigned int state) {
 	if (isNumpadKey(key)) {
 		return translateKey(key);
 	}
@@ -1504,7 +1361,7 @@ inline void sendScrollEvent(DisplayServer::WindowID window_id, MouseButton butto
 	DS_OSX->last_button_state |= (MouseButton)mask;
 	sc->set_button_mask(DS_OSX->last_button_state);
 
-	Input::get_singleton()->accumulate_input_event(sc);
+	Input::get_singleton()->parse_input_event(sc);
 
 	sc.instantiate();
 	sc->set_window_id(window_id);
@@ -1516,7 +1373,7 @@ inline void sendScrollEvent(DisplayServer::WindowID window_id, MouseButton butto
 	DS_OSX->last_button_state &= (MouseButton)~mask;
 	sc->set_button_mask(DS_OSX->last_button_state);
 
-	Input::get_singleton()->accumulate_input_event(sc);
+	Input::get_singleton()->parse_input_event(sc);
 }
 
 inline void sendPanEvent(DisplayServer::WindowID window_id, double dx, double dy, int modifierFlags) {
@@ -1531,7 +1388,7 @@ inline void sendPanEvent(DisplayServer::WindowID window_id, double dx, double dy
 	pg->set_position(wd.mouse_pos);
 	pg->set_delta(Vector2(-dx, -dy));
 
-	Input::get_singleton()->accumulate_input_event(pg);
+	Input::get_singleton()->parse_input_event(pg);
 }
 
 - (void)scrollWheel:(NSEvent *)event {
@@ -1980,26 +1837,6 @@ void DisplayServerOSX::global_menu_clear(const String &p_menu_root) {
 			NSMenuItem *menu_item = [menu addItemWithTitle:@"" action:nil keyEquivalent:@""];
 			[menu setSubmenu:apple_menu forItem:menu_item];
 		}
-	}
-}
-
-void DisplayServerOSX::alert(const String &p_alert, const String &p_title) {
-	_THREAD_SAFE_METHOD_
-
-	NSAlert *window = [[NSAlert alloc] init];
-	NSString *ns_title = [NSString stringWithUTF8String:p_title.utf8().get_data()];
-	NSString *ns_alert = [NSString stringWithUTF8String:p_alert.utf8().get_data()];
-
-	[window addButtonWithTitle:@"OK"];
-	[window setMessageText:ns_title];
-	[window setInformativeText:ns_alert];
-	[window setAlertStyle:NSAlertStyleWarning];
-
-	id key_window = [[NSApplication sharedApplication] keyWindow];
-	[window runModal];
-	[window release];
-	if (key_window) {
-		[key_window makeKeyAndOrderFront:nil];
 	}
 }
 
@@ -3365,13 +3202,63 @@ String DisplayServerOSX::keyboard_get_layout_name(int p_index) const {
 
 void DisplayServerOSX::_push_input(const Ref<InputEvent> &p_event) {
 	Ref<InputEvent> ev = p_event;
-	Input::get_singleton()->accumulate_input_event(ev);
+	Input::get_singleton()->parse_input_event(ev);
 }
 
 void DisplayServerOSX::_release_pressed_events() {
 	_THREAD_SAFE_METHOD_
 	if (Input::get_singleton()) {
 		Input::get_singleton()->release_pressed_events();
+	}
+}
+
+NSMenu *DisplayServerOSX::_get_dock_menu() const {
+	return dock_menu;
+}
+
+void DisplayServerOSX::_menu_callback(id p_sender) {
+	if (![p_sender representedObject]) {
+		return;
+	}
+
+	GlobalMenuItem *value = [p_sender representedObject];
+
+	if (value) {
+		if (value->checkable) {
+			if ([p_sender state] == NSControlStateValueOff) {
+				[p_sender setState:NSControlStateValueOn];
+			} else {
+				[p_sender setState:NSControlStateValueOff];
+			}
+		}
+
+		if (value->callback != Callable()) {
+			Variant tag = value->meta;
+			Variant *tagp = &tag;
+			Variant ret;
+			Callable::CallError ce;
+			value->callback.call((const Variant **)&tagp, 1, ret, ce);
+		}
+	}
+}
+
+void DisplayServerOSX::_send_event(NSEvent *p_event) {
+	// special case handling of command-period, which is traditionally a special
+	// shortcut in macOS and doesn't arrive at our regular keyDown handler.
+	if ([p_event type] == NSEventTypeKeyDown) {
+		if (([p_event modifierFlags] & NSEventModifierFlagCommand) && [p_event keyCode] == 0x2f) {
+			Ref<InputEventKey> k;
+			k.instantiate();
+
+			_get_key_modifier_state([p_event modifierFlags], k);
+			k->set_window_id(DisplayServerOSX::INVALID_WINDOW_ID);
+			k->set_pressed(true);
+			k->set_keycode(KEY_PERIOD);
+			k->set_physical_keycode(KEY_PERIOD);
+			k->set_echo([p_event isARepeat]);
+
+			Input::get_singleton()->parse_input_event(k);
+		}
 	}
 }
 
@@ -3388,7 +3275,7 @@ void DisplayServerOSX::_process_key_events() {
 			k->set_pressed(ke.pressed);
 			k->set_echo(ke.echo);
 			k->set_keycode(ke.keycode);
-			k->set_physical_keycode(ke.physical_keycode);
+			k->set_physical_keycode((Key)ke.physical_keycode);
 			k->set_unicode(ke.unicode);
 
 			_push_input(k);
@@ -3401,8 +3288,8 @@ void DisplayServerOSX::_process_key_events() {
 				_get_key_modifier_state(ke.osx_state, k);
 				k->set_pressed(ke.pressed);
 				k->set_echo(ke.echo);
-				k->set_keycode(0);
-				k->set_physical_keycode(0);
+				k->set_keycode(KEY_NONE);
+				k->set_physical_keycode(KEY_NONE);
 				k->set_unicode(ke.unicode);
 
 				_push_input(k);
@@ -3415,7 +3302,7 @@ void DisplayServerOSX::_process_key_events() {
 				k->set_pressed(ke.pressed);
 				k->set_echo(ke.echo);
 				k->set_keycode(ke.keycode);
-				k->set_physical_keycode(ke.physical_keycode);
+				k->set_physical_keycode((Key)ke.physical_keycode);
 
 				if (i + 1 < key_event_pos && key_event_buffer[i + 1].keycode == 0) {
 					k->set_unicode(key_event_buffer[i + 1].unicode);
@@ -3448,7 +3335,7 @@ void DisplayServerOSX::process_events() {
 
 	if (!drop_events) {
 		_process_key_events();
-		Input::get_singleton()->flush_accumulated_events();
+		Input::get_singleton()->flush_buffered_events();
 	}
 
 	for (Map<WindowID, WindowData>::Element *E = windows.front(); E; E = E->next()) {
@@ -3615,7 +3502,7 @@ ObjectID DisplayServerOSX::window_get_attached_instance_id(WindowID p_window) co
 DisplayServer *DisplayServerOSX::create_func(const String &p_rendering_driver, WindowMode p_mode, VSyncMode p_vsync_mode, uint32_t p_flags, const Vector2i &p_resolution, Error &r_error) {
 	DisplayServer *ds = memnew(DisplayServerOSX(p_rendering_driver, p_mode, p_vsync_mode, p_flags, p_resolution, r_error));
 	if (r_error != OK) {
-		ds->alert("Your video card driver does not support any of the supported Metal versions.", "Unable to initialize Video driver");
+		OS::get_singleton()->alert("Your video card driver does not support any of the supported Metal versions.", "Unable to initialize Video driver");
 	}
 	return ds;
 }
@@ -3785,12 +3672,6 @@ DisplayServerOSX::DisplayServerOSX(const String &p_rendering_driver, WindowMode 
 
 	CGEventSourceSetLocalEventsSuppressionInterval(eventSource, 0.0);
 
-	// Implicitly create shared NSApplication instance
-	[GodotApplication sharedApplication];
-
-	// In case we are unbundled, make us a proper UI application
-	[NSApp setActivationPolicy:NSApplicationActivationPolicyRegular];
-
 	keyboard_layout_dirty = true;
 	displays_arrangement_dirty = true;
 	displays_scale_dirty = true;
@@ -3804,9 +3685,6 @@ DisplayServerOSX::DisplayServerOSX(const String &p_rendering_driver, WindowMode 
 	// Register to be notified on displays arrangement changes
 	CGDisplayRegisterReconfigurationCallback(displays_arrangement_changed, nullptr);
 
-	// Menu bar setup must go between sharedApplication above and
-	// finishLaunching below, in order to properly emulate the behavior
-	// of NSApplicationMain
 	NSMenuItem *menu_item;
 	NSString *title;
 
@@ -3846,32 +3724,10 @@ DisplayServerOSX::DisplayServerOSX(const String &p_rendering_driver, WindowMode 
 	title = [NSString stringWithFormat:NSLocalizedString(@"Quit %@", nil), nsappname];
 	[apple_menu addItemWithTitle:title action:@selector(terminate:) keyEquivalent:@"q"];
 
-	// Setup menu bar
-	NSMenu *main_menu = [[[NSMenu alloc] initWithTitle:@""] autorelease];
+	// Add items to the menu bar
+	NSMenu *main_menu = [NSApp mainMenu];
 	menu_item = [main_menu addItemWithTitle:@"" action:nil keyEquivalent:@""];
 	[main_menu setSubmenu:apple_menu forItem:menu_item];
-	[NSApp setMainMenu:main_menu];
-
-	[NSApp finishLaunching];
-
-	delegate = [[GodotApplicationDelegate alloc] init];
-	ERR_FAIL_COND(!delegate);
-	[NSApp setDelegate:delegate];
-
-	//process application:openFile: event
-	while (true) {
-		NSEvent *event = [NSApp
-				nextEventMatchingMask:NSEventMaskAny
-							untilDate:[NSDate distantPast]
-							   inMode:NSDefaultRunLoopMode
-							  dequeue:YES];
-
-		if (event == nil) {
-			break;
-		}
-
-		[NSApp sendEvent:event];
-	}
 
 	//!!!!!!!!!!!!!!!!!!!!!!!!!!
 	//TODO - do Vulkan and GLES2 support checks, driver selection and fallback
@@ -3924,8 +3780,6 @@ DisplayServerOSX::DisplayServerOSX(const String &p_rendering_driver, WindowMode 
 		RendererCompositorRD::make_current();
 	}
 #endif
-
-	[NSApp activateIgnoringOtherApps:YES];
 }
 
 DisplayServerOSX::~DisplayServerOSX() {

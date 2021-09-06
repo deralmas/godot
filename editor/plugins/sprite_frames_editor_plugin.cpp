@@ -40,7 +40,7 @@
 #include "scene/gui/margin_container.h"
 #include "scene/gui/panel_container.h"
 
-void SpriteFramesEditor::_gui_input(Ref<InputEvent> p_event) {
+void SpriteFramesEditor::gui_input(const Ref<InputEvent> &p_event) {
 }
 
 void SpriteFramesEditor::_open_sprite_sheet() {
@@ -200,34 +200,36 @@ void SpriteFramesEditor::_sheet_scroll_input(const Ref<InputEvent> &p_event) {
 
 void SpriteFramesEditor::_sheet_add_frames() {
 	Size2i size = split_sheet_preview->get_texture()->get_size();
-	int h = split_sheet_h->get_value();
-	int v = split_sheet_v->get_value();
+	int frame_count_x = split_sheet_h->get_value();
+	int frame_count_y = split_sheet_v->get_value();
+	Size2 frame_size(size.width / frame_count_x, size.height / frame_count_y);
 
 	undo_redo->create_action(TTR("Add Frame"));
 
 	int fc = frames->get_frame_count(edited_anim);
 
-	AtlasTexture *atlas_source = Object::cast_to<AtlasTexture>(*split_sheet_preview->get_texture());
+	Point2 src_origin;
+	Rect2 src_region(Point2(), size);
 
-	Rect2 region_rect = Rect2();
-
-	if (atlas_source && atlas_source->get_atlas().is_valid()) {
-		region_rect = atlas_source->get_region();
+	AtlasTexture *src_atlas = Object::cast_to<AtlasTexture>(*split_sheet_preview->get_texture());
+	if (src_atlas && src_atlas->get_atlas().is_valid()) {
+		src_origin = src_atlas->get_region().position - src_atlas->get_margin().position;
+		src_region = src_atlas->get_region();
 	}
 
 	for (Set<int>::Element *E = frames_selected.front(); E; E = E->next()) {
 		int idx = E->get();
-		int width = size.width / h;
-		int height = size.height / v;
-		int xp = idx % h;
-		int yp = (idx - xp) / h;
-		int x = (xp * width) + region_rect.position.x;
-		int y = (yp * height) + region_rect.position.y;
+		Point2 frame_coords(idx % frame_count_x, idx / frame_count_x);
+
+		Rect2 frame(frame_coords * frame_size + src_origin, frame_size);
+		Rect2 region = frame.intersection(src_region);
+		Rect2 margin(region == Rect2() ? Point2() : region.position - frame.position, frame.size - region.size);
 
 		Ref<AtlasTexture> at;
 		at.instantiate();
 		at->set_atlas(split_sheet_preview->get_texture());
-		at->set_region(Rect2(x, y, width, height));
+		at->set_region(region);
+		at->set_margin(margin);
 
 		undo_redo->add_do_method(frames, "add_frame", edited_anim, at, -1);
 		undo_redo->add_undo_method(frames, "remove_frame", edited_anim, fc);
@@ -365,8 +367,8 @@ void SpriteFramesEditor::_file_load_request(const Vector<String> &p_path, int p_
 
 	int count = 0;
 
-	for (List<Ref<Texture2D>>::Element *E = resources.front(); E; E = E->next()) {
-		undo_redo->add_do_method(frames, "add_frame", edited_anim, E->get(), p_at_pos == -1 ? -1 : p_at_pos + count);
+	for (const Ref<Texture2D> &E : resources) {
+		undo_redo->add_do_method(frames, "add_frame", edited_anim, E, p_at_pos == -1 ? -1 : p_at_pos + count);
 		undo_redo->add_undo_method(frames, "remove_frame", edited_anim, p_at_pos == -1 ? fc : p_at_pos);
 		count++;
 	}
@@ -624,10 +626,10 @@ void SpriteFramesEditor::_animation_name_edited() {
 	undo_redo->add_do_method(frames, "rename_animation", edited_anim, name);
 	undo_redo->add_undo_method(frames, "rename_animation", name, edited_anim);
 
-	for (List<Node *>::Element *E = nodes.front(); E; E = E->next()) {
-		String current = E->get()->call("get_animation");
-		undo_redo->add_do_method(E->get(), "set_animation", name);
-		undo_redo->add_undo_method(E->get(), "set_animation", edited_anim);
+	for (Node *E : nodes) {
+		String current = E->call("get_animation");
+		undo_redo->add_do_method(E, "set_animation", name);
+		undo_redo->add_undo_method(E, "set_animation", edited_anim);
 	}
 
 	undo_redo->add_do_method(this, "_update_library");
@@ -655,10 +657,10 @@ void SpriteFramesEditor::_animation_add() {
 	undo_redo->add_do_method(this, "_update_library");
 	undo_redo->add_undo_method(this, "_update_library");
 
-	for (List<Node *>::Element *E = nodes.front(); E; E = E->next()) {
-		String current = E->get()->call("get_animation");
-		undo_redo->add_do_method(E->get(), "set_animation", name);
-		undo_redo->add_undo_method(E->get(), "set_animation", current);
+	for (Node *E : nodes) {
+		String current = E->call("get_animation");
+		undo_redo->add_do_method(E, "set_animation", name);
+		undo_redo->add_undo_method(E, "set_animation", current);
 	}
 
 	edited_anim = name;
@@ -788,8 +790,8 @@ void SpriteFramesEditor::_update_library(bool p_skip_selector) {
 
 		anim_names.sort_custom<StringName::AlphCompare>();
 
-		for (List<StringName>::Element *E = anim_names.front(); E; E = E->next()) {
-			String name = E->get();
+		for (const StringName &E : anim_names) {
+			String name = E;
 
 			TreeItem *it = animations->create_item(anim_root);
 
@@ -798,7 +800,7 @@ void SpriteFramesEditor::_update_library(bool p_skip_selector) {
 			it->set_text(0, name);
 			it->set_editable(0, true);
 
-			if (E->get() == edited_anim) {
+			if (E == edited_anim) {
 				it->select(0);
 			}
 		}

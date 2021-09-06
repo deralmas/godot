@@ -549,8 +549,8 @@ MainLoop *test() {
 		List<StringName> tl;
 		ClassDB::get_class_list(&tl);
 
-		for (List<StringName>::Element *E = tl.front(); E; E = E->next()) {
-			Vector<uint8_t> m5b = E->get().operator String().md5_buffer();
+		for (const StringName &E : tl) {
+			Vector<uint8_t> m5b = E.operator String().md5_buffer();
 			hashes.push_back(hashes.size());
 		}
 
@@ -589,13 +589,13 @@ MainLoop *test() {
 	{
 		Vector3 v(1, 2, 3);
 		v.normalize();
-		float a = 0.3;
+		real_t a = 0.3;
 
 		Basis m(v, a);
 
 		Vector3 v2(7, 3, 1);
 		v2.normalize();
-		float a2 = 0.8;
+		real_t a2 = 0.8;
 
 		Basis m2(v2, a2);
 

@@ -110,6 +110,10 @@ void OS::printerr(const char *p_format, ...) {
 	va_end(argp);
 }
 
+void OS::alert(const String &p_alert, const String &p_title) {
+	fprintf(stderr, "%s: %s\n", p_title.utf8().get_data(), p_alert.utf8().get_data());
+}
+
 void OS::set_low_processor_usage_mode(bool p_enabled) {
 	low_processor_usage_mode = p_enabled;
 }
@@ -174,7 +178,7 @@ static void _OS_printres(Object *p_obj) {
 		return;
 	}
 
-	String str = itos(res->get_instance_id()) + String(res->get_class()) + ":" + String(res->get_name()) + " - " + res->get_path();
+	String str = vformat("%s - %s - %s", res->to_string(), res->get_name(), res->get_path());
 	if (_OSPRF) {
 		_OSPRF->store_line(str);
 	} else {
@@ -209,14 +213,6 @@ void OS::print_resources_in_use(bool p_short) {
 
 void OS::dump_resources_to_file(const char *p_file) {
 	ResourceCache::dump(p_file);
-}
-
-void OS::set_no_window_mode(bool p_enable) {
-	_no_window = p_enable;
-}
-
-bool OS::is_no_window_mode_enabled() const {
-	return _no_window;
 }
 
 int OS::get_exit_code() const {
@@ -281,18 +277,13 @@ String OS::get_user_data_dir() const {
 	return ".";
 }
 
-// Android OS path to app's external data storage
-String OS::get_external_data_dir() const {
-	return get_user_data_dir();
-};
-
 // Absolute path to res://
 String OS::get_resource_dir() const {
 	return ProjectSettings::get_singleton()->get_resource_path();
 }
 
 // Access system-specific dirs like Documents, Downloads, etc.
-String OS::get_system_dir(SystemDir p_dir) const {
+String OS::get_system_dir(SystemDir p_dir, bool p_shared_storage) const {
 	return ".";
 }
 

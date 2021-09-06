@@ -474,13 +474,7 @@ private:
 						return;
 					}
 					ProjectSettings::CustomMap initial_settings;
-					if (rasterizer_button_group->get_pressed_button()->get_meta("driver_name") == "Vulkan") {
-						initial_settings["rendering/driver/driver_name"] = "Vulkan";
-					} else {
-						initial_settings["rendering/driver/driver_name"] = "GLES2";
-						initial_settings["rendering/textures/vram_compression/import_etc2"] = false;
-						initial_settings["rendering/textures/vram_compression/import_etc"] = true;
-					}
+					initial_settings["rendering/vulkan/rendering/back_end"] = rasterizer_button_group->get_pressed_button()->get_meta(SNAME("driver_name"));
 					initial_settings["application/config/name"] = project_name->get_text().strip_edges();
 					initial_settings["application/config/icon"] = "res://icon.png";
 					initial_settings["rendering/environment/defaults/default_environment"] = "res://default_env.tres";
@@ -494,13 +488,13 @@ private:
 						if (!f) {
 							set_message(TTR("Couldn't create project.godot in project path."), MESSAGE_ERROR);
 						} else {
-							f->store_line("[gd_resource type=\"Environment\" load_steps=2 format=2]");
+							f->store_line("[gd_resource type=\"Environment\" load_steps=2 format=3]");
 							f->store_line("");
-							f->store_line("[sub_resource type=\"Sky\" id=1]");
+							f->store_line("[sub_resource type=\"Sky\" id=\"1\"]");
 							f->store_line("");
 							f->store_line("[resource]");
 							f->store_line("background_mode = 2");
-							f->store_line("sky = SubResource( 1 )");
+							f->store_line("sky = SubResource( \"1\" )");
 							memdelete(f);
 						}
 					}
@@ -869,37 +863,36 @@ public:
 		rshb->add_child(rvb);
 		Button *rs_button = memnew(CheckBox);
 		rs_button->set_button_group(rasterizer_button_group);
-		rs_button->set_text(TTR("Vulkan"));
-		rs_button->set_meta("driver_name", "Vulkan");
+		rs_button->set_text(TTR("Vulkan Clustered"));
+		rs_button->set_meta(SNAME("driver_name"), 0); // Vulkan backend "Forward Clustered"
 		rs_button->set_pressed(true);
 		rvb->add_child(rs_button);
 		l = memnew(Label);
-		l->set_text(TTR("- Higher visual quality\n- More accurate API, which produces very fast code\n- Some features not implemented yet - work in progress\n- Incompatible with older hardware\n- Not recommended for web and mobile games"));
+		l->set_text(
+				String::utf8("•  ") + TTR("Supports desktop platforms only.") +
+				String::utf8("\n•  ") + TTR("Advanced 3D graphics available.") +
+				String::utf8("\n•  ") + TTR("Can scale to large complex scenes.") +
+				String::utf8("\n•  ") + TTR("Slower rendering of simple scenes."));
 		l->set_modulate(Color(1, 1, 1, 0.7));
 		rvb->add_child(l);
 
 		rshb->add_child(memnew(VSeparator));
-
-		const String gles2_unsupported_tooltip =
-				TTR("The GLES2 renderer is currently unavailable, as it needs to be reworked for Godot 4.0.\nUse Godot 3.2 if you need GLES2 support.");
 
 		rvb = memnew(VBoxContainer);
 		rvb->set_h_size_flags(Control::SIZE_EXPAND_FILL);
 		rshb->add_child(rvb);
 		rs_button = memnew(CheckBox);
 		rs_button->set_button_group(rasterizer_button_group);
-		rs_button->set_text(TTR("OpenGL ES 2.0 (currently unavailable)"));
-		rs_button->set_meta("driver_name", "GLES2");
-		rs_button->set_disabled(true);
-		rs_button->set_tooltip(gles2_unsupported_tooltip);
+		rs_button->set_text(TTR("Vulkan Mobile"));
+		rs_button->set_meta(SNAME("driver_name"), 1); // Vulkan backend "Forward Mobile"
 		rvb->add_child(rs_button);
 		l = memnew(Label);
-		l->set_text(TTR("- Lower visual quality\n- Some features not available\n- Works on most hardware\n- Recommended for web and mobile games"));
+		l->set_text(
+				String::utf8("•  ") + TTR("Supports desktop + mobile platforms.") +
+				String::utf8("\n•  ") + TTR("Less advanced 3D graphics.") +
+				String::utf8("\n•  ") + TTR("Less scalable for complex scenes.") +
+				String::utf8("\n•  ") + TTR("Faster rendering of simple scenes."));
 		l->set_modulate(Color(1, 1, 1, 0.7));
-		// Also set the tooltip on the label so it appears when hovering either the checkbox or label.
-		l->set_tooltip(gles2_unsupported_tooltip);
-		// Required for the tooltip to show.
-		l->set_mouse_filter(Control::MOUSE_FILTER_STOP);
 		rvb->add_child(l);
 
 		l = memnew(Label);
@@ -1238,16 +1231,16 @@ void ProjectList::load_projects() {
 
 	Set<String> favorites;
 	// Find favourites...
-	for (List<PropertyInfo>::Element *E = properties.front(); E; E = E->next()) {
-		String property_key = E->get().name;
+	for (const PropertyInfo &E : properties) {
+		String property_key = E.name;
 		if (property_key.begins_with("favorite_projects/")) {
 			favorites.insert(property_key);
 		}
 	}
 
-	for (List<PropertyInfo>::Element *E = properties.front(); E; E = E->next()) {
+	for (const PropertyInfo &E : properties) {
 		// This is actually something like "projects/C:::Documents::Godot::Projects::MyGame"
-		String property_key = E->get().name;
+		String property_key = E.name;
 		if (!property_key.begins_with("projects/")) {
 			continue;
 		}
@@ -1582,8 +1575,8 @@ int ProjectList::refresh_project(const String &dir_path) {
 		String favorite_property_key = "favorite_projects/" + project_key;
 
 		bool found = false;
-		for (List<PropertyInfo>::Element *E = properties.front(); E; E = E->next()) {
-			String prop = E->get().name;
+		for (const PropertyInfo &E : properties) {
+			String prop = E.name;
 			if (!found && prop == property_key) {
 				found = true;
 			} else if (!is_favourite && prop == favorite_property_key) {
@@ -1894,7 +1887,7 @@ void ProjectManager::_update_project_buttons() {
 	erase_missing_btn->set_disabled(!_project_list->is_any_project_missing());
 }
 
-void ProjectManager::_unhandled_key_input(const Ref<InputEvent> &p_ev) {
+void ProjectManager::unhandled_key_input(const Ref<InputEvent> &p_ev) {
 	ERR_FAIL_COND(p_ev.is_null());
 
 	Ref<InputEventKey> k = p_ev;
@@ -2188,9 +2181,9 @@ void ProjectManager::_scan_begin(const String &p_base) {
 	_scan_dir(p_base, &projects);
 	print_line("Found " + itos(projects.size()) + " projects.");
 
-	for (List<String>::Element *E = projects.front(); E; E = E->next()) {
-		String proj = get_project_key_from_path(E->get());
-		EditorSettings::get_singleton()->set("projects/" + proj, E->get());
+	for (const String &E : projects) {
+		String proj = get_project_key_from_path(E);
+		EditorSettings::get_singleton()->set("projects/" + proj, E);
 	}
 	EditorSettings::get_singleton()->save();
 	_load_recent_projects();
@@ -2371,7 +2364,6 @@ void ProjectManager::_on_search_term_changed(const String &p_term) {
 }
 
 void ProjectManager::_bind_methods() {
-	ClassDB::bind_method("_unhandled_key_input", &ProjectManager::_unhandled_key_input);
 	ClassDB::bind_method("_update_project_buttons", &ProjectManager::_update_project_buttons);
 	ClassDB::bind_method("_version_button_pressed", &ProjectManager::_version_button_pressed);
 }
@@ -2625,8 +2617,7 @@ ProjectManager::ProjectManager() {
 		Vector<String> editor_languages;
 		List<PropertyInfo> editor_settings_properties;
 		EditorSettings::get_singleton()->get_property_list(&editor_settings_properties);
-		for (List<PropertyInfo>::Element *E = editor_settings_properties.front(); E; E = E->next()) {
-			PropertyInfo &pi = E->get();
+		for (const PropertyInfo &pi : editor_settings_properties) {
 			if (pi.name == "interface/editor/editor_language") {
 				editor_languages = pi.hint_string.split(",");
 				break;

@@ -35,6 +35,8 @@
 #include "core/object/ref_counted.h"
 #include "core/os/os.h"
 #include "core/templates/oa_hash_map.h"
+#include "core/templates/rid.h"
+#include "core/templates/rid_owner.h"
 #include "core/variant/binder_common.h"
 #include "core/variant/variant_parser.h"
 
@@ -249,10 +251,6 @@ struct VariantUtilityFunctions {
 		return Math::move_toward(from, to, delta);
 	}
 
-	static inline double dectime(double value, double amount, double step) {
-		return Math::dectime(value, amount, step);
-	}
-
 	static inline double deg2rad(double angle_deg) {
 		return Math::deg2rad(angle_deg);
 	}
@@ -267,14 +265,6 @@ struct VariantUtilityFunctions {
 
 	static inline double db2linear(double db) {
 		return Math::db2linear(db);
-	}
-
-	static inline Vector2 polar2cartesian(double r, double th) {
-		return Vector2(r * Math::cos(th), r * Math::sin(th));
-	}
-
-	static inline Vector2 cartesian2polar(double x, double y) {
-		return Vector2(Math::sqrt(x * x + y * y), Math::atan2(y, x));
 	}
 
 	static inline int64_t wrapi(int64_t value, int64_t min, int64_t max) {
@@ -486,6 +476,14 @@ struct VariantUtilityFunctions {
 		r_error.error = Callable::CallError::CALL_OK;
 
 		return str;
+	}
+
+	static inline String error_string(Error error) {
+		if (error < 0 || error >= ERR_MAX) {
+			return String("(invalid error code)");
+		}
+
+		return String(error_names[error]);
 	}
 
 	static inline void print(const Variant **p_args, int p_arg_count, Callable::CallError &r_error) {
@@ -723,6 +721,13 @@ struct VariantUtilityFunctions {
 			return false;
 		}
 		return p_instance.get_validated_object() != nullptr;
+	}
+
+	static inline uint64_t rid_allocate_id() {
+		return RID_AllocBase::_gen_id();
+	}
+	static inline RID rid_from_int64(uint64_t p_base) {
+		return RID::from_uint64(p_base);
 	}
 };
 
@@ -1195,15 +1200,11 @@ void Variant::_register_variant_utility_functions() {
 
 	FUNCBINDR(smoothstep, sarray("from", "to", "x"), Variant::UTILITY_FUNC_TYPE_MATH);
 	FUNCBINDR(move_toward, sarray("from", "to", "delta"), Variant::UTILITY_FUNC_TYPE_MATH);
-	FUNCBINDR(dectime, sarray("value", "amount", "step"), Variant::UTILITY_FUNC_TYPE_MATH);
 
 	FUNCBINDR(deg2rad, sarray("deg"), Variant::UTILITY_FUNC_TYPE_MATH);
 	FUNCBINDR(rad2deg, sarray("rad"), Variant::UTILITY_FUNC_TYPE_MATH);
 	FUNCBINDR(linear2db, sarray("lin"), Variant::UTILITY_FUNC_TYPE_MATH);
 	FUNCBINDR(db2linear, sarray("db"), Variant::UTILITY_FUNC_TYPE_MATH);
-
-	FUNCBINDR(polar2cartesian, sarray("r", "th"), Variant::UTILITY_FUNC_TYPE_MATH);
-	FUNCBINDR(cartesian2polar, sarray("x", "y"), Variant::UTILITY_FUNC_TYPE_MATH);
 
 	FUNCBINDR(wrapi, sarray("value", "min", "max"), Variant::UTILITY_FUNC_TYPE_MATH);
 	FUNCBINDR(wrapf, sarray("value", "min", "max"), Variant::UTILITY_FUNC_TYPE_MATH);
@@ -1239,6 +1240,7 @@ void Variant::_register_variant_utility_functions() {
 	FUNCBINDVR(weakref, sarray("obj"), Variant::UTILITY_FUNC_TYPE_GENERAL);
 	FUNCBINDR(_typeof, sarray("variable"), Variant::UTILITY_FUNC_TYPE_GENERAL);
 	FUNCBINDVARARGS(str, sarray(), Variant::UTILITY_FUNC_TYPE_GENERAL);
+	FUNCBINDR(error_string, sarray("error"), Variant::UTILITY_FUNC_TYPE_GENERAL);
 	FUNCBINDVARARGV(print, sarray(), Variant::UTILITY_FUNC_TYPE_GENERAL);
 	FUNCBINDVARARGV(printerr, sarray(), Variant::UTILITY_FUNC_TYPE_GENERAL);
 	FUNCBINDVARARGV(printt, sarray(), Variant::UTILITY_FUNC_TYPE_GENERAL);
@@ -1261,6 +1263,9 @@ void Variant::_register_variant_utility_functions() {
 	FUNCBINDR(instance_from_id, sarray("instance_id"), Variant::UTILITY_FUNC_TYPE_GENERAL);
 	FUNCBINDR(is_instance_id_valid, sarray("id"), Variant::UTILITY_FUNC_TYPE_GENERAL);
 	FUNCBINDR(is_instance_valid, sarray("instance"), Variant::UTILITY_FUNC_TYPE_GENERAL);
+
+	FUNCBINDR(rid_allocate_id, Vector<String>(), Variant::UTILITY_FUNC_TYPE_GENERAL);
+	FUNCBINDR(rid_from_int64, sarray("base"), Variant::UTILITY_FUNC_TYPE_GENERAL);
 }
 
 void Variant::_unregister_variant_utility_functions() {
@@ -1397,8 +1402,8 @@ uint32_t Variant::get_utility_function_hash(const StringName &p_name) {
 }
 
 void Variant::get_utility_function_list(List<StringName> *r_functions) {
-	for (List<StringName>::Element *E = utility_function_name_table.front(); E; E = E->next()) {
-		r_functions->push_back(E->get());
+	for (const StringName &E : utility_function_name_table) {
+		r_functions->push_back(E);
 	}
 }
 

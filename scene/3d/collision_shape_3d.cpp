@@ -30,19 +30,10 @@
 
 #include "collision_shape_3d.h"
 
-#include "core/math/quick_hull.h"
 #include "mesh_instance_3d.h"
 #include "physics_body_3d.h"
-#include "scene/resources/box_shape_3d.h"
-#include "scene/resources/capsule_shape_3d.h"
 #include "scene/resources/concave_polygon_shape_3d.h"
 #include "scene/resources/convex_polygon_shape_3d.h"
-#include "scene/resources/ray_shape_3d.h"
-#include "scene/resources/sphere_shape_3d.h"
-#include "scene/resources/world_margin_shape_3d.h"
-#include "servers/rendering_server.h"
-
-//TODO: Implement CylinderShape and HeightMapShape?
 
 void CollisionShape3D::make_convex_from_siblings() {
 	Node *p = get_parent();
@@ -117,7 +108,7 @@ void CollisionShape3D::_notification(int p_what) {
 }
 
 void CollisionShape3D::resource_changed(RES res) {
-	update_gizmo();
+	update_gizmos();
 }
 
 TypedArray<String> CollisionShape3D::get_configuration_warnings() const {
@@ -166,7 +157,7 @@ void CollisionShape3D::set_shape(const Ref<Shape3D> &p_shape) {
 	if (!shape.is_null()) {
 		shape->register_owner(this);
 	}
-	update_gizmo();
+	update_gizmos();
 	if (parent) {
 		parent->shape_owner_clear_shapes(owner_id);
 		if (shape.is_valid()) {
@@ -187,7 +178,7 @@ Ref<Shape3D> CollisionShape3D::get_shape() const {
 
 void CollisionShape3D::set_disabled(bool p_disabled) {
 	disabled = p_disabled;
-	update_gizmo();
+	update_gizmos();
 	if (parent) {
 		parent->shape_owner_set_disabled(owner_id, p_disabled);
 	}

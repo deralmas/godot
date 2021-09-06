@@ -213,7 +213,7 @@ static String _interpstr(SL::DataInterpolation p_interp) {
 	return "";
 }
 
-static String _prestr(SL::DataPrecision p_pres) {
+static String _prestr(SL::DataPrecision p_pres, bool p_force_highp = false) {
 	switch (p_pres) {
 		case SL::PRECISION_LOWP:
 			return "lowp ";
@@ -222,7 +222,7 @@ static String _prestr(SL::DataPrecision p_pres) {
 		case SL::PRECISION_HIGHP:
 			return "highp ";
 		case SL::PRECISION_DEFAULT:
-			return "";
+			return p_force_highp ? "highp " : "";
 	}
 	return "";
 }
@@ -571,7 +571,7 @@ String ShaderCompilerRD::_dump_node_code(const SL::Node *p_node, int p_level, Ge
 					max_texture_uniforms++;
 				} else {
 					if (E->get().scope == SL::ShaderNode::Uniform::SCOPE_INSTANCE) {
-						continue; //instances are indexed directly, dont need index uniforms
+						continue; // Instances are indexed directly, don't need index uniforms.
 					}
 
 					max_uniforms++;
@@ -605,7 +605,7 @@ String ShaderCompilerRD::_dump_node_code(const SL::Node *p_node, int p_level, Ge
 				if (uniform.scope == SL::ShaderNode::Uniform::SCOPE_INSTANCE) {
 					//insert, but don't generate any code.
 					p_actions.uniforms->insert(uniform_name, uniform);
-					continue; //instances are indexed directly, dont need index uniforms
+					continue; // Instances are indexed directly, don't need index uniforms.
 				}
 				if (SL::is_sampler_type(uniform.type)) {
 					ucode = "layout(set = " + itos(actions.texture_layout_set) + ", binding = " + itos(actions.base_texture_binding_index + uniform.texture_order) + ") uniform ";
@@ -617,7 +617,7 @@ String ShaderCompilerRD::_dump_node_code(const SL::Node *p_node, int p_level, Ge
 					//this is an integer to index the global table
 					ucode += _typestr(ShaderLanguage::TYPE_UINT);
 				} else {
-					ucode += _prestr(uniform.precision);
+					ucode += _prestr(uniform.precision, ShaderLanguage::is_float_type(uniform.type));
 					ucode += _typestr(uniform.type);
 				}
 
@@ -742,7 +742,7 @@ String ShaderCompilerRD::_dump_node_code(const SL::Node *p_node, int p_level, Ge
 
 				String vcode;
 				String interp_mode = _interpstr(varying.interpolation);
-				vcode += _prestr(varying.precision);
+				vcode += _prestr(varying.precision, ShaderLanguage::is_float_type(varying.type));
 				vcode += _typestr(varying.type);
 				vcode += " " + _mkid(varying_name);
 				if (varying.array_size > 0) {
@@ -760,11 +760,11 @@ String ShaderCompilerRD::_dump_node_code(const SL::Node *p_node, int p_level, Ge
 
 			if (var_frag_to_light.size() > 0) {
 				String gcode = "\n\nstruct {\n";
-				for (List<Pair<StringName, SL::ShaderNode::Varying>>::Element *E = var_frag_to_light.front(); E; E = E->next()) {
-					gcode += "\t" + _prestr(E->get().second.precision) + _typestr(E->get().second.type) + " " + _mkid(E->get().first);
-					if (E->get().second.array_size > 0) {
+				for (const Pair<StringName, SL::ShaderNode::Varying> &E : var_frag_to_light) {
+					gcode += "\t" + _prestr(E.second.precision) + _typestr(E.second.type) + " " + _mkid(E.first);
+					if (E.second.array_size > 0) {
 						gcode += "[";
-						gcode += itos(E->get().second.array_size);
+						gcode += itos(E.second.array_size);
 						gcode += "]";
 					}
 					gcode += ";\n";
@@ -777,7 +777,7 @@ String ShaderCompilerRD::_dump_node_code(const SL::Node *p_node, int p_level, Ge
 				const SL::ShaderNode::Constant &cnode = pnode->vconstants[i];
 				String gcode;
 				gcode += "const ";
-				gcode += _prestr(cnode.precision);
+				gcode += _prestr(cnode.precision, ShaderLanguage::is_float_type(cnode.type));
 				if (cnode.type == SL::TYPE_STRUCT) {
 					gcode += _mkid(cnode.type_str);
 				} else {
@@ -887,7 +887,7 @@ String ShaderCompilerRD::_dump_node_code(const SL::Node *p_node, int p_level, Ge
 			SL::VariableNode *vnode = (SL::VariableNode *)p_node;
 			bool use_fragment_varying = false;
 
-			if (!(p_actions.entry_point_stages.has(current_func_name) && p_actions.entry_point_stages[current_func_name] == STAGE_VERTEX)) {
+			if (!vnode->is_local && !(p_actions.entry_point_stages.has(current_func_name) && p_actions.entry_point_stages[current_func_name] == STAGE_VERTEX)) {
 				if (p_assigning) {
 					if (shader->varyings.has(vnode->name)) {
 						use_fragment_varying = true;
@@ -1037,7 +1037,7 @@ String ShaderCompilerRD::_dump_node_code(const SL::Node *p_node, int p_level, Ge
 			SL::ArrayNode *anode = (SL::ArrayNode *)p_node;
 			bool use_fragment_varying = false;
 
-			if (!(p_actions.entry_point_stages.has(current_func_name) && p_actions.entry_point_stages[current_func_name] == STAGE_VERTEX)) {
+			if (!anode->is_local && !(p_actions.entry_point_stages.has(current_func_name) && p_actions.entry_point_stages[current_func_name] == STAGE_VERTEX)) {
 				if (anode->assign_expression != nullptr && shader->varyings.has(anode->name)) {
 					use_fragment_varying = true;
 				} else {
@@ -1165,6 +1165,7 @@ String ShaderCompilerRD::_dump_node_code(const SL::Node *p_node, int p_level, Ge
 					SL::VariableNode *vnode = (SL::VariableNode *)onode->arguments[0];
 
 					bool is_texture_func = false;
+					bool is_screen_texture = false;
 					if (onode->op == SL::OP_STRUCT) {
 						code += _mkid(vnode->name);
 					} else if (onode->op == SL::OP_CONSTRUCT) {
@@ -1197,6 +1198,7 @@ String ShaderCompilerRD::_dump_node_code(const SL::Node *p_node, int p_level, Ge
 							const SL::VariableNode *varnode = static_cast<const SL::VariableNode *>(onode->arguments[i]);
 
 							StringName texture_uniform = varnode->name;
+							is_screen_texture = (texture_uniform == "SCREEN_TEXTURE");
 
 							String sampler_name;
 
@@ -1236,6 +1238,9 @@ String ShaderCompilerRD::_dump_node_code(const SL::Node *p_node, int p_level, Ge
 						}
 					}
 					code += ")";
+					if (is_screen_texture && actions.apply_luminance_multiplier) {
+						code = "(" + code + " * vec4(vec3(sc_luminance_multiplier), 1.0))";
+					}
 				} break;
 				case SL::OP_INDEX: {
 					code += _dump_node_code(onode->arguments[0], p_level, r_gen_code, p_actions, p_default_actions, p_assigning);
@@ -1394,8 +1399,8 @@ void ShaderCompilerRD::initialize(DefaultIdentifierActions p_actions) {
 
 	ShaderLanguage::get_builtin_funcs(&func_list);
 
-	for (List<String>::Element *E = func_list.front(); E; E = E->next()) {
-		internal_functions.insert(E->get());
+	for (const String &E : func_list) {
+		internal_functions.insert(E);
 	}
 	texture_functions.insert("texture");
 	texture_functions.insert("textureProj");

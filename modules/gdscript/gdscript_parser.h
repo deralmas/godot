@@ -1399,7 +1399,6 @@ public:
 	ClassNode *get_tree() const { return head; }
 	bool is_tool() const { return _is_tool; }
 	static Variant::Type get_builtin_type(const StringName &p_type);
-	static StringName get_real_class_name(const StringName &p_source);
 
 	CompletionContext get_completion_context() const { return completion_context; }
 	CompletionCall get_completion_call() const { return completion_call; }
@@ -1431,7 +1430,7 @@ public:
 		void push_line(const String &p_line = String());
 		void push_text(const String &p_text);
 
-		void print_annotation(AnnotationNode *p_annotation);
+		void print_annotation(const AnnotationNode *p_annotation);
 		void print_array(ArrayNode *p_array);
 		void print_assert(AssertNode *p_assert);
 		void print_assignment(AssignmentNode *p_assignment);

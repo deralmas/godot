@@ -93,7 +93,7 @@ String VisualScriptYield::get_text() const {
 class VisualScriptNodeInstanceYield : public VisualScriptNodeInstance {
 public:
 	VisualScriptYield::YieldMode mode;
-	float wait_time;
+	double wait_time;
 
 	virtual int get_working_memory_size() const { return 1; } //yield needs at least 1
 	//virtual bool is_output_port_unsequenced(int p_idx) const { return false; }
@@ -159,7 +159,7 @@ VisualScriptYield::YieldMode VisualScriptYield::get_yield_mode() {
 	return yield_mode;
 }
 
-void VisualScriptYield::set_wait_time(float p_time) {
+void VisualScriptYield::set_wait_time(double p_time) {
 	if (wait_time == p_time) {
 		return;
 	}
@@ -167,7 +167,7 @@ void VisualScriptYield::set_wait_time(float p_time) {
 	ports_changed_notify();
 }
 
-float VisualScriptYield::get_wait_time() {
+double VisualScriptYield::get_wait_time() {
 	return wait_time;
 }
 
@@ -438,21 +438,21 @@ void VisualScriptYieldSignal::_validate_property(PropertyInfo &property) const {
 		ClassDB::get_signal_list(_get_base_type(), &methods);
 
 		List<String> mstring;
-		for (List<MethodInfo>::Element *E = methods.front(); E; E = E->next()) {
-			if (E->get().name.begins_with("_")) {
+		for (const MethodInfo &E : methods) {
+			if (E.name.begins_with("_")) {
 				continue;
 			}
-			mstring.push_back(E->get().name.get_slice(":", 0));
+			mstring.push_back(E.name.get_slice(":", 0));
 		}
 
 		mstring.sort();
 
 		String ml;
-		for (List<String>::Element *E = mstring.front(); E; E = E->next()) {
+		for (const String &E : mstring) {
 			if (ml != String()) {
 				ml += ",";
 			}
-			ml += E->get();
+			ml += E;
 		}
 
 		property.hint_string = ml;

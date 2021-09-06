@@ -47,6 +47,10 @@
 
 #include "godot_js.h"
 
+void OS_JavaScript::alert(const String &p_alert, const String &p_title) {
+	godot_js_display_alert(p_alert.utf8().get_data());
+}
+
 // Lifecycle
 void OS_JavaScript::initialize() {
 	OS_Unix::initialize_core();
@@ -111,8 +115,8 @@ Error OS_JavaScript::execute(const String &p_path, const List<String> &p_argumen
 
 Error OS_JavaScript::create_process(const String &p_path, const List<String> &p_arguments, ProcessID *r_child_id) {
 	Array args;
-	for (const List<String>::Element *E = p_arguments.front(); E; E = E->next()) {
-		args.push_back(E->get());
+	for (const String &E : p_arguments) {
+		args.push_back(E);
 	}
 	String json_args = Variant(args).to_json_string();
 	int failed = godot_js_os_execute(json_args.utf8().get_data());
