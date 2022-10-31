@@ -13,6 +13,11 @@ patches that I use in my projects. As of now there isn't a lot of
 stuff yet, but I'll slowly add whatever I'll find useful.
 Other branches are usually PRs.
 
+## When?
+A long time ago. Lately I'm busy working on the engine more than on
+games by upstreaming as much stuff as possible. Because of this i'm
+not updating this fork. Oh well.
+
 ## Obtaining the engine
 As now you can only compile it from source.
 For instructions on how to build it, check out the
