@@ -3825,6 +3825,82 @@ bool WaylandThread::get_reset_frame() {
 	return old_frame;
 }
 
+// Dispatches events until a frame event is received or the timeout expires.
+bool WaylandThread::wait_frame_timeout(int p_timeout) {
+	if (frame) {
+		// We already have a frame! Probably it got there while the caller locked :D
+		frame = false;
+		return true;
+	}
+
+	struct pollfd poll_fd;
+	poll_fd.fd = wl_display_get_fd(wl_display);
+	poll_fd.events = POLLIN | POLLHUP;
+
+	int begin_ms = OS::get_singleton()->get_ticks_msec();
+	int remaining_ms = p_timeout;
+
+	while (remaining_ms > 0) {
+		// Empty the event queue while it's full.
+		while (wl_display_prepare_read(wl_display) != 0) {
+			if (wl_display_dispatch_pending(wl_display) == -1) {
+				// Oh no. We'll check and handle any display error below.
+				break;
+			}
+
+			if (frame) {
+				// We had a frame event in the queue :D
+				frame = false;
+				return true;
+			}
+		}
+
+		int werror = wl_display_get_error(wl_display);
+
+		if (werror) {
+			if (werror == EPROTO) {
+				struct wl_interface *wl_interface = nullptr;
+				uint32_t id = 0;
+
+				int error_code = wl_display_get_protocol_error(wl_display, (const struct wl_interface **)&wl_interface, &id);
+				CRASH_NOW_MSG(vformat("Wayland protocol error %d on interface %s@%d.", error_code, wl_interface ? wl_interface->name : "unknown", id));
+			} else {
+				CRASH_NOW_MSG(vformat("Wayland client error code %d.", werror));
+			}
+		}
+
+		wl_display_flush(wl_display);
+
+		// Wait for the event file descriptor to have new data.
+		poll(&poll_fd, 1, remaining_ms);
+
+		if (poll_fd.revents | POLLIN) {
+			// Load the queues with fresh new data.
+			wl_display_read_events(wl_display);
+		} else {
+			// Oh well... Stop signaling that we want to read.
+			wl_display_cancel_read(wl_display);
+
+			// We've got no new events :(
+			// We won't even bother with checking the frame flag.
+			return false;
+		}
+
+		// Let's try dispatching now...
+		wl_display_dispatch_pending(wl_display);
+
+		if (frame) {
+			frame = false;
+			return true;
+		}
+
+		remaining_ms -= OS::get_singleton()->get_ticks_msec() - begin_ms;
+	}
+
+	// Timed out.
+	return false;
+}
+
 void WaylandThread::destroy() {
 	if (!initialized) {
 		return;

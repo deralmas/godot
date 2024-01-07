@@ -810,11 +810,11 @@ bool DisplayServerWayland::window_is_focused(WindowID p_window_id) const {
 }
 
 bool DisplayServerWayland::window_can_draw(DisplayServer::WindowID p_window_id) const {
-	return frame;
+	return !suspended;
 }
 
 bool DisplayServerWayland::can_any_window_draw() const {
-	return frame;
+	return !suspended;
 }
 
 void DisplayServerWayland::window_set_ime_active(const bool p_active, DisplayServer::WindowID p_window_id) {
@@ -1086,7 +1086,25 @@ void DisplayServerWayland::process_events() {
 
 	wayland_thread.keyboard_echo_keys();
 
-	frame = wayland_thread.get_reset_frame();
+	// TODO: Use the new XDG shell "suspended" feature when possible.
+	// This is just a dirty heuristic. Best thing I could find :P
+	if (!suspended) {
+		// If we don't get a frame event (request to draw) in one second, we're
+		// probably suspended. In other words, there's no point in depending on them
+		// anymore and we'll have to switch to low processor usage mode, in which we
+		// tick at a custom user-defined rate instead of the GPU's. This mode is
+		// enabled by returning `false` in `can_any_window_draw`.
+		bool frame = wayland_thread.wait_frame_timeout(1000);
+		if (!frame) {
+			suspended = true;
+			print_verbose("Frame timeout, suspended.");
+		}
+	} else {
+		if (wayland_thread.get_reset_frame()) {
+			// At last, a sign of life! We're no longer suspended.
+			suspended = false;
+		}
+	}
 
 	wayland_thread.mutex.unlock();
 

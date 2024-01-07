@@ -920,6 +920,7 @@ public:
 
 	void set_frame();
 	bool get_reset_frame();
+	bool wait_frame_timeout(int p_timeout);
 
 	Error init();
 	void destroy();
