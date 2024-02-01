@@ -784,6 +784,18 @@ Size2i DisplayServerWayland::window_get_size_with_decorations(DisplayServer::Win
 	return main_window.rect.size;
 }
 
+float DisplayServerWayland::window_get_scale(DisplayServer::WindowID p_window_id) const {
+	MutexLock mutex_lock(wayland_thread.mutex);
+
+	struct wl_surface *wl_surface = wayland_thread.window_get_wl_surface(p_window_id);
+	ERR_FAIL_NULL_V(wl_surface, 1);
+
+	WaylandThread::WindowState *ws = wayland_thread.wl_surface_get_window_state(wl_surface);
+	ERR_FAIL_NULL_V(ws, 1);
+
+	return (float)wayland_thread.window_state_get_scale_factor(ws);
+}
+
 void DisplayServerWayland::window_set_mode(WindowMode p_mode, DisplayServer::WindowID p_window_id) {
 	MutexLock mutex_lock(wayland_thread.mutex);
 
