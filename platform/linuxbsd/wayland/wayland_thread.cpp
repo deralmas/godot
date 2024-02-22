@@ -2427,10 +2427,10 @@ void WaylandThread::_wp_tablet_tool_on_frame(void *data, struct zwp_tablet_tool_
 		// straight from the compositor, so we have to normalize them here.
 
 		// According to the tablet proto spec, tilt is expressed in degrees relative
-		// to the Z axis of the tablet, so it shouldn't go over 90 degrees, I think.
-		// We'll clamp it just in case.
-		td.tilt.x = CLAMP(td.tilt.x, 0, 90);
-		td.tilt.y = CLAMP(td.tilt.x, 0, 90);
+		// to the Z axis of the tablet, so it shouldn't go over 90 degrees either way,
+		// I think. We'll clamp it just in case.
+		td.tilt.x = CLAMP(td.tilt.x, -90, 90);
+		td.tilt.y = CLAMP(td.tilt.x, -90, 90);
 
 		mm->set_tilt(td.tilt / 90);
 
