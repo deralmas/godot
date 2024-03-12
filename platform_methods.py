@@ -67,8 +67,13 @@ def generate_export_icons(platform_path, platform_name):
 
         # NOTE: It is safe to generate this file here, since this is still executed serially.
         wf = export_path + "/" + name + "_svg.gen.h"
-        with open(wf, "w", encoding="utf-8", newline="\n") as svgw:
-            svgw.write(svg_str)
+
+        with open(wf, "r", encoding="utf-8", newline="\n") as svgr:
+            old_contents = svgr.read()
+
+        if old_contents != svg_str:
+            with open(wf, "w", encoding="utf-8", newline="\n") as svgw:
+                svgw.write(svg_str)
 
 
 def get_build_version(short):

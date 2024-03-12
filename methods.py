@@ -228,12 +228,54 @@ def get_version_info(module_version_string="", silent=False):
     return version_info
 
 
+def write_with_check(path, string):
+    with open(path, "r", encoding="utf-8", newline="\n") as f:
+        old_contents = f.read()
+
+    if old_contents != string:
+        with open(path, "w", encoding="utf-8", newline="\n") as f:
+            f.write(string)
+
+
 def generate_version_header(module_version_string=""):
     version_info = get_version_info(module_version_string)
 
-    # NOTE: It is safe to generate these files here, since this is still executed serially.
+    version_info_header = """\
+/* THIS FILE IS GENERATED DO NOT EDIT */
+#ifndef VERSION_GENERATED_GEN_H
+#define VERSION_GENERATED_GEN_H
+#define VERSION_SHORT_NAME "{short_name}"
+#define VERSION_NAME "{name}"
+#define VERSION_MAJOR {major}
+#define VERSION_MINOR {minor}
+#define VERSION_PATCH {patch}
+#define VERSION_STATUS "{status}"
+#define VERSION_BUILD "{build}"
+#define VERSION_MODULE_CONFIG "{module_config}"
+#define VERSION_WEBSITE "{website}"
+#define VERSION_DOCS_BRANCH "{docs_branch}"
+#define VERSION_DOCS_URL "https://docs.godotengine.org/en/" VERSION_DOCS_BRANCH
+#endif // VERSION_GENERATED_GEN_H
+""".format(
+        **version_info
+    )
 
-    with open("core/version_generated.gen.h", "w", encoding="utf-8", newline="\n") as f:
+    version_hash_data = """\
+/* THIS FILE IS GENERATED DO NOT EDIT */
+#include "core/version.h"
+const char *const VERSION_HASH = "{git_hash}";
+const uint64_t VERSION_TIMESTAMP = {git_timestamp};
+""".format(
+        **version_info
+    )
+
+    write_with_check("core/version_generated.gen.h", version_info_header)
+    write_with_check("core/version_hash.gen.cpp", version_hash_data)
+
+
+def build_version_info_header(target, source, env):
+    version_info = get_version_info(env.module_version_string)
+    with open(str(target[0]), "w", encoding="utf-8", newline="\n") as f:
         f.write(
             """\
 /* THIS FILE IS GENERATED DO NOT EDIT */
@@ -255,18 +297,7 @@ def generate_version_header(module_version_string=""):
                 **version_info
             )
         )
-
-    with open("core/version_hash.gen.cpp", "w", encoding="utf-8", newline="\n") as fhash:
-        fhash.write(
-            """\
-/* THIS FILE IS GENERATED DO NOT EDIT */
-#include "core/version.h"
-const char *const VERSION_HASH = "{git_hash}";
-const uint64_t VERSION_TIMESTAMP = {git_timestamp};
-""".format(
-                **version_info
-            )
-        )
+    return 0
 
 
 def parse_cg_file(fname, uniforms, sizes, conditionals):
@@ -435,9 +466,13 @@ void uninitialize_modules(ModuleInitializationLevel p_level) {
         uninitialize_cpp,
     )
 
-    # NOTE: It is safe to generate this file here, since this is still executed serially
-    with open("modules/register_module_types.gen.cpp", "w", encoding="utf-8", newline="\n") as f:
-        f.write(modules_cpp)
+    with open("modules/register_module_types.gen.cpp", "r", encoding="utf-8", newline="\n") as fr:
+        old_contents = fr.read()
+
+    if old_contents != modules_cpp:
+        # NOTE: It is safe to generate this file here, since this is still executed serially
+        with open("modules/register_module_types.gen.cpp", "w", encoding="utf-8", newline="\n") as f:
+            f.write(modules_cpp)
 
 
 def convert_custom_modules_path(path):

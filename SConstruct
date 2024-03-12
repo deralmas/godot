@@ -486,6 +486,9 @@ if selected_platform in platform_list:
 
     env = env_base.Clone()
 
+    SetOption("experimental", "ninja")
+    env.Tool("ninja")
+
     # Default num_jobs to local cpu count if not user specified.
     # SCons has a peculiarity where user-specified options won't be overridden
     # by SetOption, so we can rely on this to know if we should use our default.
@@ -533,7 +536,7 @@ if selected_platform in platform_list:
         except:
             print("Error opening feature build profile: " + env["build_profile"])
             Exit(255)
-    methods.write_disabled_classes(disabled_classes)
+        methods.write_disabled_classes(disabled_classes)
 
     # Platform specific flags.
     # These can sometimes override default options.
@@ -883,6 +886,13 @@ if selected_platform in platform_list:
         if not env.module_check_dependencies("editor"):
             print("Not all modules required by editor builds are enabled.")
             Exit(255)
+
+    VERSION_BUILDERS = {
+        "VERSION_INFO": env.Builder(
+            action=env.Run(methods.build_version_info_header),
+        ),
+    }
+    env.Append(BUILDERS=VERSION_BUILDERS)
 
     methods.generate_version_header(env.module_version_string)
 
