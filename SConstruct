@@ -203,6 +203,7 @@ opts.Add(BoolVariable("custom_modules_recursive", "Detect custom modules recursi
 opts.Add(BoolVariable("dev_mode", "Alias for dev options: verbose=yes warnings=extra werror=yes tests=yes", False))
 opts.Add(BoolVariable("tests", "Build the unit tests", False))
 opts.Add(BoolVariable("fast_unsafe", "Enable unsafe options for faster rebuilds", False))
+opts.Add(BoolVariable("ninja", "Use the ninja backend for faster rebuilds", False))
 opts.Add(BoolVariable("compiledb", "Generate compilation DB (`compile_commands.json`) for external tools", False))
 opts.Add(BoolVariable("verbose", "Enable verbose output for the compilation", False))
 opts.Add(BoolVariable("progress", "Show a progress indicator during compilation", True))
@@ -956,6 +957,16 @@ if selected_platform in platform_list:
         env.vs_incs = []
         env.vs_srcs = []
 
+    if env["ninja"]:
+        SetOption("experimental", "ninja")
+        env.Tool("ninja")
+
+        # By setting this we allow the user to run ninja by themselves with all
+        # the flags they need, as apparently automatically running from scons
+        # is way slower. This is also needed as every time the user stops the
+        # build, the `purge_flaky_files` method clears `build.ninja` up.
+        env["NINJA_DISABLE_AUTO_RUN"] = True
+
     if env["compiledb"]:
         # Generating the compilation DB (`compile_commands.json`) requires SCons 4.0.0 or later.
         from SCons import __version__ as scons_raw_version
@@ -1043,7 +1054,7 @@ atexit.register(print_elapsed_time)
 def purge_flaky_files():
     for build_failure in GetBuildFailures():
         path = build_failure.node.abspath
-        if os.path.isfile(path):
+        if os.path.isfile(path) and os.path.basename(path):
             os.remove(path)
 
 
