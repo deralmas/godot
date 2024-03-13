@@ -469,13 +469,7 @@ void uninitialize_modules(ModuleInitializationLevel p_level) {
         uninitialize_cpp,
     )
 
-    with open("modules/register_module_types.gen.cpp", "r", encoding="utf-8", newline="\n") as fr:
-        old_contents = fr.read()
-
-    if old_contents != modules_cpp:
-        # NOTE: It is safe to generate this file here, since this is still executed serially
-        with open("modules/register_module_types.gen.cpp", "w", encoding="utf-8", newline="\n") as f:
-            f.write(modules_cpp)
+    write_file_if_needed("modules/register_module_types.gen.cpp", modules_cpp)
 
 
 def convert_custom_modules_path(path):
