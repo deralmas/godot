@@ -41,7 +41,7 @@ script_encryption_key_contents = (
     '#include "core/config/project_settings.h"\nuint8_t script_encryption_key[32]={' + txt + "};\n"
 )
 
-methods.write_with_check("script_encryption_key.gen.cpp", script_encryption_key_contents)
+methods.write_file_if_needed("script_encryption_key.gen.cpp", script_encryption_key_contents)
 
 # Add required thirdparty code.
 

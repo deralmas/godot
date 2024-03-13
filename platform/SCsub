@@ -20,7 +20,7 @@ reg_apis_inc += "\n"
 reg_apis += "}\n\n"
 unreg_apis += "}\n"
 
-methods.write_with_check("register_platform_apis.gen.cpp", reg_apis_inc + reg_apis + unreg_apis)
+methods.write_file_if_needed("register_platform_apis.gen.cpp", reg_apis_inc + reg_apis + unreg_apis)
 env.add_source_files(env.platform_sources, "register_platform_apis.gen.cpp")
 
 lib = env.add_library("platform", env.platform_sources)

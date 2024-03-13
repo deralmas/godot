@@ -24,7 +24,7 @@ def _make_doc_data_class_path(to_path):
     class_path_data += "\t{nullptr, nullptr}\n"
     class_path_data += "};\n"
 
-    methods.write_with_check(file_path, class_path_data)
+    methods.write_file_if_needed(file_path, class_path_data)
 
 
 if env.editor_build:
@@ -43,7 +43,7 @@ if env.editor_build:
         reg_exporters += "\tregister_" + e + "_exporter_types();\n"
     reg_exporters += "}\n"
 
-    methods.write_with_check("register_exporters.gen.cpp", reg_exporters_inc + reg_exporters)
+    methods.write_file_if_needed("register_exporters.gen.cpp", reg_exporters_inc + reg_exporters)
 
     # Core API documentation.
     docs = []

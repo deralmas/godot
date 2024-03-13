@@ -228,7 +228,7 @@ def get_version_info(module_version_string="", silent=False):
     return version_info
 
 
-def write_with_check(path, string):
+def write_file_if_needed(path, string):
     with open(path, "r", encoding="utf-8", newline="\n") as f:
         old_contents = f.read()
 
@@ -269,8 +269,8 @@ const uint64_t VERSION_TIMESTAMP = {git_timestamp};
         **version_info
     )
 
-    write_with_check("core/version_generated.gen.h", version_info_header)
-    write_with_check("core/version_hash.gen.cpp", version_hash_data)
+    write_file_if_needed("core/version_generated.gen.h", version_info_header)
+    write_file_if_needed("core/version_hash.gen.cpp", version_hash_data)
 
 
 def build_version_info_header(target, source, env):

@@ -69,7 +69,7 @@ def generate_export_icons(platform_path, platform_name):
         # NOTE: It is safe to generate this file here, since this is still executed serially.
         wf = export_path + "/" + name + "_svg.gen.h"
 
-        methods.write_with_check(wf, svg_str)
+        methods.write_file_if_needed(wf, svg_str)
 
 
 def get_build_version(short):
