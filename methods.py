@@ -273,33 +273,6 @@ const uint64_t VERSION_TIMESTAMP = {git_timestamp};
     write_file_if_needed("core/version_hash.gen.cpp", version_hash_data)
 
 
-def build_version_info_header(target, source, env):
-    version_info = get_version_info(env.module_version_string)
-    with open(str(target[0]), "w", encoding="utf-8", newline="\n") as f:
-        f.write(
-            """\
-/* THIS FILE IS GENERATED DO NOT EDIT */
-#ifndef VERSION_GENERATED_GEN_H
-#define VERSION_GENERATED_GEN_H
-#define VERSION_SHORT_NAME "{short_name}"
-#define VERSION_NAME "{name}"
-#define VERSION_MAJOR {major}
-#define VERSION_MINOR {minor}
-#define VERSION_PATCH {patch}
-#define VERSION_STATUS "{status}"
-#define VERSION_BUILD "{build}"
-#define VERSION_MODULE_CONFIG "{module_config}"
-#define VERSION_WEBSITE "{website}"
-#define VERSION_DOCS_BRANCH "{docs_branch}"
-#define VERSION_DOCS_URL "https://docs.godotengine.org/en/" VERSION_DOCS_BRANCH
-#endif // VERSION_GENERATED_GEN_H
-""".format(
-                **version_info
-            )
-        )
-    return 0
-
-
 def parse_cg_file(fname, uniforms, sizes, conditionals):
     with open(fname, "r") as fs:
         line = fs.readline()

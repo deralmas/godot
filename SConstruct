@@ -885,13 +885,6 @@ if selected_platform in platform_list:
             print("Not all modules required by editor builds are enabled.")
             Exit(255)
 
-    VERSION_BUILDERS = {
-        "VERSION_INFO": env.Builder(
-            action=env.Run(methods.build_version_info_header),
-        ),
-    }
-    env.Append(BUILDERS=VERSION_BUILDERS)
-
     methods.generate_version_header(env.module_version_string)
 
     env["PROGSUFFIX_WRAP"] = suffix + env.module_version_string + ".console" + env["PROGSUFFIX"]
