@@ -961,6 +961,12 @@ if selected_platform in platform_list:
         SetOption("experimental", "ninja")
         env.Tool("ninja")
 
+        # By setting this we allow the user to run ninja by themselves with all
+        # the flags they need, as apparently automatically running from scons
+        # is way slower. This is also needed as every time the user stops the
+        # build, the `purge_flaky_files` method clears `build.ninja` up.
+        env["NINJA_DISABLE_AUTO_RUN"] = True
+
     if env["compiledb"]:
         # Generating the compilation DB (`compile_commands.json`) requires SCons 4.0.0 or later.
         from SCons import __version__ as scons_raw_version
