@@ -203,6 +203,7 @@ opts.Add(BoolVariable("custom_modules_recursive", "Detect custom modules recursi
 opts.Add(BoolVariable("dev_mode", "Alias for dev options: verbose=yes warnings=extra werror=yes tests=yes", False))
 opts.Add(BoolVariable("tests", "Build the unit tests", False))
 opts.Add(BoolVariable("fast_unsafe", "Enable unsafe options for faster rebuilds", False))
+opts.Add(BoolVariable("ninja", "Use the ninja backend for faster rebuilds", False))
 opts.Add(BoolVariable("compiledb", "Generate compilation DB (`compile_commands.json`) for external tools", False))
 opts.Add(BoolVariable("verbose", "Enable verbose output for the compilation", False))
 opts.Add(BoolVariable("progress", "Show a progress indicator during compilation", True))
@@ -485,9 +486,6 @@ if selected_platform in platform_list:
     import detect
 
     env = env_base.Clone()
-
-    SetOption("experimental", "ninja")
-    env.Tool("ninja")
 
     # Default num_jobs to local cpu count if not user specified.
     # SCons has a peculiarity where user-specified options won't be overridden
@@ -965,6 +963,10 @@ if selected_platform in platform_list:
     if env["vsproj"]:
         env.vs_incs = []
         env.vs_srcs = []
+
+    if env["ninja"]:
+        SetOption("experimental", "ninja")
+        env.Tool("ninja")
 
     if env["compiledb"]:
         # Generating the compilation DB (`compile_commands.json`) requires SCons 4.0.0 or later.
