@@ -229,12 +229,12 @@ def get_version_info(module_version_string="", silent=False):
 
 
 def write_file_if_needed(path, string):
-    with open(path, "r", encoding="utf-8", newline="\n") as f:
-        old_contents = f.read()
+    with open(path, "r+", encoding="utf-8", newline="\n") as f:
+        if f.read() == string:
+            return
 
-    if old_contents != string:
-        with open(path, "w", encoding="utf-8", newline="\n") as f:
-            f.write(string)
+        f.seek(0)
+        f.write(string)
 
 
 def generate_version_header(module_version_string=""):
