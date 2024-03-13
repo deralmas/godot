@@ -7,6 +7,7 @@ env.editor_sources = []
 import os
 import glob
 import editor_builders
+import methods
 
 
 def _make_doc_data_class_path(to_path):
@@ -23,12 +24,7 @@ def _make_doc_data_class_path(to_path):
     class_path_data += "\t{nullptr, nullptr}\n"
     class_path_data += "};\n"
 
-    with open(file_path, "r", encoding="utf-8", newline="\n") as gr:
-        old_contents = gr.read()
-
-    if old_contents != class_path_data:
-        with open(file_path, "w", encoding="utf-8", newline="\n") as gw:
-            gw.write(class_path_data)
+    methods.write_with_check(file_path, class_path_data)
 
 
 if env.editor_build:
@@ -47,14 +43,7 @@ if env.editor_build:
         reg_exporters += "\tregister_" + e + "_exporter_types();\n"
     reg_exporters += "}\n"
 
-    with open("register_exporters.gen.cpp", "r", encoding="utf-8", newline="\n") as fr:
-        old_contents = fr.read()
-
-    if old_contents != (reg_exporters_inc + reg_exporters):
-        # NOTE: It is safe to generate this file here, since this is still executed serially
-        with open("register_exporters.gen.cpp", "w", encoding="utf-8", newline="\n") as f:
-            f.write(reg_exporters_inc)
-            f.write(reg_exporters)
+    methods.write_with_check("register_exporters.gen.cpp", reg_exporters_inc + reg_exporters)
 
     # Core API documentation.
     docs = []

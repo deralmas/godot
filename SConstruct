@@ -1055,7 +1055,7 @@ atexit.register(print_elapsed_time)
 def purge_flaky_files():
     for build_failure in GetBuildFailures():
         path = build_failure.node.abspath
-        if os.path.isfile(path):
+        if os.path.isfile(path) and os.path.basename(path) != "build.ninja":
             os.remove(path)
 
 
