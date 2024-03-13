@@ -416,15 +416,18 @@ def is_module(path):
 
 
 def write_disabled_classes(class_list):
-    with open("core/disabled_classes.gen.h", "w", encoding="utf-8", newline="\n") as f:
-        f.write("/* THIS FILE IS GENERATED DO NOT EDIT */\n")
-        f.write("#ifndef DISABLED_CLASSES_GEN_H\n")
-        f.write("#define DISABLED_CLASSES_GEN_H\n\n")
-        for c in class_list:
-            cs = c.strip()
-            if cs != "":
-                f.write("#define ClassDB_Disable_" + cs + " 1\n")
-        f.write("\n#endif\n")
+    file_contents = ""
+
+    file_contents += "/* THIS FILE IS GENERATED DO NOT EDIT */\n"
+    file_contents += "#ifndef DISABLED_CLASSES_GEN_H\n"
+    file_contents += "#define DISABLED_CLASSES_GEN_H\n\n"
+    for c in class_list:
+        cs = c.strip()
+        if cs != "":
+            file_contents += "#define ClassDB_Disable_" + cs + " 1\n"
+    file_contents += "\n#endif\n"
+
+    write_file_if_needed("core/disabled_classes.gen.h", file_contents)
 
 
 def write_modules(modules):
