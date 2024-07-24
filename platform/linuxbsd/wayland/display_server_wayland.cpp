@@ -1136,12 +1136,16 @@ void DisplayServerWayland::try_suspend() {
 void DisplayServerWayland::process_events() {
 	wayland_thread.mutex.lock();
 
+	// We might receive multiple window rect events. Let's accumulate the result
+	// before actually resizing.
+	Size2i new_window_size = main_window.rect.size;
+
 	while (wayland_thread.has_message()) {
 		Ref<WaylandThread::Message> msg = wayland_thread.pop_message();
 
 		Ref<WaylandThread::WindowRectMessage> winrect_msg = msg;
 		if (winrect_msg.is_valid()) {
-			_resize_window(winrect_msg->rect.size);
+			new_window_size = winrect_msg->rect.size;
 		}
 
 		Ref<WaylandThread::WindowEventMessage> winev_msg = msg;
@@ -1210,6 +1214,10 @@ void DisplayServerWayland::process_events() {
 
 			OS::get_singleton()->get_main_loop()->notification(MainLoop::NOTIFICATION_OS_IME_UPDATE);
 		}
+	}
+
+	if (new_window_size != main_window.rect.size) {
+		_resize_window(new_window_size);
 	}
 
 	wayland_thread.keyboard_echo_keys();
