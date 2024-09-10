@@ -209,7 +209,8 @@ bool DisplayServerWayland::has_feature(Feature p_feature) const {
 		case FEATURE_SWAP_BUFFERS:
 		case FEATURE_KEEP_SCREEN_ON:
 		case FEATURE_IME:
-		case FEATURE_CLIPBOARD_PRIMARY: {
+		case FEATURE_CLIPBOARD_PRIMARY:
+		case FEATURE_EXTEND_TO_TITLE: {
 			return true;
 		} break;
 
@@ -852,6 +853,13 @@ void DisplayServerWayland::window_set_flag(WindowFlags p_flag, bool p_enabled, D
 	switch (p_flag) {
 		case WINDOW_FLAG_BORDERLESS: {
 			wayland_thread.window_set_borderless(MAIN_WINDOW_ID, p_enabled);
+		} break;
+
+		case WINDOW_FLAG_EXTEND_TO_TITLE: {
+			// This mode is nothing else than a borderless window with thread-side
+			// decoration handling (resizing, moving) enabled.
+			wayland_thread.window_set_borderless(MAIN_WINDOW_ID, p_enabled);
+			wayland_thread.window_set_custom_decorations(MAIN_WINDOW_ID, p_enabled);
 		} break;
 
 		default: {

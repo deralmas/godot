@@ -197,6 +197,11 @@ public:
 		DisplayServer::WindowMode mode = DisplayServer::WINDOW_MODE_WINDOWED;
 		bool suspended = false;
 
+		bool tiled_left = false;
+		bool tiled_right = false;
+		bool tiled_top = false;
+		bool tiled_bottom = false;
+
 		// These are true by default as it isn't guaranteed that we'll find an
 		// xdg-shell implementation with wm_capabilities available. If and once we
 		// receive a wm_capabilities event these will get reset and updated with
@@ -204,6 +209,8 @@ public:
 		bool can_minimize = false;
 		bool can_maximize = false;
 		bool can_fullscreen = false;
+
+		bool custom_decorations = false;
 
 		HashSet<struct wl_output *> wl_outputs;
 
@@ -507,6 +514,11 @@ private:
 
 	DisplayServer::CursorShape cursor_shape = DisplayServer::CURSOR_ARROW;
 	bool cursor_visible = true;
+
+	DisplayServer::CursorShape cursor_shape_override = DisplayServer::CURSOR_ARROW;
+	bool cursor_override_enabled = false;
+
+	DisplayServer::CursorShape last_cursor_shape = DisplayServer::CURSOR_ARROW;
 
 	PointerConstraint pointer_constraint = PointerConstraint::NONE;
 
@@ -940,6 +952,7 @@ public:
 	void window_set_borderless(DisplayServer::WindowID p_window_id, bool p_borderless);
 	void window_set_title(DisplayServer::WindowID p_window_id, const String &p_title);
 	void window_set_app_id(DisplayServer::WindowID p_window_id, const String &p_app_id);
+	void window_set_custom_decorations(DisplayServer::WindowID p_window_id, bool p_enable);
 
 	bool window_is_focused(DisplayServer::WindowID p_window_id);
 
@@ -965,6 +978,9 @@ public:
 	void cursor_set_custom_shape(DisplayServer::CursorShape p_cursor_shape);
 	void cursor_shape_set_custom_image(DisplayServer::CursorShape p_cursor_shape, Ref<Image> p_image, const Point2i &p_hotspot);
 	void cursor_shape_clear_custom_image(DisplayServer::CursorShape p_cursor_shape);
+
+	void cursor_set_override_shape(DisplayServer::CursorShape p_cursor_shape);
+	void cursor_clear_override();
 
 	void window_set_ime_active(const bool p_active, DisplayServer::WindowID p_window_id);
 	void window_set_ime_position(const Point2i &p_pos, DisplayServer::WindowID p_window_id);

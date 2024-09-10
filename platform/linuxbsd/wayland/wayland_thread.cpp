@@ -56,6 +56,8 @@
 #define DEBUG_LOG_WAYLAND_THREAD(...)
 #endif
 
+#define CSD_RESIZE_MARGINS 5
+
 // Read the content pointed by fd into a Vector<uint8_t>.
 Vector<uint8_t> WaylandThread::_read_fd(int fd) {
 	// This is pretty much an arbitrary size.
@@ -1097,6 +1099,11 @@ void WaylandThread::_xdg_toplevel_on_configure(void *data, struct xdg_toplevel *
 	ws->mode = DisplayServer::WINDOW_MODE_WINDOWED;
 	ws->suspended = false;
 
+	ws->tiled_left = false;
+	ws->tiled_right = false;
+	ws->tiled_top = false;
+	ws->tiled_bottom = false;
+
 	uint32_t *state = nullptr;
 	wl_array_for_each(state, states) {
 		switch (*state) {
@@ -1108,10 +1115,25 @@ void WaylandThread::_xdg_toplevel_on_configure(void *data, struct xdg_toplevel *
 				ws->mode = DisplayServer::WINDOW_MODE_FULLSCREEN;
 			} break;
 
+			case XDG_TOPLEVEL_STATE_TILED_LEFT: {
+				ws->tiled_left = true;
+			} break;
+
+			case XDG_TOPLEVEL_STATE_TILED_RIGHT: {
+				ws->tiled_right = true;
+			} break;
+
+			case XDG_TOPLEVEL_STATE_TILED_TOP: {
+				ws->tiled_top = true;
+			} break;
+
+			case XDG_TOPLEVEL_STATE_TILED_BOTTOM: {
+				ws->tiled_bottom = true;
+			} break;
+
 			case XDG_TOPLEVEL_STATE_SUSPENDED: {
 				ws->suspended = true;
 			} break;
-
 			default: {
 				// We don't care about the other states (for now).
 			} break;
@@ -1215,6 +1237,11 @@ void WaylandThread::libdecor_frame_on_configure(struct libdecor_frame *frame, st
 	ws->mode = DisplayServer::WINDOW_MODE_WINDOWED;
 	ws->suspended = false;
 
+	ws->tiled_left = false;
+	ws->tiled_right = false;
+	ws->tiled_top = false;
+	ws->tiled_bottom = false;
+
 	if (libdecor_configuration_get_window_state(configuration, &window_state)) {
 		if (window_state & LIBDECOR_WINDOW_STATE_MAXIMIZED) {
 			ws->mode = DisplayServer::WINDOW_MODE_MAXIMIZED;
@@ -1222,6 +1249,22 @@ void WaylandThread::libdecor_frame_on_configure(struct libdecor_frame *frame, st
 
 		if (window_state & LIBDECOR_WINDOW_STATE_FULLSCREEN) {
 			ws->mode = DisplayServer::WINDOW_MODE_FULLSCREEN;
+		}
+
+		if (window_state & LIBDECOR_WINDOW_STATE_TILED_LEFT) {
+			ws->tiled_left = true;
+		}
+
+		if (window_state & LIBDECOR_WINDOW_STATE_TILED_RIGHT) {
+			ws->tiled_right = true;
+		}
+
+		if (window_state & LIBDECOR_WINDOW_STATE_TILED_TOP) {
+			ws->tiled_top = true;
+		}
+
+		if (window_state & LIBDECOR_WINDOW_STATE_TILED_BOTTOM) {
+			ws->tiled_bottom = true;
 		}
 
 		if (window_state & LIBDECOR_WINDOW_STATE_SUSPENDED) {
@@ -1248,9 +1291,6 @@ void WaylandThread::libdecor_frame_on_close(struct libdecor_frame *frame, void *
 }
 
 void WaylandThread::libdecor_frame_on_commit(struct libdecor_frame *frame, void *user_data) {
-	// We're skipping this as we don't really care about libdecor's commit for
-	// atomicity reasons. See `_frame_wl_callback_on_done` for more info.
-
 	DEBUG_LOG_WAYLAND_THREAD("libdecor frame on commit");
 }
 
@@ -1396,6 +1436,9 @@ void WaylandThread::_wl_pointer_on_leave(void *data, struct wl_pointer *wl_point
 	WaylandThread *wayland_thread = ss->wayland_thread;
 	ERR_FAIL_NULL(wayland_thread);
 
+	PointerData &pd = ss->pointer_data_buffer;
+	pd.pressed_button_mask.clear();
+
 	ss->pointed_surface = nullptr;
 
 	ss->pointer_data_buffer.pressed_button_mask.clear();
@@ -1515,6 +1558,9 @@ void WaylandThread::_wl_pointer_on_frame(void *data, struct wl_pointer *wl_point
 		return;
 	}
 
+	WindowState *ws = wl_surface_get_window_state(ss->pointed_surface);
+	ERR_FAIL_NULL(ws);
+
 	WaylandThread *wayland_thread = ss->wayland_thread;
 	ERR_FAIL_NULL(wayland_thread);
 
@@ -1522,6 +1568,92 @@ void WaylandThread::_wl_pointer_on_frame(void *data, struct wl_pointer *wl_point
 
 	PointerData &old_pd = ss->pointer_data;
 	PointerData &pd = ss->pointer_data_buffer;
+
+	int resize_edge = XDG_TOPLEVEL_RESIZE_EDGE_NONE;
+
+	if (ws->custom_decorations && ws->mode != DisplayServer::WINDOW_MODE_FULLSCREEN) {
+		if (!ws->tiled_left && pd.position.x >= 0 && pd.position.x < CSD_RESIZE_MARGINS) {
+			resize_edge |= XDG_TOPLEVEL_RESIZE_EDGE_LEFT;
+		}
+
+		if (!ws->tiled_right && pd.position.x <= ws->rect.size.width && pd.position.x > ws->rect.size.width - CSD_RESIZE_MARGINS) {
+			resize_edge |= XDG_TOPLEVEL_RESIZE_EDGE_RIGHT;
+		}
+
+		if (!ws->tiled_top && pd.position.y >= 0 && pd.position.y < CSD_RESIZE_MARGINS) {
+			resize_edge |= XDG_TOPLEVEL_RESIZE_EDGE_TOP;
+		}
+
+		if (!ws->tiled_bottom && pd.position.y <= ws->rect.size.height && pd.position.y > ws->rect.size.height - CSD_RESIZE_MARGINS) {
+			resize_edge |= XDG_TOPLEVEL_RESIZE_EDGE_BOTTOM;
+		}
+
+		switch (resize_edge) {
+			case XDG_TOPLEVEL_RESIZE_EDGE_LEFT:
+			case XDG_TOPLEVEL_RESIZE_EDGE_RIGHT: {
+				ss->wayland_thread->cursor_set_override_shape(DisplayServer::CURSOR_HSIZE);
+			} break;
+
+			case XDG_TOPLEVEL_RESIZE_EDGE_TOP:
+			case XDG_TOPLEVEL_RESIZE_EDGE_BOTTOM: {
+				ss->wayland_thread->cursor_set_override_shape(DisplayServer::CURSOR_VSIZE);
+			} break;
+
+			case XDG_TOPLEVEL_RESIZE_EDGE_TOP_RIGHT:
+			case XDG_TOPLEVEL_RESIZE_EDGE_BOTTOM_LEFT: {
+				ss->wayland_thread->cursor_set_override_shape(DisplayServer::CURSOR_BDIAGSIZE);
+			} break;
+
+			case XDG_TOPLEVEL_RESIZE_EDGE_TOP_LEFT:
+			case XDG_TOPLEVEL_RESIZE_EDGE_BOTTOM_RIGHT: {
+				ss->wayland_thread->cursor_set_override_shape(DisplayServer::CURSOR_FDIAGSIZE);
+			} break;
+
+			case XDG_TOPLEVEL_RESIZE_EDGE_NONE: {
+				ss->wayland_thread->cursor_clear_override();
+			} break;
+		}
+	}
+
+	enum libdecor_resize_edge libdecor_edge = LIBDECOR_RESIZE_EDGE_NONE;
+
+	switch (resize_edge) {
+		case XDG_TOPLEVEL_RESIZE_EDGE_NONE: {
+			libdecor_edge = LIBDECOR_RESIZE_EDGE_NONE;
+		} break;
+
+		case XDG_TOPLEVEL_RESIZE_EDGE_TOP: {
+			libdecor_edge = LIBDECOR_RESIZE_EDGE_TOP;
+		} break;
+
+		case XDG_TOPLEVEL_RESIZE_EDGE_BOTTOM: {
+			libdecor_edge = LIBDECOR_RESIZE_EDGE_BOTTOM;
+		} break;
+
+		case XDG_TOPLEVEL_RESIZE_EDGE_LEFT: {
+			libdecor_edge = LIBDECOR_RESIZE_EDGE_LEFT;
+		} break;
+
+		case XDG_TOPLEVEL_RESIZE_EDGE_TOP_LEFT: {
+			libdecor_edge = LIBDECOR_RESIZE_EDGE_TOP_LEFT;
+		} break;
+
+		case XDG_TOPLEVEL_RESIZE_EDGE_BOTTOM_LEFT: {
+			libdecor_edge = LIBDECOR_RESIZE_EDGE_BOTTOM_LEFT;
+		} break;
+
+		case XDG_TOPLEVEL_RESIZE_EDGE_RIGHT: {
+			libdecor_edge = LIBDECOR_RESIZE_EDGE_RIGHT;
+		} break;
+
+		case XDG_TOPLEVEL_RESIZE_EDGE_TOP_RIGHT: {
+			libdecor_edge = LIBDECOR_RESIZE_EDGE_TOP_RIGHT;
+		} break;
+
+		case XDG_TOPLEVEL_RESIZE_EDGE_BOTTOM_RIGHT: {
+			libdecor_edge = LIBDECOR_RESIZE_EDGE_BOTTOM_RIGHT;
+		} break;
+	}
 
 	if (old_pd.motion_time != pd.motion_time || old_pd.relative_motion_time != pd.relative_motion_time) {
 		Ref<InputEventMouseMotion> mm;
@@ -1671,6 +1803,14 @@ void WaylandThread::_wl_pointer_on_frame(void *data, struct wl_pointer *wl_point
 				msg->event = mb;
 
 				wayland_thread->push_message(msg);
+
+				if (resize_edge != XDG_TOPLEVEL_RESIZE_EDGE_NONE && test_button == MouseButton::LEFT && mb->is_pressed()) {
+					if (wayland_thread->main_window.libdecor_frame) {
+						libdecor_frame_resize(wayland_thread->main_window.libdecor_frame, ss->wl_seat, pd.button_serial, libdecor_edge);
+					} else if (wayland_thread->main_window.xdg_toplevel) {
+						xdg_toplevel_resize(wayland_thread->main_window.xdg_toplevel, ss->wl_seat, pd.button_serial, resize_edge);
+					}
+				}
 
 				// Send an event resetting immediately the wheel key.
 				// Wayland specification defines axis_stop events as optional and says to
@@ -3095,6 +3235,10 @@ void WaylandThread::seat_state_update_cursor(SeatState *p_ss) {
 	if (thread->cursor_visible) {
 		DisplayServer::CursorShape shape = thread->cursor_shape;
 
+		if (thread->cursor_override_enabled) {
+			shape = thread->cursor_shape_override;
+		}
+
 		struct CustomCursor *custom_cursor = thread->custom_cursors.getptr(shape);
 
 		if (custom_cursor) {
@@ -3555,6 +3699,13 @@ void WaylandThread::window_set_app_id(DisplayServer::WindowID p_window_id, const
 	}
 }
 
+void WaylandThread::window_set_custom_decorations(DisplayServer::WindowID p_window_id, bool p_enable) {
+	// TODO: Use window IDs for multiwindow support.
+	WindowState &ws = main_window;
+
+	ws.custom_decorations = p_enable;
+}
+
 DisplayServer::WindowMode WaylandThread::window_get_mode(DisplayServer::WindowID p_window_id) const {
 	// TODO: Use window IDs for multiwindow support.
 	const WindowState &ws = main_window;
@@ -3873,6 +4024,29 @@ void WaylandThread::cursor_shape_clear_custom_image(DisplayServer::CursorShape p
 		if (cursor.buffer_data) {
 			munmap(cursor.buffer_data, cursor.buffer_data_size);
 		}
+	}
+}
+
+void WaylandThread::cursor_set_override_shape(DisplayServer::CursorShape p_cursor_shape) {
+	cursor_override_enabled = true;
+	cursor_shape_override = p_cursor_shape;
+
+	for (struct wl_seat *wl_seat : registry.wl_seats) {
+		SeatState *ss = wl_seat_get_seat_state(wl_seat);
+		ERR_FAIL_NULL(ss);
+
+		seat_state_update_cursor(ss);
+	}
+}
+
+void WaylandThread::cursor_clear_override() {
+	cursor_override_enabled = false;
+
+	for (struct wl_seat *wl_seat : registry.wl_seats) {
+		SeatState *ss = wl_seat_get_seat_state(wl_seat);
+		ERR_FAIL_NULL(ss);
+
+		seat_state_update_cursor(ss);
 	}
 }
 
