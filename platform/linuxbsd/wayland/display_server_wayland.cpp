@@ -88,13 +88,20 @@ void DisplayServerWayland::_send_window_event(WindowEvent p_event, WindowID p_wi
 }
 
 void DisplayServerWayland::dispatch_input_events(const Ref<InputEvent> &p_event) {
-	((DisplayServerWayland *)(get_singleton()))->_dispatch_input_event(p_event);
+	static_cast<DisplayServerWayland *>(get_singleton())->_dispatch_input_event(p_event);
 }
 
 void DisplayServerWayland::_dispatch_input_event(const Ref<InputEvent> &p_event) {
-	Callable callable = windows[MAIN_WINDOW_ID].input_event_callback;
-	if (callable.is_valid()) {
-		callable.call(p_event);
+	Ref<InputEventFromWindow> event_from_window = p_event;
+
+	if (event_from_window.is_valid()) {
+		// Send to a single window.
+		if (windows.has(event_from_window->get_window_id())) {
+			Callable callable = windows[event_from_window->get_window_id()].input_event_callback;
+			if (callable.is_valid()) {
+				callable.call(p_event);
+			}
+		}
 	}
 }
 
@@ -142,12 +149,10 @@ bool DisplayServerWayland::has_feature(Feature p_feature) const {
 		case FEATURE_KEEP_SCREEN_ON:
 		case FEATURE_IME:
 		case FEATURE_WINDOW_DRAG:
-		case FEATURE_CLIPBOARD_PRIMARY: {
-			return true;
-		} break;
-
-		//case FEATURE_NATIVE_DIALOG:
-		//case FEATURE_NATIVE_DIALOG_INPUT:
+		case FEATURE_CLIPBOARD_PRIMARY:
+		case FEATURE_SUBWINDOWS:
+			//case FEATURE_NATIVE_DIALOG:
+			//case FEATURE_NATIVE_DIALOG_INPUT:
 #ifdef DBUS_ENABLED
 		case FEATURE_NATIVE_DIALOG_FILE:
 		case FEATURE_NATIVE_DIALOG_FILE_EXTRA:
@@ -538,8 +543,9 @@ Vector<DisplayServer::WindowID> DisplayServerWayland::get_window_list() const {
 	MutexLock mutex_lock(wayland_thread.mutex);
 
 	Vector<int> ret;
-	ret.push_back(MAIN_WINDOW_ID);
-
+	for (const KeyValue<WindowID, WindowData> &E : windows) {
+		ret.push_back(E.key);
+	}
 	return ret;
 }
 
@@ -547,12 +553,13 @@ DisplayServer::WindowID DisplayServerWayland::create_sub_window(WindowMode p_mod
 	WindowID id = ++window_id_counter;
 	WindowData &wd = windows[id];
 
-	wd.id = MAIN_WINDOW_ID;
+	wd.id = id;
 	wd.mode = p_mode;
 	wd.flags = p_flags;
 	wd.vsync_mode = p_vsync_mode;
 	wd.rect.size = p_rect.size;
 	wd.title = "Godot";
+	wd.parent_id = p_transient_parent;
 	return id;
 }
 
@@ -576,6 +583,10 @@ void DisplayServerWayland::show_window(WindowID p_window_id) {
 		wayland_thread.window_set_max_size(p_window_id, wd.max_size);
 		wayland_thread.window_set_app_id(p_window_id, _get_app_id_from_context(context));
 		wayland_thread.window_set_borderless(p_window_id, window_get_flag(WINDOW_FLAG_BORDERLESS));
+
+		if (wd.parent_id != INVALID_WINDOW_ID) {
+			wayland_thread.window_set_parent(wd.id, wd.parent_id);
+		}
 
 		// NOTE: The XDG shell protocol is built in a way that causes the window to
 		// be immediately shown as soon as a valid buffer is assigned to it. Hence,
@@ -614,10 +625,10 @@ void DisplayServerWayland::show_window(WindowID p_window_id) {
 			struct wl_surface *wl_surface = wayland_thread.window_get_wl_surface(wd.id);
 			wd.wl_egl_window = wl_egl_window_create(wl_surface, wd.rect.size.width, wd.rect.size.height);
 
-			Error err = egl_manager->window_create(MAIN_WINDOW_ID, wayland_thread.get_wl_display(), wd.wl_egl_window, wd.rect.size.width, wd.rect.size.height);
+			Error err = egl_manager->window_create(p_window_id, wayland_thread.get_wl_display(), wd.wl_egl_window, wd.rect.size.width, wd.rect.size.height);
 			ERR_FAIL_COND_MSG(err == ERR_CANT_CREATE, "Can't show a GLES3 window.");
 
-			window_set_vsync_mode(wd.vsync_mode, MAIN_WINDOW_ID);
+			window_set_vsync_mode(wd.vsync_mode, p_window_id);
 		}
 #endif
 		// NOTE: The public window-handling methods might depend on this flag being
@@ -627,11 +638,32 @@ void DisplayServerWayland::show_window(WindowID p_window_id) {
 		// Actually try to apply the window's mode now that it's visible.
 		window_set_mode(setup_mode);
 
-		wayland_thread.window_set_title(MAIN_WINDOW_ID, wd.title);
+		if (wd.visible) {
+			wayland_thread.window_set_title(p_window_id, wd.title);
+		}
 	}
 }
 
 void DisplayServerWayland::delete_sub_window(WindowID p_window_id) {
+	MutexLock mutex_lock(wayland_thread.mutex);
+
+	ERR_FAIL_COND(!windows.has(p_window_id));
+
+#ifdef VULKAN_ENABLED
+	if (rendering_context) {
+		rendering_context->window_destroy(p_window_id);
+	}
+#endif
+
+#ifdef GLES3_ENABLED
+	if (egl_manager) {
+		egl_manager->window_destroy(p_window_id);
+	}
+#endif
+
+	wayland_thread.window_destroy(p_window_id);
+
+	windows.erase(p_window_id);
 }
 
 int64_t DisplayServerWayland::window_get_native_handle(HandleType p_handle_type, WindowID p_window) const {
@@ -707,7 +739,9 @@ void DisplayServerWayland::window_set_title(const String &p_title, DisplayServer
 
 	wd.title = p_title;
 
-	wayland_thread.window_set_title(MAIN_WINDOW_ID, wd.title);
+	if (wd.visible) {
+		wayland_thread.window_set_title(p_window_id, wd.title);
+	}
 }
 
 void DisplayServerWayland::window_set_mouse_passthrough(const Vector<Vector2> &p_region, DisplayServer::WindowID p_window_id) {
@@ -803,7 +837,9 @@ void DisplayServerWayland::window_set_max_size(const Size2i p_size, DisplayServe
 
 	wd.max_size = p_size;
 
-	wayland_thread.window_set_max_size(MAIN_WINDOW_ID, p_size);
+	if (wd.visible) {
+		wayland_thread.window_set_max_size(p_window_id, p_size);
+	}
 }
 
 Size2i DisplayServerWayland::window_get_max_size(DisplayServer::WindowID p_window_id) const {
@@ -816,7 +852,7 @@ Size2i DisplayServerWayland::window_get_max_size(DisplayServer::WindowID p_windo
 void DisplayServerWayland::gl_window_make_current(DisplayServer::WindowID p_window_id) {
 #ifdef GLES3_ENABLED
 	if (egl_manager) {
-		egl_manager->window_make_current(MAIN_WINDOW_ID);
+		egl_manager->window_make_current(p_window_id);
 	}
 #endif
 }
@@ -845,7 +881,9 @@ void DisplayServerWayland::window_set_min_size(const Size2i p_size, DisplayServe
 
 	wd.min_size = p_size;
 
-	wayland_thread.window_set_min_size(MAIN_WINDOW_ID, p_size);
+	if (wd.visible) {
+		wayland_thread.window_set_min_size(p_window_id, p_size);
+	}
 }
 
 Size2i DisplayServerWayland::window_get_min_size(DisplayServer::WindowID p_window_id) const {
@@ -918,7 +956,7 @@ void DisplayServerWayland::window_set_flag(WindowFlags p_flag, bool p_enabled, D
 
 	switch (p_flag) {
 		case WINDOW_FLAG_BORDERLESS: {
-			wayland_thread.window_set_borderless(MAIN_WINDOW_ID, p_enabled);
+			wayland_thread.window_set_borderless(p_window_id, p_enabled);
 		} break;
 
 		default: {
@@ -944,7 +982,7 @@ void DisplayServerWayland::window_request_attention(DisplayServer::WindowID p_wi
 
 	DEBUG_LOG_WAYLAND("Requested attention.");
 
-	wayland_thread.window_request_attention(MAIN_WINDOW_ID);
+	wayland_thread.window_request_attention(p_window_id);
 }
 
 void DisplayServerWayland::window_move_to_foreground(DisplayServer::WindowID p_window_id) {
@@ -966,13 +1004,13 @@ bool DisplayServerWayland::can_any_window_draw() const {
 void DisplayServerWayland::window_set_ime_active(const bool p_active, DisplayServer::WindowID p_window_id) {
 	MutexLock mutex_lock(wayland_thread.mutex);
 
-	wayland_thread.window_set_ime_active(p_active, MAIN_WINDOW_ID);
+	wayland_thread.window_set_ime_active(p_active, p_window_id);
 }
 
 void DisplayServerWayland::window_set_ime_position(const Point2i &p_pos, DisplayServer::WindowID p_window_id) {
 	MutexLock mutex_lock(wayland_thread.mutex);
 
-	wayland_thread.window_set_ime_position(p_pos, MAIN_WINDOW_ID);
+	wayland_thread.window_set_ime_position(p_pos, p_window_id);
 }
 
 Point2i DisplayServerWayland::ime_get_selection() const {
@@ -1208,12 +1246,12 @@ void DisplayServerWayland::process_events() {
 
 		Ref<WaylandThread::WindowRectMessage> winrect_msg = msg;
 		if (winrect_msg.is_valid()) {
-			_resize_window(winrect_msg->rect.size);
+			_resize_window(winrect_msg->rect.size, winrect_msg->id);
 		}
 
 		Ref<WaylandThread::WindowEventMessage> winev_msg = msg;
 		if (winev_msg.is_valid()) {
-			_send_window_event(winev_msg->event);
+			_send_window_event(winev_msg->event, winev_msg->id);
 
 			if (winev_msg->event == WINDOW_EVENT_FOCUS_IN) {
 				if (OS::get_singleton()->get_main_loop()) {

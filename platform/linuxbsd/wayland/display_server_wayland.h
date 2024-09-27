@@ -69,7 +69,9 @@
 class DisplayServerWayland : public DisplayServer {
 	// No need to register with GDCLASS, it's platform-specific and nothing is added.
 	struct WindowData {
-		WindowID id;
+		WindowID id = INVALID_WINDOW_ID;
+
+		WindowID parent_id = INVALID_WINDOW_ID;
 
 		Rect2i rect;
 		Size2i max_size;

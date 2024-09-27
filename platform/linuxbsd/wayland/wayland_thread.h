@@ -94,15 +94,20 @@ public:
 		virtual ~Message() = default;
 	};
 
+	class WindowMessage : public Message {
+	public:
+		DisplayServer::WindowID id = DisplayServer::INVALID_WINDOW_ID;
+	};
+
 	// Message data for window rect changes.
-	class WindowRectMessage : public Message {
+	class WindowRectMessage : public WindowMessage {
 	public:
 		// NOTE: This is in "scaled" terms. For example, if there's a 1920x1080 rect
 		// with a scale factor of 2, the actual value of `rect` will be 3840x2160.
 		Rect2i rect;
 	};
 
-	class WindowEventMessage : public Message {
+	class WindowEventMessage : public WindowMessage {
 	public:
 		DisplayServer::WindowEvent event;
 	};
@@ -952,6 +957,9 @@ public:
 	void beep() const;
 
 	void window_create(DisplayServer::WindowID p_window_id, int p_width, int p_height);
+	void window_destroy(DisplayServer::WindowID p_window_Id);
+
+	void window_set_parent(DisplayServer::WindowID p_window_id, DisplayServer::WindowID p_parent_id);
 
 	struct wl_surface *window_get_wl_surface(DisplayServer::WindowID p_window_id) const;
 
