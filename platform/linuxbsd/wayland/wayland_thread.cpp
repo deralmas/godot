@@ -676,16 +676,17 @@ void WaylandThread::_wl_registry_on_global_remove(void *data, struct wl_registry
 	}
 
 	if (name == registry->wp_viewporter_name) {
-		WindowState *ws = &registry->wayland_thread->main_window;
+		for (KeyValue<DisplayServer::WindowID, WindowState> &pair : registry->wayland_thread->windows) {
+			WindowState ws = pair.value;
+			if (registry->wp_viewporter) {
+				wp_viewporter_destroy(registry->wp_viewporter);
+				registry->wp_viewporter = nullptr;
+			}
 
-		if (registry->wp_viewporter) {
-			wp_viewporter_destroy(registry->wp_viewporter);
-			registry->wp_viewporter = nullptr;
-		}
-
-		if (ws->wp_viewport) {
-			wp_viewport_destroy(ws->wp_viewport);
-			ws->wp_viewport = nullptr;
+			if (ws.wp_viewport) {
+				wp_viewport_destroy(ws.wp_viewport);
+				ws.wp_viewport = nullptr;
+			}
 		}
 
 		registry->wp_viewporter_name = 0;
@@ -694,16 +695,18 @@ void WaylandThread::_wl_registry_on_global_remove(void *data, struct wl_registry
 	}
 
 	if (name == registry->wp_fractional_scale_manager_name) {
-		WindowState *ws = &registry->wayland_thread->main_window;
+		for (KeyValue<DisplayServer::WindowID, WindowState> &pair : registry->wayland_thread->windows) {
+			WindowState ws = pair.value;
 
-		if (registry->wp_fractional_scale_manager) {
-			wp_fractional_scale_manager_v1_destroy(registry->wp_fractional_scale_manager);
-			registry->wp_fractional_scale_manager = nullptr;
-		}
+			if (registry->wp_fractional_scale_manager) {
+				wp_fractional_scale_manager_v1_destroy(registry->wp_fractional_scale_manager);
+				registry->wp_fractional_scale_manager = nullptr;
+			}
 
-		if (ws->wp_fractional_scale) {
-			wp_fractional_scale_v1_destroy(ws->wp_fractional_scale);
-			ws->wp_fractional_scale = nullptr;
+			if (ws.wp_fractional_scale) {
+				wp_fractional_scale_v1_destroy(ws.wp_fractional_scale);
+				ws.wp_fractional_scale = nullptr;
+			}
 		}
 
 		registry->wp_fractional_scale_manager_name = 0;
@@ -3257,8 +3260,7 @@ Ref<WaylandThread::Message> WaylandThread::pop_message() {
 }
 
 void WaylandThread::window_create(DisplayServer::WindowID p_window_id, int p_width, int p_height) {
-	// TODO: Implement multi-window support.
-	WindowState &ws = main_window;
+	WindowState &ws = windows[p_window_id];
 
 	ws.registry = &registry;
 	ws.wayland_thread = this;
@@ -3326,8 +3328,8 @@ void WaylandThread::window_create(DisplayServer::WindowID p_window_id, int p_wid
 }
 
 struct wl_surface *WaylandThread::window_get_wl_surface(DisplayServer::WindowID p_window_id) const {
-	// TODO: Use window IDs for multiwindow support.
-	const WindowState &ws = main_window;
+	ERR_FAIL_COND_V(!windows.has(p_window_id), nullptr);
+	const WindowState &ws = windows[p_window_id];
 
 	return ws.wl_surface;
 }
@@ -3429,8 +3431,8 @@ void WaylandThread::window_start_resize(DisplayServer::WindowResizeEdge p_edge, 
 }
 
 void WaylandThread::window_set_max_size(DisplayServer::WindowID p_window_id, const Size2i &p_size) {
-	// TODO: Use window IDs for multiwindow support.
-	WindowState &ws = main_window;
+	ERR_FAIL_COND(!windows.has(p_window_id));
+	WindowState &ws = windows[p_window_id];
 
 	Vector2i logical_max_size = p_size / window_state_get_scale_factor(&ws);
 
@@ -3448,8 +3450,8 @@ void WaylandThread::window_set_max_size(DisplayServer::WindowID p_window_id, con
 }
 
 void WaylandThread::window_set_min_size(DisplayServer::WindowID p_window_id, const Size2i &p_size) {
-	// TODO: Use window IDs for multiwindow support.
-	WindowState &ws = main_window;
+	ERR_FAIL_COND(!windows.has(p_window_id));
+	WindowState &ws = windows[p_window_id];
 
 	Size2i logical_min_size = p_size / window_state_get_scale_factor(&ws);
 
@@ -3467,8 +3469,8 @@ void WaylandThread::window_set_min_size(DisplayServer::WindowID p_window_id, con
 }
 
 bool WaylandThread::window_can_set_mode(DisplayServer::WindowID p_window_id, DisplayServer::WindowMode p_window_mode) const {
-	// TODO: Use window IDs for multiwindow support.
-	const WindowState &ws = main_window;
+	ERR_FAIL_COND_V(!windows.has(p_window_id), false);
+	const WindowState &ws = windows[p_window_id];
 
 	switch (p_window_mode) {
 		case DisplayServer::WINDOW_MODE_WINDOWED: {
@@ -3514,8 +3516,8 @@ bool WaylandThread::window_can_set_mode(DisplayServer::WindowID p_window_id, Dis
 }
 
 void WaylandThread::window_try_set_mode(DisplayServer::WindowID p_window_id, DisplayServer::WindowMode p_window_mode) {
-	// TODO: Use window IDs for multiwindow support.
-	WindowState &ws = main_window;
+	ERR_FAIL_COND(!windows.has(p_window_id));
+	WindowState &ws = windows[p_window_id];
 
 	if (ws.mode == p_window_mode) {
 		return;
@@ -3641,8 +3643,8 @@ void WaylandThread::window_try_set_mode(DisplayServer::WindowID p_window_id, Dis
 }
 
 void WaylandThread::window_set_borderless(DisplayServer::WindowID p_window_id, bool p_borderless) {
-	// TODO: Use window IDs for multiwindow support.
-	WindowState &ws = main_window;
+	ERR_FAIL_COND(!windows.has(p_window_id));
+	WindowState &ws = windows[p_window_id];
 
 	if (ws.xdg_toplevel_decoration) {
 		if (p_borderless) {
@@ -3671,8 +3673,8 @@ void WaylandThread::window_set_borderless(DisplayServer::WindowID p_window_id, b
 }
 
 void WaylandThread::window_set_title(DisplayServer::WindowID p_window_id, const String &p_title) {
-	// TODO: Use window IDs for multiwindow support.
-	WindowState &ws = main_window;
+	ERR_FAIL_COND(!windows.has(p_window_id));
+	WindowState &ws = windows[p_window_id];
 
 #ifdef LIBDECOR_ENABLED
 	if (ws.libdecor_frame) {
@@ -3686,8 +3688,8 @@ void WaylandThread::window_set_title(DisplayServer::WindowID p_window_id, const 
 }
 
 void WaylandThread::window_set_app_id(DisplayServer::WindowID p_window_id, const String &p_app_id) {
-	// TODO: Use window IDs for multiwindow support.
-	WindowState &ws = main_window;
+	ERR_FAIL_COND(!windows.has(p_window_id));
+	WindowState &ws = windows[p_window_id];
 
 #ifdef LIBDECOR_ENABLED
 	if (ws.libdecor_frame) {
@@ -3703,15 +3705,15 @@ void WaylandThread::window_set_app_id(DisplayServer::WindowID p_window_id, const
 }
 
 DisplayServer::WindowMode WaylandThread::window_get_mode(DisplayServer::WindowID p_window_id) const {
-	// TODO: Use window IDs for multiwindow support.
-	const WindowState &ws = main_window;
+	ERR_FAIL_COND_V(!windows.has(p_window_id), DisplayServer::WINDOW_MODE_WINDOWED);
+	const WindowState &ws = windows[p_window_id];
 
 	return ws.mode;
 }
 
 void WaylandThread::window_request_attention(DisplayServer::WindowID p_window_id) {
-	// TODO: Use window IDs for multiwindow support.
-	WindowState &ws = main_window;
+	ERR_FAIL_COND(!windows.has(p_window_id));
+	WindowState &ws = windows[p_window_id];
 
 	if (registry.xdg_activation) {
 		// Window attention requests are done through the XDG activation protocol.
@@ -3722,8 +3724,8 @@ void WaylandThread::window_request_attention(DisplayServer::WindowID p_window_id
 }
 
 void WaylandThread::window_set_idle_inhibition(DisplayServer::WindowID p_window_id, bool p_enable) {
-	// TODO: Use window IDs for multiwindow support.
-	WindowState &ws = main_window;
+	ERR_FAIL_COND(!windows.has(p_window_id));
+	WindowState &ws = windows[p_window_id];
 
 	if (p_enable) {
 		if (ws.registry->wp_idle_inhibit_manager && !ws.wp_idle_inhibitor) {
@@ -3739,8 +3741,8 @@ void WaylandThread::window_set_idle_inhibition(DisplayServer::WindowID p_window_
 }
 
 bool WaylandThread::window_get_idle_inhibition(DisplayServer::WindowID p_window_id) const {
-	// TODO: Use window IDs for multiwindow support.
-	const WindowState &ws = main_window;
+	ERR_FAIL_COND_V(!windows.has(p_window_id), false);
+	const WindowState &ws = windows[p_window_id];
 
 	return ws.wp_idle_inhibitor != nullptr;
 }
@@ -4262,7 +4264,9 @@ void WaylandThread::primary_set_text(const String &p_text) {
 }
 
 void WaylandThread::commit_surfaces() {
-	wl_surface_commit(main_window.wl_surface);
+	for (KeyValue<DisplayServer::WindowID, WindowState> &pair : windows) {
+		wl_surface_commit(pair.value.wl_surface);
+	}
 }
 
 void WaylandThread::set_frame() {
@@ -4279,6 +4283,9 @@ bool WaylandThread::get_reset_frame() {
 // Dispatches events until a frame event is received, a window is reported as
 // suspended or the timeout expires.
 bool WaylandThread::wait_frame_suspend_ms(int p_timeout) {
+	// FIXME
+	WindowState main_window = windows[DisplayServer::MAIN_WINDOW_ID];
+
 	if (main_window.suspended) {
 		// The window is suspended! The compositor is telling us _explicitly_ that we
 		// don't need to draw, without letting us guess through the frame event's
@@ -4369,7 +4376,7 @@ bool WaylandThread::wait_frame_suspend_ms(int p_timeout) {
 }
 
 bool WaylandThread::is_suspended() const {
-	return main_window.suspended;
+	return windows[DisplayServer::MAIN_WINDOW_ID].suspended;
 }
 
 void WaylandThread::destroy() {
@@ -4386,6 +4393,9 @@ void WaylandThread::destroy() {
 
 		events_thread.wait_to_finish();
 	}
+
+	// FIXME
+	WindowState main_window = windows[DisplayServer::MAIN_WINDOW_ID];
 
 	if (main_window.wp_fractional_scale) {
 		wp_fractional_scale_v1_destroy(main_window.wp_fractional_scale);

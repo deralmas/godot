@@ -116,7 +116,9 @@ class DisplayServerWayland : public DisplayServer {
 
 	HashMap<CursorShape, CustomCursor> custom_cursors;
 
-	WindowData main_window;
+	HashMap<WindowID, WindowData> windows;
+	WindowID window_id_counter = MAIN_WINDOW_ID;
+
 	WaylandThread wayland_thread;
 
 	Context context;
@@ -151,14 +153,12 @@ class DisplayServerWayland : public DisplayServer {
 #endif
 	static String _get_app_id_from_context(Context p_context);
 
-	void _send_window_event(WindowEvent p_event);
+	void _send_window_event(WindowEvent p_event, WindowID p_window_id = MAIN_WINDOW_ID);
 
 	static void dispatch_input_events(const Ref<InputEvent> &p_event);
 	void _dispatch_input_event(const Ref<InputEvent> &p_event);
 
-	void _resize_window(const Size2i &p_size);
-
-	virtual void _show_window();
+	void _resize_window(const Size2i &p_size, WindowID p_window_id = MAIN_WINDOW_ID);
 
 	void try_suspend();
 
@@ -215,6 +215,10 @@ public:
 	virtual bool screen_is_kept_on() const override;
 
 	virtual Vector<DisplayServer::WindowID> get_window_list() const override;
+
+	virtual WindowID create_sub_window(WindowMode p_mode, VSyncMode p_vsync_mode, uint32_t p_flags, const Rect2i &p_rect = Rect2i(), bool p_exclusive = false, WindowID p_transient_parent = INVALID_WINDOW_ID);
+	virtual void show_window(WindowID p_id);
+	virtual void delete_sub_window(WindowID p_id);
 
 	virtual int64_t window_get_native_handle(HandleType p_handle_type, WindowID p_window = MAIN_WINDOW_ID) const override;
 

@@ -501,7 +501,7 @@ private:
 	Thread events_thread;
 	ThreadData thread_data;
 
-	WindowState main_window;
+	HashMap<DisplayServer::WindowID, WindowState> windows;
 
 	List<Ref<Message>> messages;
 
