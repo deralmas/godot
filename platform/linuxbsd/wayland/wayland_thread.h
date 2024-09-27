@@ -242,6 +242,8 @@ public:
 
 		struct zxdg_exported_v2 *xdg_exported_v2 = nullptr;
 
+		struct xdg_popup *xdg_popup = nullptr;
+
 		String exported_handle;
 
 		// Currently applied buffer scale.
@@ -957,6 +959,7 @@ public:
 	void beep() const;
 
 	void window_create(DisplayServer::WindowID p_window_id, int p_width, int p_height);
+	void window_create_popup(DisplayServer::WindowID p_window_id, DisplayServer::WindowID p_parent_id, Rect2i p_rect);
 	void window_destroy(DisplayServer::WindowID p_window_Id);
 
 	void window_set_parent(DisplayServer::WindowID p_window_id, DisplayServer::WindowID p_parent_id);

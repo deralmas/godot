@@ -557,7 +557,7 @@ DisplayServer::WindowID DisplayServerWayland::create_sub_window(WindowMode p_mod
 	wd.mode = p_mode;
 	wd.flags = p_flags;
 	wd.vsync_mode = p_vsync_mode;
-	wd.rect.size = p_rect.size;
+	wd.rect = p_rect;
 	wd.title = "Godot";
 	wd.parent_id = p_transient_parent;
 	return id;
@@ -572,20 +572,26 @@ void DisplayServerWayland::show_window(WindowID p_window_id) {
 
 	if (!wd.visible) {
 		DEBUG_LOG_WAYLAND(vformat("Showing window %d", p_window_id));
-
 		// Showing this window will reset its mode with whatever the compositor
 		// reports. We'll save the mode beforehand so that we can reapply it later.
 		// TODO: Fix/Port/Move/Whatever to `WaylandThread` APIs.
 		WindowMode setup_mode = wd.mode;
+		// DEBUG: Temporary heuristic to test popup logic. I'm pretty darn sure that
+		// we should not rely on it as a "popup flag".
+		// FIXME
+		if (!window_get_flag(WINDOW_FLAG_RESIZE_DISABLED, p_window_id)) {
+			wayland_thread.window_create(p_window_id, wd.rect.size.width, wd.rect.size.height);
+			wayland_thread.window_set_min_size(p_window_id, wd.min_size);
+			wayland_thread.window_set_max_size(p_window_id, wd.max_size);
+			wayland_thread.window_set_app_id(p_window_id, _get_app_id_from_context(context));
+			wayland_thread.window_set_borderless(p_window_id, window_get_flag(WINDOW_FLAG_BORDERLESS));
 
-		wayland_thread.window_create(p_window_id, wd.rect.size.width, wd.rect.size.height);
-		wayland_thread.window_set_min_size(p_window_id, wd.min_size);
-		wayland_thread.window_set_max_size(p_window_id, wd.max_size);
-		wayland_thread.window_set_app_id(p_window_id, _get_app_id_from_context(context));
-		wayland_thread.window_set_borderless(p_window_id, window_get_flag(WINDOW_FLAG_BORDERLESS));
-
-		if (wd.parent_id != INVALID_WINDOW_ID) {
-			wayland_thread.window_set_parent(wd.id, wd.parent_id);
+			if (wd.parent_id != INVALID_WINDOW_ID) {
+				wayland_thread.window_set_parent(wd.id, wd.parent_id);
+			}
+		} else {
+			DEBUG_LOG_WAYLAND("!!!!! Making popup !!!!!");
+			wayland_thread.window_create_popup(p_window_id, wd.parent_id, wd.rect);
 		}
 
 		// NOTE: The XDG shell protocol is built in a way that causes the window to
@@ -617,6 +623,10 @@ void DisplayServerWayland::show_window(WindowID p_window_id) {
 				print_verbose("VSYNC: manually throttling frames using MAILBOX.");
 				rendering_context->window_set_vsync_mode(wd.id, DisplayServer::VSYNC_MAILBOX);
 			}
+		}
+
+		if (rendering_device) {
+			rendering_device->screen_create(wd.id);
 		}
 #endif
 
@@ -650,6 +660,10 @@ void DisplayServerWayland::delete_sub_window(WindowID p_window_id) {
 	ERR_FAIL_COND(!windows.has(p_window_id));
 
 #ifdef VULKAN_ENABLED
+	if (rendering_device) {
+		rendering_device->screen_free(p_window_id);
+	}
+
 	if (rendering_context) {
 		rendering_context->window_destroy(p_window_id);
 	}
@@ -664,6 +678,8 @@ void DisplayServerWayland::delete_sub_window(WindowID p_window_id) {
 	wayland_thread.window_destroy(p_window_id);
 
 	windows.erase(p_window_id);
+
+	DEBUG_LOG_WAYLAND(vformat("Deleted window %d", p_window_id));
 }
 
 int64_t DisplayServerWayland::window_get_native_handle(HandleType p_handle_type, WindowID p_window) const {

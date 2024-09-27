@@ -3297,6 +3297,7 @@ Ref<WaylandThread::Message> WaylandThread::pop_message() {
 }
 
 void WaylandThread::window_create(DisplayServer::WindowID p_window_id, int p_width, int p_height) {
+	ERR_FAIL_COND(windows.has(p_window_id));
 	WindowState &ws = windows[p_window_id];
 
 	ws.id = p_window_id;
@@ -3366,6 +3367,55 @@ void WaylandThread::window_create(DisplayServer::WindowID p_window_id, int p_wid
 	wl_display_roundtrip(wl_display);
 }
 
+void WaylandThread::window_create_popup(DisplayServer::WindowID p_window_id, DisplayServer::WindowID p_parent_id, Rect2i p_rect) {
+	ERR_FAIL_COND(windows.has(p_window_id));
+	ERR_FAIL_COND(!windows.has(p_parent_id));
+
+	WindowState &ws = windows[p_window_id];
+	WindowState &parent = windows[p_parent_id];
+
+	ws.id = p_window_id;
+	ws.registry = &registry;
+	ws.wayland_thread = this;
+
+	ws.rect = p_rect;
+
+	ws.wl_surface = wl_compositor_create_surface(registry.wl_compositor);
+	wl_proxy_tag_godot((struct wl_proxy *)ws.wl_surface);
+	wl_surface_add_listener(ws.wl_surface, &wl_surface_listener, &ws);
+
+	if (registry.wp_viewporter) {
+		ws.wp_viewport = wp_viewporter_get_viewport(registry.wp_viewporter, ws.wl_surface);
+
+		if (registry.wp_fractional_scale_manager) {
+			ws.wp_fractional_scale = wp_fractional_scale_manager_v1_get_fractional_scale(registry.wp_fractional_scale_manager, ws.wl_surface);
+			wp_fractional_scale_v1_add_listener(ws.wp_fractional_scale, &wp_fractional_scale_listener, &ws);
+		}
+	}
+
+	ws.xdg_surface = xdg_wm_base_get_xdg_surface(registry.xdg_wm_base, ws.wl_surface);
+	xdg_surface_add_listener(ws.xdg_surface, &xdg_surface_listener, &ws);
+
+	struct xdg_positioner *xdg_positioner = xdg_wm_base_create_positioner(registry.xdg_wm_base);
+	xdg_positioner_set_size(xdg_positioner, ws.rect.size.width, ws.rect.size.height);
+	xdg_positioner_set_anchor(xdg_positioner, XDG_POSITIONER_ANCHOR_TOP_LEFT);
+	xdg_positioner_set_gravity(xdg_positioner, XDG_POSITIONER_GRAVITY_BOTTOM_RIGHT);
+	xdg_positioner_set_anchor_rect(xdg_positioner, ws.rect.position.x, ws.rect.position.y, parent.rect.size.width, parent.rect.size.height);
+
+	// TODO: handle libdecor
+	ws.xdg_popup = xdg_surface_get_popup(ws.xdg_surface, parent.xdg_surface, xdg_positioner);
+
+	xdg_positioner_destroy(xdg_positioner);
+
+	ws.frame_callback = wl_surface_frame(ws.wl_surface);
+	wl_callback_add_listener(ws.frame_callback, &frame_wl_callback_listener, &ws);
+
+	wl_surface_commit(ws.wl_surface);
+
+	// Wait for the surface to be configured before continuing.
+	wl_display_roundtrip(wl_display);
+}
+
 void WaylandThread::window_destroy(DisplayServer::WindowID p_window_id) {
 	ERR_FAIL_COND(!windows.has(p_window_id));
 	WindowState &ws = windows[p_window_id];
@@ -3390,6 +3440,10 @@ void WaylandThread::window_destroy(DisplayServer::WindowID p_window_id) {
 
 	if (ws.xdg_toplevel_decoration) {
 		zxdg_toplevel_decoration_v1_destroy(ws.xdg_toplevel_decoration);
+	}
+
+	if (ws.xdg_popup) {
+		xdg_popup_destroy(ws.xdg_popup);
 	}
 
 	if (ws.xdg_toplevel) {
