@@ -557,7 +557,9 @@ DisplayServer::WindowID DisplayServerWayland::create_sub_window(WindowMode p_mod
 	wd.mode = p_mode;
 	wd.flags = p_flags;
 	wd.vsync_mode = p_vsync_mode;
-	wd.rect = p_rect;
+	// NOTE: DO **NOT** SET A POSITION. Wayland does not track them for toplevels
+	// and we're gonna get our events transformed in unexpected ways.
+	wd.rect.size = p_rect.size;
 	wd.title = "Godot";
 	wd.parent_id = p_transient_parent;
 	return id;
@@ -576,6 +578,7 @@ void DisplayServerWayland::show_window(WindowID p_window_id) {
 		// reports. We'll save the mode beforehand so that we can reapply it later.
 		// TODO: Fix/Port/Move/Whatever to `WaylandThread` APIs.
 		WindowMode setup_mode = wd.mode;
+
 		// DEBUG: Temporary heuristic to test popup logic. I'm pretty darn sure that
 		// we should not rely on it as a "popup flag".
 		// FIXME

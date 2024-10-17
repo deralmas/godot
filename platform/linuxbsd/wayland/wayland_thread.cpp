@@ -1426,6 +1426,19 @@ void WaylandThread::_wl_pointer_on_enter(void *data, struct wl_pointer *wl_point
 	ERR_FAIL_NULL(ss);
 
 	ERR_FAIL_NULL(ss->cursor_surface);
+
+	if (ss->pointed_surface) {
+		WindowState *prev_ws = wl_surface_get_window_state(ss->pointed_surface);
+		ERR_FAIL_NULL(prev_ws);
+
+		Ref<WindowEventMessage> ev_msg;
+		ev_msg.instantiate();
+		ev_msg->id = prev_ws->id;
+		ev_msg->event = DisplayServer::WINDOW_EVENT_MOUSE_EXIT;
+
+		ss->wayland_thread->push_message(ev_msg);
+	}
+
 	ss->pointer_enter_serial = serial;
 	ss->pointed_surface = surface;
 	ss->last_pointed_surface = surface;
@@ -1456,7 +1469,8 @@ void WaylandThread::_wl_pointer_on_leave(void *data, struct wl_pointer *wl_point
 	ERR_FAIL_NULL(ss);
 
 	WindowState *ws = wl_surface_get_window_state(surface);
-	ERR_FAIL_NULL(ws);
+	// FIXME we should probably not error in this case
+	ERR_FAIL_NULL_MSG(ws, "The window got probably deleted. Ehhhhhhh...");
 
 	WaylandThread *wayland_thread = ss->wayland_thread;
 	ERR_FAIL_NULL(wayland_thread);
