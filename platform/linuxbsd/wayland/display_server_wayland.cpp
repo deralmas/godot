@@ -560,6 +560,13 @@ DisplayServer::WindowID DisplayServerWayland::create_sub_window(WindowMode p_mod
 	// NOTE: DO **NOT** SET A POSITION. Wayland does not track them for toplevels
 	// and we're gonna get our events transformed in unexpected ways.
 	wd.rect.size = p_rect.size;
+
+	// I mean, popups need it :P
+	// FIXME super rough heuristic
+	if (p_flags | WINDOW_FLAG_RESIZE_DISABLED) {
+		wd.rect.position = p_rect.position;
+	}
+
 	wd.title = "Godot";
 	wd.parent_id = p_transient_parent;
 	return id;
