@@ -1427,18 +1427,6 @@ void WaylandThread::_wl_pointer_on_enter(void *data, struct wl_pointer *wl_point
 
 	ERR_FAIL_NULL(ss->cursor_surface);
 
-	if (ss->pointed_surface) {
-		WindowState *prev_ws = wl_surface_get_window_state(ss->pointed_surface);
-		ERR_FAIL_NULL(prev_ws);
-
-		Ref<WindowEventMessage> ev_msg;
-		ev_msg.instantiate();
-		ev_msg->id = prev_ws->id;
-		ev_msg->event = DisplayServer::WINDOW_EVENT_MOUSE_EXIT;
-
-		ss->wayland_thread->push_message(ev_msg);
-	}
-
 	ss->pointer_enter_serial = serial;
 	ss->pointed_surface = surface;
 	ss->last_pointed_surface = surface;
@@ -1459,18 +1447,20 @@ void WaylandThread::_wl_pointer_on_enter(void *data, struct wl_pointer *wl_point
 }
 
 void WaylandThread::_wl_pointer_on_leave(void *data, struct wl_pointer *wl_pointer, uint32_t serial, struct wl_surface *surface) {
-	if (!surface || !wl_proxy_is_godot((struct wl_proxy *)surface)) {
+	// NOTE: For some bizarre reason, at least on sway, `surface` is null when
+	// we're leaving a freshly unmapped surface.
+
+	if (surface && !wl_proxy_is_godot((struct wl_proxy *)surface)) {
 		return;
 	}
-
-	DEBUG_LOG_WAYLAND_THREAD("Left window.");
 
 	SeatState *ss = (SeatState *)data;
 	ERR_FAIL_NULL(ss);
 
-	WindowState *ws = wl_surface_get_window_state(surface);
-	// FIXME we should probably not error in this case
-	ERR_FAIL_NULL_MSG(ws, "The window got probably deleted. Ehhhhhhh...");
+	WindowState *ws = wl_surface_get_window_state(ss->pointed_surface);
+	ERR_FAIL_NULL(ws);
+
+	DEBUG_LOG_WAYLAND_THREAD(vformat("Left window %d.", ws->id));
 
 	WaylandThread *wayland_thread = ss->wayland_thread;
 	ERR_FAIL_NULL(wayland_thread);
@@ -3434,6 +3424,21 @@ void WaylandThread::window_destroy(DisplayServer::WindowID p_window_id) {
 	ERR_FAIL_COND(!windows.has(p_window_id));
 	WindowState &ws = windows[p_window_id];
 
+	if (ws.xdg_popup) {
+		xdg_popup_destroy(ws.xdg_popup);
+	}
+
+	if (ws.xdg_toplevel_decoration) {
+		zxdg_toplevel_decoration_v1_destroy(ws.xdg_toplevel_decoration);
+	}
+
+	if (ws.xdg_toplevel) {
+		xdg_toplevel_destroy(ws.xdg_toplevel);
+	}
+
+	// Let's handle any leftover event...
+	wl_display_roundtrip(wl_display);
+
 	if (ws.wp_fractional_scale) {
 		wp_fractional_scale_v1_destroy(ws.wp_fractional_scale);
 	}
@@ -3451,18 +3456,6 @@ void WaylandThread::window_destroy(DisplayServer::WindowID p_window_id) {
 		libdecor_frame_close(ws.libdecor_frame);
 	}
 #endif // LIBDECOR_ENABLED
-
-	if (ws.xdg_toplevel_decoration) {
-		zxdg_toplevel_decoration_v1_destroy(ws.xdg_toplevel_decoration);
-	}
-
-	if (ws.xdg_popup) {
-		xdg_popup_destroy(ws.xdg_popup);
-	}
-
-	if (ws.xdg_toplevel) {
-		xdg_toplevel_destroy(ws.xdg_toplevel);
-	}
 
 	if (ws.xdg_surface) {
 		xdg_surface_destroy(ws.xdg_surface);

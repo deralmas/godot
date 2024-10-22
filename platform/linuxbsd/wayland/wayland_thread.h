@@ -112,6 +112,9 @@ public:
 		DisplayServer::WindowEvent event;
 	};
 
+	class WindowDestroyedMessage : public WindowMessage {
+	};
+
 	class InputEventMessage : public Message {
 	public:
 		Ref<InputEvent> event;

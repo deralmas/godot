@@ -680,9 +680,7 @@ void DisplayServerWayland::delete_sub_window(WindowID p_window_id) {
 
 	wayland_thread.window_destroy(p_window_id);
 
-	windows.erase(p_window_id);
-
-	DEBUG_LOG_WAYLAND(vformat("Deleted window %d", p_window_id));
+	DEBUG_LOG_WAYLAND(vformat("Destroyed window %d", p_window_id));
 }
 
 int64_t DisplayServerWayland::window_get_native_handle(HandleType p_handle_type, WindowID p_window) const {
@@ -1281,6 +1279,12 @@ void DisplayServerWayland::process_events() {
 					OS::get_singleton()->get_main_loop()->notification(MainLoop::NOTIFICATION_APPLICATION_FOCUS_OUT);
 				}
 			}
+		}
+
+		Ref<WaylandThread::WindowDestroyedMessage> windstr_msg = msg;
+		if (windstr_msg.is_valid()) {
+			windows.erase(windstr_msg->id);
+			DEBUG_LOG_WAYLAND(vformat("Erased window %d.", windstr_msg->id));
 		}
 
 		Ref<WaylandThread::InputEventMessage> inputev_msg = msg;
