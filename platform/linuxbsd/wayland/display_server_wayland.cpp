@@ -563,7 +563,7 @@ DisplayServer::WindowID DisplayServerWayland::create_sub_window(WindowMode p_mod
 
 	// I mean, popups need it :P
 	// FIXME super rough heuristic
-	if (p_flags | WINDOW_FLAG_RESIZE_DISABLED) {
+	if (p_flags | (WINDOW_FLAG_RESIZE_DISABLED & WINDOW_FLAG_BORDERLESS)) {
 		wd.rect.position = p_rect.position;
 	}
 
@@ -587,9 +587,9 @@ void DisplayServerWayland::show_window(WindowID p_window_id) {
 		WindowMode setup_mode = wd.mode;
 
 		// DEBUG: Temporary heuristic to test popup logic. I'm pretty darn sure that
-		// we should not rely on it as a "popup flag".
+		// we should not rely on any set of "popup flags".
 		// FIXME
-		if (!window_get_flag(WINDOW_FLAG_RESIZE_DISABLED, p_window_id)) {
+		if (!window_get_flag(WINDOW_FLAG_RESIZE_DISABLED, p_window_id) && !window_get_flag(WINDOW_FLAG_BORDERLESS, p_window_id)) {
 			wayland_thread.window_create(p_window_id, wd.rect.size.width, wd.rect.size.height);
 			wayland_thread.window_set_min_size(p_window_id, wd.min_size);
 			wayland_thread.window_set_max_size(p_window_id, wd.max_size);
@@ -1275,6 +1275,7 @@ void DisplayServerWayland::process_events() {
 
 		Ref<WaylandThread::WindowEventMessage> winev_msg = msg;
 		if (winev_msg.is_valid()) {
+			DEBUG_LOG_WAYLAND(vformat("Sending event %d to window %d", winev_msg->event, winev_msg->id));
 			_send_window_event(winev_msg->event, winev_msg->id);
 
 			if (winev_msg->event == WINDOW_EVENT_FOCUS_IN) {

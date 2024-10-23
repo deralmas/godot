@@ -3436,9 +3436,6 @@ void WaylandThread::window_destroy(DisplayServer::WindowID p_window_id) {
 		xdg_toplevel_destroy(ws.xdg_toplevel);
 	}
 
-	// Let's handle any leftover event...
-	wl_display_roundtrip(wl_display);
-
 	if (ws.wp_fractional_scale) {
 		wp_fractional_scale_v1_destroy(ws.wp_fractional_scale);
 	}
@@ -3465,6 +3462,19 @@ void WaylandThread::window_destroy(DisplayServer::WindowID p_window_id) {
 		wl_surface_destroy(ws.wl_surface);
 	}
 
+	// Before continuing, let's handle any leftover event that might still refer to
+	// this window.
+	wl_display_roundtrip(wl_display);
+
+	// We might now have some message referring to this window in the WL->GD queue.
+	// We'll use a `WindowDestroyedMessage` event as our "done" signal to tell the
+	// DS when to clean its window data.
+	Ref<WindowDestroyedMessage> msg;
+	msg.instantiate();
+	msg->id = p_window_id;
+	push_message(msg);
+
+	// We can already clean up here, we're done.
 	windows.erase(p_window_id);
 }
 
