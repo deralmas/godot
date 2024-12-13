@@ -1215,6 +1215,18 @@ void WaylandThread::_xdg_toplevel_on_wm_capabilities(void *data, struct xdg_topl
 	}
 }
 
+void WaylandThread::_xdg_popup_on_configure(void *data, struct xdg_popup *xdg_popup, int32_t x, int32_t y, int32_t width, int32_t height) {
+	print_verbose(vformat("stub xdg popup on configure %d %d %d %d", x, y, width, height));
+}
+
+void WaylandThread::_xdg_popup_on_popup_done(void *data, struct xdg_popup *xdg_popup) {
+	print_verbose("stub xdg popup done");
+}
+
+void WaylandThread::_xdg_popup_on_repositioned(void *data, struct xdg_popup *xdg_popup, uint32_t token) {
+	print_verbose(vformat("stub xdg popup repositioned %x", token));
+}
+
 // NOTE: Deprecated.
 void WaylandThread::_xdg_exported_v1_on_handle(void *data, zxdg_exported_v1 *exported, const char *handle) {
 	WindowState *ws = (WindowState *)data;
@@ -3408,6 +3420,7 @@ void WaylandThread::window_create_popup(DisplayServer::WindowID p_window_id, Dis
 
 	// TODO: handle libdecor
 	ws.xdg_popup = xdg_surface_get_popup(ws.xdg_surface, parent.xdg_surface, xdg_positioner);
+	xdg_popup_add_listener(ws.xdg_popup, &xdg_popup_listener, &ws);
 
 	xdg_positioner_destroy(xdg_positioner);
 

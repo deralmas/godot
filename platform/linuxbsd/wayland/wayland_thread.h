@@ -623,6 +623,10 @@ private:
 	static void _xdg_toplevel_on_configure_bounds(void *data, struct xdg_toplevel *xdg_toplevel, int32_t width, int32_t height);
 	static void _xdg_toplevel_on_wm_capabilities(void *data, struct xdg_toplevel *xdg_toplevel, struct wl_array *capabilities);
 
+	static void _xdg_popup_on_configure(void *data, struct xdg_popup *xdg_popup, int32_t x, int32_t y, int32_t width, int32_t height);
+	static void _xdg_popup_on_popup_done(void *data, struct xdg_popup *xdg_popup);
+	static void _xdg_popup_on_repositioned(void *data, struct xdg_popup *xdg_popup, uint32_t token);
+
 	// wayland-protocols event handlers.
 	static void _wp_fractional_scale_on_preferred_scale(void *data, struct wp_fractional_scale_v1 *wp_fractional_scale_v1, uint32_t scale);
 
@@ -776,6 +780,12 @@ private:
 		.close = _xdg_toplevel_on_close,
 		.configure_bounds = _xdg_toplevel_on_configure_bounds,
 		.wm_capabilities = _xdg_toplevel_on_wm_capabilities,
+	};
+
+	static constexpr struct xdg_popup_listener xdg_popup_listener = {
+		.configure = _xdg_popup_on_configure,
+		.popup_done = _xdg_popup_on_popup_done,
+		.repositioned = _xdg_popup_on_repositioned,
 	};
 
 	// wayland-protocols event listeners.
