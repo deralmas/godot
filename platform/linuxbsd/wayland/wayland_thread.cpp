@@ -1178,8 +1178,8 @@ void WaylandThread::_xdg_toplevel_on_close(void *data, struct xdg_toplevel *xdg_
 	ERR_FAIL_NULL(ws);
 
 	Ref<WindowEventMessage> msg;
-	msg->id = ws->id;
 	msg.instantiate();
+	msg->id = ws->id;
 	msg->event = DisplayServer::WINDOW_EVENT_CLOSE_REQUEST;
 	ws->wayland_thread->push_message(msg);
 }
