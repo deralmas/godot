@@ -1216,11 +1216,32 @@ void WaylandThread::_xdg_toplevel_on_wm_capabilities(void *data, struct xdg_topl
 }
 
 void WaylandThread::_xdg_popup_on_configure(void *data, struct xdg_popup *xdg_popup, int32_t x, int32_t y, int32_t width, int32_t height) {
-	print_verbose(vformat("stub xdg popup on configure %d %d %d %d", x, y, width, height));
+	WindowState *ws = (WindowState *)data;
+	ERR_FAIL_NULL(ws);
+
+	if (width != 0 && height != 0) {
+		window_state_update_size(ws, width, height);
+	}
+
+	ws->rect.position.x = x;
+	ws->rect.position.y = y;
+
+	print_verbose(vformat("xdg popup on configure x%d y%d w%d h%d", x, y, width, height));
 }
 
 void WaylandThread::_xdg_popup_on_popup_done(void *data, struct xdg_popup *xdg_popup) {
-	print_verbose("stub xdg popup done");
+	WindowState *ws = (WindowState *)data;
+	ERR_FAIL_NULL(ws);
+
+	// FIXME: Find a good way to destroy the popup ASAP while following the stacked
+	// constraint (no out-of-order destruction) and messaging it correctly.
+
+	Ref<WindowEventMessage> ev_msg;
+	ev_msg.instantiate();
+	ev_msg->id = ws->id;
+	ev_msg->event = DisplayServer::WINDOW_EVENT_CLOSE_REQUEST;
+
+	ws->wayland_thread->push_message(ev_msg);
 }
 
 void WaylandThread::_xdg_popup_on_repositioned(void *data, struct xdg_popup *xdg_popup, uint32_t token) {

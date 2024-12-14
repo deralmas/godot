@@ -1297,6 +1297,7 @@ void DisplayServerWayland::process_events() {
 
 		Ref<WaylandThread::InputEventMessage> inputev_msg = msg;
 		if (inputev_msg.is_valid()) {
+			// FIXME: Handle custom popup dismissal (e.g. clicking parent window)
 			Input::get_singleton()->parse_input_event(inputev_msg->event);
 		}
 
@@ -1732,6 +1733,10 @@ DisplayServerWayland::~DisplayServerWayland() {
 	}
 #endif
 
+	// NOTE: We can't destroy our current window's descriptors as we have pending
+	// operations in the event queue. We must wait for a `WindowDestroyedMessage`
+	// first, to make sure that no further WL->GD events related to this window are
+	// in the queue.
 	wayland_thread.destroy();
 
 	// Destroy all drivers.
