@@ -562,8 +562,7 @@ DisplayServer::WindowID DisplayServerWayland::create_sub_window(WindowMode p_mod
 	wd.rect.size = p_rect.size;
 
 	// I mean, popups need it :P
-	// FIXME super rough heuristic
-	if (p_flags | (WINDOW_FLAG_RESIZE_DISABLED & WINDOW_FLAG_BORDERLESS)) {
+	if (p_flags & WINDOW_FLAG_POPUP_WM_HINT_BIT) {
 		wd.rect.position = p_rect.position;
 	}
 
@@ -586,15 +585,12 @@ void DisplayServerWayland::show_window(WindowID p_window_id) {
 		// TODO: Fix/Port/Move/Whatever to `WaylandThread` APIs.
 		WindowMode setup_mode = wd.mode;
 
-		// DEBUG: Temporary heuristic to test popup logic. I'm pretty darn sure that
-		// we should not rely on any set of "popup flags".
-		// FIXME
-		if (!window_get_flag(WINDOW_FLAG_RESIZE_DISABLED, p_window_id) && !window_get_flag(WINDOW_FLAG_BORDERLESS, p_window_id)) {
+		if (!window_get_flag(WINDOW_FLAG_POPUP_WM_HINT, p_window_id)) {
 			wayland_thread.window_create(p_window_id, wd.rect.size.width, wd.rect.size.height);
 			wayland_thread.window_set_min_size(p_window_id, wd.min_size);
 			wayland_thread.window_set_max_size(p_window_id, wd.max_size);
 			wayland_thread.window_set_app_id(p_window_id, _get_app_id_from_context(context));
-			wayland_thread.window_set_borderless(p_window_id, window_get_flag(WINDOW_FLAG_BORDERLESS));
+			wayland_thread.window_set_borderless(p_window_id, window_get_flag(WINDOW_FLAG_BORDERLESS, p_window_id));
 
 			if (wd.parent_id != INVALID_WINDOW_ID) {
 				wayland_thread.window_set_parent(wd.id, wd.parent_id);
