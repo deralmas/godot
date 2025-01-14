@@ -546,6 +546,8 @@ private:
 
 	bool initialized = false;
 
+	List<DisplayServer::WindowID> popup_stack;
+
 #ifdef LIBDECOR_ENABLED
 	struct libdecor *libdecor_context = nullptr;
 #endif // LIBDECOR_ENABLED

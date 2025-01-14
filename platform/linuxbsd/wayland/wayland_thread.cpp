@@ -1641,6 +1641,8 @@ void WaylandThread::_wl_pointer_on_frame(void *data, struct wl_pointer *wl_point
 		mm->set_window_id(ws->id);
 
 		mm->set_button_mask(pd.pressed_button_mask);
+
+		// FIXME: make position relative to root window.
 		mm->set_position(pd.position);
 		mm->set_global_position(pd.position);
 
@@ -3417,6 +3419,8 @@ void WaylandThread::window_create_popup(DisplayServer::WindowID p_window_id, Dis
 
 	ws.rect = p_rect;
 
+	popup_stack.push_back(ws.id);
+
 	ws.wl_surface = wl_compositor_create_surface(registry.wl_compositor);
 	wl_proxy_tag_godot((struct wl_proxy *)ws.wl_surface);
 	wl_surface_add_listener(ws.wl_surface, &wl_surface_listener, &ws);
@@ -3459,6 +3463,12 @@ void WaylandThread::window_destroy(DisplayServer::WindowID p_window_id) {
 	WindowState &ws = windows[p_window_id];
 
 	if (ws.xdg_popup) {
+		// FIXME: make more sturdy, this is a test
+		while (popup_stack.back()->get() != p_window_id) {
+			window_destroy(popup_stack.back()->get());
+		}
+
+		popup_stack.pop_back();
 		xdg_popup_destroy(ws.xdg_popup);
 	}
 

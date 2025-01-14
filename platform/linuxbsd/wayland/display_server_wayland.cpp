@@ -82,6 +82,7 @@ void DisplayServerWayland::_send_window_event(WindowEvent p_event, WindowID p_wi
 	WindowData &wd = windows[p_window_id];
 
 	if (wd.window_event_callback.is_valid()) {
+		DEBUG_LOG_WAYLAND(vformat("Sending event %d to window %d", p_event, p_window_id));
 		Variant event = int(p_event);
 		wd.window_event_callback.call(event);
 	}
@@ -821,16 +822,13 @@ void DisplayServerWayland::window_set_current_screen(int p_screen, DisplayServer
 Point2i DisplayServerWayland::window_get_position(DisplayServer::WindowID p_window_id) const {
 	MutexLock mutex_lock(wayland_thread.mutex);
 
-	// We can't know the position of toplevels with the standard protocol.
-	return Point2i();
+	return windows[p_window_id].rect.position;
 }
 
 Point2i DisplayServerWayland::window_get_position_with_decorations(DisplayServer::WindowID p_window_id) const {
 	MutexLock mutex_lock(wayland_thread.mutex);
 
-	// We can't know the position of toplevels with the standard protocol, nor can
-	// we get information about the decorations, at least with SSDs.
-	return Point2i();
+	return windows[p_window_id].rect.position;
 }
 
 void DisplayServerWayland::window_set_position(const Point2i &p_position, DisplayServer::WindowID p_window_id) {
@@ -1271,7 +1269,6 @@ void DisplayServerWayland::process_events() {
 
 		Ref<WaylandThread::WindowEventMessage> winev_msg = msg;
 		if (winev_msg.is_valid()) {
-			DEBUG_LOG_WAYLAND(vformat("Sending event %d to window %d", winev_msg->event, winev_msg->id));
 			_send_window_event(winev_msg->event, winev_msg->id);
 
 			if (winev_msg->event == WINDOW_EVENT_FOCUS_IN) {
@@ -1287,6 +1284,7 @@ void DisplayServerWayland::process_events() {
 
 		Ref<WaylandThread::WindowDestroyedMessage> windstr_msg = msg;
 		if (windstr_msg.is_valid()) {
+			_send_window_event(WINDOW_EVENT_CLOSE_REQUEST, windstr_msg->id);
 			windows.erase(windstr_msg->id);
 			DEBUG_LOG_WAYLAND(vformat("Erased window %d.", windstr_msg->id));
 		}
