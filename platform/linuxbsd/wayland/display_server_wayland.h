@@ -73,11 +73,15 @@ class DisplayServerWayland : public DisplayServer {
 
 		WindowID parent_id = INVALID_WINDOW_ID;
 
+		// For popups.
+		WindowID root_id = INVALID_WINDOW_ID;
+
 		Rect2i rect;
 		Size2i max_size;
 		Size2i min_size;
 
 		Rect2i safe_rect;
+		List<WindowID> popup_stack;
 
 #ifdef GLES3_ENABLED
 		struct wl_egl_window *wl_egl_window = nullptr;
@@ -121,7 +125,6 @@ class DisplayServerWayland : public DisplayServer {
 	HashMap<CursorShape, CustomCursor> custom_cursors;
 
 	HashMap<WindowID, WindowData> windows;
-	List<WindowID> popup_stack;
 	WindowID window_id_counter = MAIN_WINDOW_ID;
 
 	WaylandThread wayland_thread;

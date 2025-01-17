@@ -612,7 +612,16 @@ void DisplayServerWayland::show_window(WindowID p_window_id) {
 			}
 		} else {
 			DEBUG_LOG_WAYLAND("!!!!! Making popup !!!!!");
-			popup_stack.push_back(p_window_id);
+
+			WindowID &root_id = wd.parent_id;
+			while (root_id != INVALID_WINDOW_ID && window_get_flag(WINDOW_FLAG_POPUP_WM_HINT, root_id)) {
+				root_id = windows[root_id].parent_id;
+			}
+
+			ERR_FAIL_COND(root_id == INVALID_WINDOW_ID);
+
+			wd.root_id = root_id;
+			windows[root_id].popup_stack.push_back(p_window_id);
 
 			if (window_get_flag(WINDOW_FLAG_POPUP, p_window_id)) {
 				// Reroutes all input to it.
@@ -691,16 +700,19 @@ void DisplayServerWayland::delete_sub_window(WindowID p_window_id) {
 
 	ERR_FAIL_COND(!windows.has(p_window_id));
 
-	windows[p_window_id].destroyed = true;
+	WindowData &wd = windows[p_window_id];
+	WindowData &root_wd = windows[wd.root_id];
+
+	wd.destroyed = true;
 
 	if (window_get_flag(WINDOW_FLAG_POPUP_WM_HINT, p_window_id)) {
-		WindowID top_popup = popup_stack.back()->get();
+		WindowID top_popup = root_wd.popup_stack.back()->get();
 		while (top_popup != p_window_id) {
 			print_line("Clearing popup stack up to", p_window_id, "current", top_popup);
 			delete_sub_window(top_popup);
 			_send_window_event(WINDOW_EVENT_FORCE_CLOSED, top_popup);
 
-			top_popup = popup_stack.back()->get();
+			top_popup = root_wd.popup_stack.back()->get();
 		}
 
 		if (window_get_flag(WINDOW_FLAG_POPUP, p_window_id) && popup_menu_stack.back()->get() == p_window_id) {
@@ -708,7 +720,7 @@ void DisplayServerWayland::delete_sub_window(WindowID p_window_id) {
 			popup_menu_stack.pop_back();
 		}
 
-		popup_stack.pop_back();
+		root_wd.popup_stack.pop_back();
 	}
 
 #ifdef VULKAN_ENABLED
@@ -1366,6 +1378,7 @@ void DisplayServerWayland::process_events() {
 		if (inputev_msg.is_valid()) {
 			Ref<InputEventMouseButton> mb = inputev_msg->event;
 
+			bool handled = false;
 			if (!popup_menu_stack.is_empty() && mb.is_valid()) {
 				// Popup menu handling.
 
@@ -1377,10 +1390,11 @@ void DisplayServerWayland::process_events() {
 					// Looking for the oldest popup to close.
 					while (E) {
 						WindowData &wd = windows[E->get()];
-						if (wd.rect.has_point(mb->get_position() + wd.rect.position)) {
+						Point2 global_pos = mb->get_position() + window_get_position(mb->get_window_id());
+						if (wd.rect.has_point(global_pos)) {
 							print_line("stopped by win rect", wd.rect);
 							break;
-						} else if (wd.safe_rect.has_point(mb->get_position() + wd.rect.position)) {
+						} else if (wd.safe_rect.has_point(global_pos)) {
 							print_line("stopped by safe rect", wd.safe_rect);
 							break;
 						}
@@ -1390,6 +1404,7 @@ void DisplayServerWayland::process_events() {
 					}
 
 					if (C) {
+						handled = true;
 						_send_window_event(WINDOW_EVENT_CLOSE_REQUEST, C->get());
 					}
 				}
@@ -1397,8 +1412,9 @@ void DisplayServerWayland::process_events() {
 				last_mouse_monitor_mask = mouse_mask;
 			}
 
-			// FIXME: Handle custom popup dismissal (e.g. clicking parent window)
-			Input::get_singleton()->parse_input_event(inputev_msg->event);
+			if (!handled) {
+				Input::get_singleton()->parse_input_event(inputev_msg->event);
+			}
 		}
 
 		Ref<WaylandThread::DropFilesEventMessage> dropfiles_msg = msg;
