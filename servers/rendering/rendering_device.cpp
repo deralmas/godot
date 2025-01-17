@@ -4116,7 +4116,7 @@ Error RenderingDevice::screen_prepare_for_drawing(DisplayServer::WindowID p_scre
 
 	// After submitting work, acquire the swapchain image(s).
 	HashMap<DisplayServer::WindowID, RDD::SwapChainID>::ConstIterator it = screen_swap_chains.find(p_screen);
-	ERR_FAIL_COND_V_MSG(it == screen_swap_chains.end(), ERR_CANT_CREATE, "A swap chain was not created for the screen.");
+	ERR_FAIL_COND_V_MSG(it == screen_swap_chains.end(), ERR_CANT_CREATE, vformat("A swap chain was not created for the screen %d.", (int)p_screen));
 
 	// Erase the framebuffer corresponding to this screen from the map in case any of the operations fail.
 	screen_framebuffers.erase(p_screen);

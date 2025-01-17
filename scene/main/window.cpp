@@ -756,6 +756,7 @@ void Window::_propagate_window_notification(Node *p_node, int p_notification) {
 }
 
 void Window::_event_callback(DisplayServer::WindowEvent p_event) {
+	print_line("received event", p_event);
 	switch (p_event) {
 		case DisplayServer::WINDOW_EVENT_MOUSE_ENTER: {
 			if (!is_inside_tree()) {
@@ -826,6 +827,10 @@ void Window::_event_callback(DisplayServer::WindowEvent p_event) {
 		} break;
 		case DisplayServer::WINDOW_EVENT_TITLEBAR_CHANGE: {
 			emit_signal(SNAME("titlebar_changed"));
+		} break;
+		case DisplayServer::WINDOW_EVENT_FORCE_CLOSED: {
+			print_line("!!!!! CLEARING", get_window_id());
+			hide();
 		} break;
 	}
 }

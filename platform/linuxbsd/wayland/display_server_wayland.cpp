@@ -680,12 +680,13 @@ void DisplayServerWayland::delete_sub_window(WindowID p_window_id) {
 	windows[p_window_id].destroyed = true;
 
 	if (window_get_flag(WINDOW_FLAG_POPUP_WM_HINT, p_window_id)) {
-		while (popup_stack.back()->get() != p_window_id) {
-			// FIXME: MULTIWIN: Add callback that instantly destroys the window or at the
-			// very least unregisters it from the renderer. This event is a very round
-			// about and unreliable way of doing that.
-			_send_window_event(WINDOW_EVENT_CLOSE_REQUEST, popup_stack.back()->get());
-			delete_sub_window(popup_stack.back()->get());
+		WindowID top_popup = popup_stack.back()->get();
+		while (top_popup != p_window_id) {
+			print_line("Clearing popup stack up to", p_window_id, "current", top_popup);
+			delete_sub_window(top_popup);
+			_send_window_event(WINDOW_EVENT_FORCE_CLOSED, top_popup);
+
+			top_popup = popup_stack.back()->get();
 		}
 
 		popup_stack.pop_back();
