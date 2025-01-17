@@ -420,6 +420,7 @@ void PopupPanel::_bind_methods() {
 
 PopupPanel::PopupPanel() {
 	set_flag(FLAG_TRANSPARENT, true);
+	set_flag(FLAG_POPUP_WM_HINT, true);
 
 	panel = memnew(Panel);
 	panel->set_anchors_and_offsets_preset(Control::PRESET_FULL_RECT);

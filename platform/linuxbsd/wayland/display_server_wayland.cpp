@@ -96,9 +96,17 @@ void DisplayServerWayland::_dispatch_input_event(const Ref<InputEvent> &p_event)
 	Ref<InputEventFromWindow> event_from_window = p_event;
 
 	if (event_from_window.is_valid()) {
+		WindowID window_id = event_from_window->get_window_id();
+
+		Ref<InputEventKey> key_event = p_event;
+		if (!popup_menu_stack.is_empty() && key_event.is_valid()) {
+			// Redirect to the highest popup menu.
+			window_id = popup_menu_stack.back()->get();
+		}
+
 		// Send to a single window.
-		if (windows.has(event_from_window->get_window_id())) {
-			Callable callable = windows[event_from_window->get_window_id()].input_event_callback;
+		if (windows.has(window_id)) {
+			Callable callable = windows[window_id].input_event_callback;
 			if (callable.is_valid()) {
 				callable.call(p_event);
 			}
@@ -605,6 +613,12 @@ void DisplayServerWayland::show_window(WindowID p_window_id) {
 		} else {
 			DEBUG_LOG_WAYLAND("!!!!! Making popup !!!!!");
 			popup_stack.push_back(p_window_id);
+
+			if (window_get_flag(WINDOW_FLAG_POPUP, p_window_id)) {
+				// Reroutes all input to it.
+				popup_menu_stack.push_back(p_window_id);
+			}
+
 			wayland_thread.window_create_popup(p_window_id, wd.parent_id, wd.rect);
 		}
 
@@ -689,6 +703,11 @@ void DisplayServerWayland::delete_sub_window(WindowID p_window_id) {
 			top_popup = popup_stack.back()->get();
 		}
 
+		if (window_get_flag(WINDOW_FLAG_POPUP, p_window_id) && popup_menu_stack.back()->get() == p_window_id) {
+			// FIXME: MULTIWIN: Do we even have to track this? Can't we use the parent or something?
+			popup_menu_stack.pop_back();
+		}
+
 		popup_stack.pop_back();
 	}
 
@@ -711,6 +730,32 @@ void DisplayServerWayland::delete_sub_window(WindowID p_window_id) {
 	wayland_thread.window_destroy(p_window_id);
 
 	DEBUG_LOG_WAYLAND(vformat("Destroyed window %d", p_window_id));
+}
+
+DisplayServer::WindowID DisplayServerWayland::window_get_active_popup() const {
+	MutexLock mutex_lock(wayland_thread.mutex);
+
+	if (!popup_menu_stack.is_empty()) {
+		return popup_menu_stack.back()->get();
+	}
+
+	return INVALID_WINDOW_ID;
+}
+
+void DisplayServerWayland::window_set_popup_safe_rect(WindowID p_window, const Rect2i &p_rect) {
+	MutexLock mutex_lock(wayland_thread.mutex);
+
+	ERR_FAIL_COND(!windows.has(p_window));
+
+	windows[p_window].safe_rect = p_rect;
+}
+
+Rect2i DisplayServerWayland::window_get_popup_safe_rect(WindowID p_window) const {
+	MutexLock mutex_lock(wayland_thread.mutex);
+
+	ERR_FAIL_COND_V(!windows.has(p_window), Rect2i());
+
+	return windows[p_window].safe_rect;
 }
 
 int64_t DisplayServerWayland::window_get_native_handle(HandleType p_handle_type, WindowID p_window) const {
@@ -1319,6 +1364,39 @@ void DisplayServerWayland::process_events() {
 
 		Ref<WaylandThread::InputEventMessage> inputev_msg = msg;
 		if (inputev_msg.is_valid()) {
+			Ref<InputEventMouseButton> mb = inputev_msg->event;
+
+			if (!popup_menu_stack.is_empty() && mb.is_valid()) {
+				// Popup menu handling.
+
+				BitField<MouseButtonMask> mouse_mask = mb->get_button_mask();
+				if (mouse_mask != last_mouse_monitor_mask && mb->is_pressed()) {
+					List<WindowID>::Element *E = popup_menu_stack.back();
+					List<WindowID>::Element *C = nullptr;
+
+					// Looking for the oldest popup to close.
+					while (E) {
+						WindowData &wd = windows[E->get()];
+						if (wd.rect.has_point(mb->get_position() + wd.rect.position)) {
+							print_line("stopped by win rect", wd.rect);
+							break;
+						} else if (wd.safe_rect.has_point(mb->get_position() + wd.rect.position)) {
+							print_line("stopped by safe rect", wd.safe_rect);
+							break;
+						}
+
+						C = E;
+						E = E->prev();
+					}
+
+					if (C) {
+						_send_window_event(WINDOW_EVENT_CLOSE_REQUEST, C->get());
+					}
+				}
+
+				last_mouse_monitor_mask = mouse_mask;
+			}
+
 			// FIXME: Handle custom popup dismissal (e.g. clicking parent window)
 			Input::get_singleton()->parse_input_event(inputev_msg->event);
 		}
