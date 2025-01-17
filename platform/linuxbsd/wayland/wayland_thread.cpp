@@ -1642,7 +1642,6 @@ void WaylandThread::_wl_pointer_on_frame(void *data, struct wl_pointer *wl_point
 
 		mm->set_button_mask(pd.pressed_button_mask);
 
-		// FIXME: make position relative to root window.
 		mm->set_position(pd.position);
 		mm->set_global_position(pd.position);
 
@@ -2210,11 +2209,18 @@ void WaylandThread::_wp_pointer_gesture_pinch_on_update(void *data, struct zwp_p
 
 	PointerData &pd = ss->pointer_data_buffer;
 
+	WindowState *ws = wl_surface_get_window_state(ss->pointed_surface);
+	ERR_FAIL_NULL(ws);
+
 	if (ss->active_gesture == Gesture::MAGNIFY) {
 		Ref<InputEventMagnifyGesture> mg;
 		mg.instantiate();
 
 		mg->set_window_id(DisplayServer::MAIN_WINDOW_ID);
+
+		if (ws) {
+			mg->set_window_id(ws->id);
+		}
 
 		// Set all pressed modifiers.
 		mg->set_shift_pressed(ss->shift_pressed);
@@ -2237,8 +2243,6 @@ void WaylandThread::_wp_pointer_gesture_pinch_on_update(void *data, struct zwp_p
 
 		Ref<InputEventPanGesture> pg;
 		pg.instantiate();
-
-		pg->set_window_id(DisplayServer::MAIN_WINDOW_ID);
 
 		// Set all pressed modifiers.
 		pg->set_shift_pressed(ss->shift_pressed);
@@ -2597,6 +2601,7 @@ void WaylandThread::_wp_tablet_tool_on_button(void *data, struct zwp_tablet_tool
 	}
 }
 
+// FIXME: Window handling.
 void WaylandThread::_wp_tablet_tool_on_frame(void *data, struct zwp_tablet_tool_v2 *wp_tablet_tool_v2, uint32_t time) {
 	TabletToolState *ts = wp_tablet_tool_get_state(wp_tablet_tool_v2);
 	if (!ts) {
@@ -3437,11 +3442,15 @@ void WaylandThread::window_create_popup(DisplayServer::WindowID p_window_id, Dis
 	ws.xdg_surface = xdg_wm_base_get_xdg_surface(registry.xdg_wm_base, ws.wl_surface);
 	xdg_surface_add_listener(ws.xdg_surface, &xdg_surface_listener, &ws);
 
+	Rect2i positioner_rect = ws.rect;
+	positioner_rect.position -= parent.rect.position;
+
 	struct xdg_positioner *xdg_positioner = xdg_wm_base_create_positioner(registry.xdg_wm_base);
 	xdg_positioner_set_size(xdg_positioner, ws.rect.size.width, ws.rect.size.height);
 	xdg_positioner_set_anchor(xdg_positioner, XDG_POSITIONER_ANCHOR_TOP_LEFT);
 	xdg_positioner_set_gravity(xdg_positioner, XDG_POSITIONER_GRAVITY_BOTTOM_RIGHT);
-	xdg_positioner_set_anchor_rect(xdg_positioner, ws.rect.position.x, ws.rect.position.y, parent.rect.size.width, parent.rect.size.height);
+	xdg_positioner_set_constraint_adjustment(xdg_positioner, XDG_POSITIONER_CONSTRAINT_ADJUSTMENT_SLIDE_X | XDG_POSITIONER_CONSTRAINT_ADJUSTMENT_SLIDE_Y);
+	xdg_positioner_set_anchor_rect(xdg_positioner, positioner_rect.position.x, positioner_rect.position.y, positioner_rect.size.width, positioner_rect.size.height);
 
 	// TODO: handle libdecor
 	ws.xdg_popup = xdg_surface_get_popup(ws.xdg_surface, parent.xdg_surface, xdg_positioner);
@@ -3464,11 +3473,11 @@ void WaylandThread::window_destroy(DisplayServer::WindowID p_window_id) {
 
 	if (ws.xdg_popup) {
 		// FIXME: make more sturdy, this is a test
-		while (popup_stack.back()->get() != p_window_id) {
-			window_destroy(popup_stack.back()->get());
-		}
+		//while (popup_stack.back()->get() != p_window_id) {
+		//	window_destroy(popup_stack.back()->get());
+		//}
 
-		popup_stack.pop_back();
+		//popup_stack.pop_back();
 		xdg_popup_destroy(ws.xdg_popup);
 	}
 

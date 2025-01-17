@@ -86,6 +86,8 @@ class DisplayServerWayland : public DisplayServer {
 		// Flags whether we have allocated a buffer through the video drivers.
 		bool visible = false;
 
+		bool destroyed = false;
+
 		DisplayServer::VSyncMode vsync_mode = VSYNC_ENABLED;
 
 		uint32_t flags = 0;
@@ -119,6 +121,7 @@ class DisplayServerWayland : public DisplayServer {
 	HashMap<CursorShape, CustomCursor> custom_cursors;
 
 	HashMap<WindowID, WindowData> windows;
+	List<WindowID> popup_stack;
 	WindowID window_id_counter = MAIN_WINDOW_ID;
 
 	WaylandThread wayland_thread;

@@ -318,6 +318,12 @@ void DisplayServerWayland::warp_mouse(const Point2i &p_to) {
 Point2i DisplayServerWayland::mouse_get_position() const {
 	MutexLock mutex_lock(wayland_thread.mutex);
 
+	WindowID pointed_id = wayland_thread.pointer_get_pointed_window_id();
+
+	if (pointed_id != INVALID_WINDOW_ID) {
+		return Input::get_singleton()->get_mouse_position() + windows[pointed_id].rect.position;
+	}
+
 	// We can't properly implement this method by design.
 	// This is the best we can do unfortunately.
 	return Input::get_singleton()->get_mouse_position();
@@ -598,6 +604,7 @@ void DisplayServerWayland::show_window(WindowID p_window_id) {
 			}
 		} else {
 			DEBUG_LOG_WAYLAND("!!!!! Making popup !!!!!");
+			popup_stack.push_back(p_window_id);
 			wayland_thread.window_create_popup(p_window_id, wd.parent_id, wd.rect);
 		}
 
@@ -664,7 +671,25 @@ void DisplayServerWayland::show_window(WindowID p_window_id) {
 void DisplayServerWayland::delete_sub_window(WindowID p_window_id) {
 	MutexLock mutex_lock(wayland_thread.mutex);
 
+	if (windows[p_window_id].destroyed) {
+		return;
+	}
+
 	ERR_FAIL_COND(!windows.has(p_window_id));
+
+	windows[p_window_id].destroyed = true;
+
+	if (window_get_flag(WINDOW_FLAG_POPUP_WM_HINT, p_window_id)) {
+		while (popup_stack.back()->get() != p_window_id) {
+			// FIXME: MULTIWIN: Add callback that instantly destroys the window or at the
+			// very least unregisters it from the renderer. This event is a very round
+			// about and unreliable way of doing that.
+			_send_window_event(WINDOW_EVENT_CLOSE_REQUEST, popup_stack.back()->get());
+			delete_sub_window(popup_stack.back()->get());
+		}
+
+		popup_stack.pop_back();
+	}
 
 #ifdef VULKAN_ENABLED
 	if (rendering_device) {
@@ -1282,9 +1307,11 @@ void DisplayServerWayland::process_events() {
 			}
 		}
 
+		// FIXME: Use this event for compositor-driven destruction.
 		Ref<WaylandThread::WindowDestroyedMessage> windstr_msg = msg;
 		if (windstr_msg.is_valid()) {
-			_send_window_event(WINDOW_EVENT_CLOSE_REQUEST, windstr_msg->id);
+			// FIXME: Find some good way to ensure destruction on both sides or
+			// something.
 			windows.erase(windstr_msg->id);
 			DEBUG_LOG_WAYLAND(vformat("Erased window %d.", windstr_msg->id));
 		}
