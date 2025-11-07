@@ -10,6 +10,11 @@ USE_LUMINANCE_MULTIPLIER = false
 USE_BCS = false
 USE_COLOR_CORRECTION = false
 USE_1D_LUT = false
+USE_SSAO_ABYSS = false
+USE_SSAO_LOW = false
+USE_SSAO_MED = false
+USE_SSAO_HIGH = false
+USE_SSAO_MEGA = false
 
 #[vertex]
 layout(location = 0) in vec2 vertex_attrib;
@@ -86,14 +91,27 @@ vec3 apply_color_correction(vec3 color) {
 #endif // USE_1D_LUT
 #endif // USE_COLOR_CORRECTION
 
-#ifdef USE_BCS
-vec3 apply_bcs(vec3 color) {
-	color = mix(vec3(0.0), color, brightness);
-	color = mix(vec3(0.5), color, contrast);
-	color = mix(vec3(dot(vec3(1.0), color) * 0.33333), color, saturation);
-
-	return color;
-}
+#if defined(USE_SSAO_ABYSS) || defined(USE_SSAO_LOW) || defined(USE_SSAO_MED) || defined(USE_SSAO_HIGH) || defined(USE_SSAO_MEGA)
+#define USE_SOME_SSAO
+uniform float ssao_intensity;
+uniform float ssao_radius_frac;
+uniform vec2 ssao_prn_UV;
+#ifdef USE_MULTIVIEW
+// VR will have 2 depth buffers.
+uniform sampler2DArray depth_buffer_array; // texunit:3
+#else
+uniform sampler2D depth_buffer; // texunit:3
+#endif
+#if defined(USE_SSAO_ABYSS)
+// Use the tiny 2-sample version.
+#include "../s4ao_micro_inc.glsl"
+#elif defined(USE_SSAO_HIGH) || defined(USE_SSAO_MEGA)
+// Use the rings version for the higher qualities.
+#include "../s4ao_mega_inc.glsl"
+#else
+// Use the more generic NxN grid version.
+#include "../s4ao_inc.glsl"
+#endif
 #endif
 
 in vec2 uv_interp;
@@ -140,12 +158,38 @@ void main() {
 #endif // USE_GLOW
 
 	color.rgb = srgb_to_linear(color.rgb);
+
+#if defined(USE_SOME_SSAO)
+	// Putting SSAO after the conversion to linear color, though it might be better before the glow.
+	color.rgb *= s4ao(uv_interp); // The USE_SSAO_X controls the number of samples.
+#endif
+
 	color.rgb = apply_tonemapping(color.rgb, white);
-	color.rgb = linear_to_srgb(color.rgb);
 
 #ifdef USE_BCS
-	color.rgb = apply_bcs(color.rgb);
-#endif
+	// Apply brightness:
+	// Apply to relative luminance. This ensures that the hue and saturation of
+	// colors is not affected by the adjustment, but requires the multiplication
+	// to be performed on linear-encoded values.
+	color.rgb = color.rgb * brightness;
+
+	color.rgb = linear_to_srgb(color.rgb);
+
+	// Apply contrast:
+	// By applying contrast to RGB values that are perceptually uniform (nonlinear),
+	// the darkest values are not hard-clipped as badly, which produces a
+	// higher quality contrast adjustment and maintains compatibility with
+	// existing projects.
+	color.rgb = mix(vec3(0.5), color.rgb, contrast);
+
+	// Apply saturation:
+	// By applying saturation adjustment to nonlinear sRGB-encoded values with
+	// even weights the preceived brightness of blues are affected, but this
+	// maintains compatibility with existing projects.
+	color.rgb = mix(vec3(dot(vec3(1.0), color.rgb) * (1.0 / 3.0)), color.rgb, saturation);
+#else
+	color.rgb = linear_to_srgb(color.rgb);
+#endif // USE_BCS
 
 #ifdef USE_COLOR_CORRECTION
 	color.rgb = apply_color_correction(color.rgb);

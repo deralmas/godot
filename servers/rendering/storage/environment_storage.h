@@ -103,7 +103,7 @@ private:
 		float glow_bloom = 0.0;
 		float glow_mix = 0.01;
 		RS::EnvironmentGlowBlendMode glow_blend_mode = RS::ENV_GLOW_BLEND_MODE_SCREEN;
-		float glow_hdr_bleed_threshold = 1.0;
+		float glow_hdr_bleed_threshold = 0.0;
 		float glow_hdr_luminance_cap = 12.0;
 		float glow_hdr_bleed_scale = 2.0;
 		float glow_map_strength = 0.0f; // 1.0f in GLES3 ??
@@ -114,7 +114,7 @@ private:
 		int ssr_max_steps = 64;
 		float ssr_fade_in = 0.15;
 		float ssr_fade_out = 2.0;
-		float ssr_depth_tolerance = 0.2;
+		float ssr_depth_tolerance = 0.5;
 
 		// SSAO
 		bool ssao_enabled = false;
