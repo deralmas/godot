@@ -58,7 +58,6 @@
 #include <sys/file.h>
 #include <unistd.h>
 
-// TODO: Wrap this logic in a DEV_ENABLED check.
 #define WAYLAND_EMBED_ID_MAX 1000
 
 #define WAYLAND_EMBED_DEBUG_LOGS_ENABLED
@@ -2654,7 +2653,7 @@ Error WaylandEmbedder::handle_sock(int p_fd) {
 	if (full_msg.msg_controllen > 0) {
 		struct cmsghdr *cmsg = CMSG_FIRSTHDR(&full_msg);
 		while (cmsg) {
-			// TODO: Sanity-check message fields.
+			// TODO: Check for validity of message fields.
 			size_t data_len = cmsg->cmsg_len - sizeof *cmsg;
 
 			if (cmsg->cmsg_type == SCM_RIGHTS) {
