@@ -1170,7 +1170,7 @@ bool WaylandEmbedder::handle_generic_msg(Client *client, const WaylandObject *p_
 	return valid;
 }
 
-WaylandEmbedder::MessageStatus WaylandEmbedder::handle_request(LocalObjectHandle p_object, uint32_t p_opcode, uint32_t *msg_data, size_t msg_len) {
+WaylandEmbedder::MessageStatus WaylandEmbedder::handle_request(LocalObjectHandle p_object, uint32_t p_opcode, const uint32_t *msg_data, size_t msg_len) {
 	ERR_FAIL_COND_V(!p_object.is_valid(), MessageStatus::HANDLED);
 
 	WaylandObject *object = p_object.get();
@@ -1190,7 +1190,7 @@ WaylandEmbedder::MessageStatus WaylandEmbedder::handle_request(LocalObjectHandle
 
 	DEBUG_LOG_WAYLAND_EMBED(vformat("Client #%d -> %s::%s(%s) l0x%x g0x%x", client->socket, interface->name, message.name, message.signature, local_id, global_id));
 
-	uint32_t *body = msg_data + 2;
+	const uint32_t *body = msg_data + 2;
 	size_t body_len = msg_len - (WL_WORD_SIZE * 2);
 
 	if (registry_globals_names.has(global_id)) {
@@ -1885,7 +1885,7 @@ WaylandEmbedder::MessageStatus WaylandEmbedder::handle_request(LocalObjectHandle
 	return MessageStatus::UNHANDLED;
 }
 
-WaylandEmbedder::MessageStatus WaylandEmbedder::handle_event(uint32_t p_global_id, LocalObjectHandle p_local_handle, uint32_t p_opcode, uint32_t *msg_data, size_t msg_len) {
+WaylandEmbedder::MessageStatus WaylandEmbedder::handle_event(uint32_t p_global_id, LocalObjectHandle p_local_handle, uint32_t p_opcode, const uint32_t *msg_data, size_t msg_len) {
 	WaylandObject *global_object = get_object(p_global_id);
 	ERR_FAIL_NULL_V_MSG(global_object, MessageStatus::ERROR, "Compositor messages must always have a global object.");
 
@@ -1902,7 +1902,7 @@ WaylandEmbedder::MessageStatus WaylandEmbedder::handle_event(uint32_t p_global_i
 		DEBUG_LOG_WAYLAND_EMBED(vformat("Client N/A <- %s::%s(%s) g0x%x", interface->name, message.name, message.signature, p_global_id));
 	}
 
-	uint32_t *body = msg_data + 2;
+	const uint32_t *body = msg_data + 2;
 	//size_t body_len = msg_len - (WL_WORD_SIZE * 2);
 
 	// FIXME: Make sure that it makes sense to track this protocol. Not only it is
@@ -2483,18 +2483,12 @@ Error WaylandEmbedder::handle_msg_info(Client *client, const struct msg_info *in
 
 						DEBUG_LOG_WAYLAND_EMBED("Falling back to generic handler.");
 
-						// Making a working copy so that `handle_generic_msg` does not get confused.
-						// TODO: Investigate a better way, I think.
-						uint32_t *copy = (uint32_t *)malloc(info->size);
-						memcpy((char *)copy, (char *)buf, info->size);
+						buf[0] = instance_id;
 
-						copy[0] = instance_id;
-
-						if (handle_generic_msg(&c, local_obj.get(), message, info, copy, instance_id)) {
+						if (handle_generic_msg(&c, local_obj.get(), message, info, buf, instance_id)) {
 							send_raw_message(c.socket, { { copy, info->size } }, sent_fds);
 						}
 
-						free(copy);
 						handled = true;
 					}
 				} else if (interface == &wl_display_interface) {
@@ -2527,16 +2521,10 @@ Error WaylandEmbedder::handle_msg_info(Client *client, const struct msg_info *in
 
 					DEBUG_LOG_WAYLAND_EMBED("Falling back to generic handler.");
 
-					// Making a working copy so that `handle_generic_msg` does not get confused.
-					// TODO: Investigate a better way, I think.
-					uint32_t *copy = (uint32_t *)malloc(info->size);
-					memcpy((char *)copy, (char *)buf, info->size);
-
-					if (handle_generic_msg(&c, local_obj.get(), message, info, copy)) {
+					if (handle_generic_msg(&c, local_obj.get(), message, info, buf)) {
 						send_raw_message(c.socket, { { copy, info->size } }, sent_fds);
 					}
 
-					free(copy);
 					handled = true;
 				}
 			}
