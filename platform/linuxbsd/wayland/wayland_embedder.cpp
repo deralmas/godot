@@ -1,5 +1,5 @@
 /**************************************************************************/
-/*  embedder.cpp                                                          */
+/*  wayland_embedder.cpp                                                  */
 /**************************************************************************/
 /*                         This file is part of:                          */
 /*                             GODOT ENGINE                               */
@@ -28,7 +28,7 @@
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 */
 /**************************************************************************/
 
-#include "embedder.h"
+#include "wayland_embedder.h"
 
 #ifdef WAYLAND_ENABLED
 

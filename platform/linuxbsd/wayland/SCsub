@@ -119,7 +119,7 @@ source_files = generated_sources + [
     File("display_server_wayland.cpp"),
     File("key_mapping_xkb.cpp"),
     File("wayland_thread.cpp"),
-    File("embedder.cpp"),
+    File("wayland_embedder.cpp"),
 ]
 
 if env["use_sowrap"]:

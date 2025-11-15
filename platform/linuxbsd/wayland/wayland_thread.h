@@ -72,7 +72,6 @@
 #include "wayland/protocol/xdg_system_bell.gen.h"
 #include "wayland/protocol/xdg_toplevel_icon.gen.h"
 
-// Our special little trick.
 #include "wayland/protocol/godot_embedding_compositor.gen.h"
 
 // NOTE: Deprecated.
@@ -89,7 +88,7 @@
 #include "core/os/thread.h"
 #include "servers/display/display_server.h"
 
-#include "embedder.h"
+#include "wayland_embedder.h"
 
 class WaylandThread {
 public:
