@@ -4554,7 +4554,16 @@ Error WaylandThread::init() {
 
 #ifdef TOOLS_ENABLED
 	String embedder_socket_path;
-	if (Engine::get_singleton()->is_editor_hint() && !Engine::get_singleton()->is_project_manager_hint()) {
+
+	bool embedder_enabled = true;
+
+	if (OS::get_singleton()->get_environment("GODOT_WAYLAND_DISABLE_EMBEDDER") == "1") {
+		print_verbose("Disabling Wayland embedder as per GODOT_WAYLAND_DISABLE_EMBEDDER.");
+		embedder_enabled = false;
+	}
+
+	if (embedder_enabled && Engine::get_singleton()->is_editor_hint() && !Engine::get_singleton()->is_project_manager_hint()) {
+		print_verbose("Initializing Wayland embedder.");
 		Error embedder_status = embedder.init();
 		ERR_FAIL_COND_V_MSG(embedder_status != OK, ERR_CANT_CREATE, "Can't initialize Wayland embedder.");
 
@@ -4565,6 +4574,7 @@ Error WaylandThread::init() {
 
 		// Debug
 		if (OS::get_singleton()->get_environment("GODOT_DEBUG_EMBEDDER_SINGLE_INSTANCE") == "1") {
+			print_line("Pausing as per GODOT_DEBUG_EMBEDDER_SINGLE_INSTANCE.");
 			pause();
 		}
 	} else if (Engine::get_singleton()->is_embedded_in_editor()) {
@@ -4580,8 +4590,10 @@ Error WaylandThread::init() {
 	}
 
 	if (embedder_socket_path.is_empty()) {
+		print_verbose("Connecting to the default Wayland display.");
 		wl_display = wl_display_connect(nullptr);
 	} else {
+		print_verbose("Connecting to the Wayland embedder display.");
 		wl_display = wl_display_connect(embedder_socket_path.utf8().get_data());
 	}
 #endif // TOOLS_ENABLED
