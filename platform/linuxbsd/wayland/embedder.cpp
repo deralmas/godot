@@ -41,13 +41,6 @@
 //  - Track and report state for all non-destructible objects on instancing
 //    (luckily there are few of them)
 //
-//  - Cleanup all state on shutdown
-//
-//  - Keep cleaning up this mess (code still sucks)
-//
-//  - Consider returning most errors as wl_display.error events so that we can
-//  eventually shut off everything cleanly in the future.
-//
 //  - Do the mario (swing your arms from side to side)
 
 #include <sys/stat.h>
