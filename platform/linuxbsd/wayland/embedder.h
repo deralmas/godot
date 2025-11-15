@@ -304,6 +304,12 @@ private:
 		WaylandObjectData *data = nullptr;
 	};
 
+	// These are the interfaces that the embedder understands and exposes. We do
+	// not implement handlers for all of them (that's the point), but we need to
+	// list them anyways to query their signatures at runtime, which include file
+	// descriptors count. Additionally, even if we could go without specifying
+	// them, having a "known good" list avoids unpleasant incompatibilities with
+	// future compositors.
 	const static constexpr struct wl_interface *interfaces[] = {
 		// wayland
 		&wl_buffer_interface,
@@ -450,6 +456,17 @@ private:
 		&godot_embedding_compositor_interface,
 		&godot_embedded_client_interface,
 	};
+
+	// These interfaces will not be reported to embedded clients. This includes
+	// stuff that interacts with toplevels or other emulated objects that would
+	// have been filtered out manually anyways.
+	HashSet<const struct wl_interface *> embedded_interface_deny_list = HashSet({
+			&zxdg_decoration_manager_v1_interface,
+			&zxdg_decoration_manager_v1_interface,
+			&zxdg_exporter_v1_interface,
+			&zxdg_exporter_v2_interface,
+			&godot_embedding_compositor_interface,
+	});
 
 	static constexpr uint32_t INVALID_ID = 0;
 	static constexpr uint32_t DISPLAY_ID = 1;

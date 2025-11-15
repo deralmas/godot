@@ -1224,8 +1224,7 @@ WaylandEmbedder::MessageStatus WaylandEmbedder::handle_request(LocalObjectHandle
 
 			const struct wl_interface *global_interface = global_info.interface;
 
-			// TODO: Make a global deny-list instead of chaining lots of conditions.
-			if (client != main_client && (global_interface == &zxdg_decoration_manager_v1_interface || global_interface == &zxdg_exporter_v1_interface || global_interface == &zxdg_exporter_v2_interface || global_interface == &godot_embedding_compositor_interface)) {
+			if (client != main_client && embedded_interface_deny_list.has(global_interface)) {
 				DEBUG_LOG_WAYLAND_EMBED(vformat("Skipped global announcement %s for embedded client.", global_interface->name));
 				continue;
 			}
