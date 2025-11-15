@@ -756,8 +756,8 @@ Error WaylandEmbedder::send_wayland_message(int p_socket, uint32_t p_id, uint32_
 
 	struct iovec vecs[2] = {
 		{ header, 8 },
-		// According to the manual, these buffers should are never written, so this
-		// cast should be safe.
+		// According to the sendmsg manual, these buffers should never be written to,
+		// so this cast should be safe.
 		{ (void *)p_args, args_size },
 	};
 
@@ -883,14 +883,14 @@ uint32_t WaylandEmbedder::new_object(const struct wl_interface *p_interface, int
 }
 
 void WaylandEmbedder::sync() {
-	CRASH_COND_MSG(sync_callback_id, "sync already in progress");
+	CRASH_COND_MSG(sync_callback_id, "Sync already in progress.");
 
 	sync_callback_id = allocate_global_id();
 	get_object(sync_callback_id)->interface = &wl_callback_interface;
 	get_object(sync_callback_id)->version = 1;
 	send_wayland_message(compositor_socket, DISPLAY_ID, 0, { sync_callback_id });
 
-	DEBUG_LOG_WAYLAND_EMBED("synchronizing");
+	DEBUG_LOG_WAYLAND_EMBED("Synchronizing");
 
 	while (true) {
 		poll_sockets();
@@ -989,7 +989,7 @@ void WaylandEmbedder::seat_name_leave_surface(uint32_t p_seat_name, uint32_t p_w
 	CRASH_COND(client == nullptr);
 
 	if (!client->local_ids.has(p_wl_surface_id)) {
-		DEBUG_LOG_WAYLAND_EMBED("Called seat_name_leave_surface with an unknown surface");
+		DEBUG_LOG_WAYLAND_EMBED("Called seat_name_leave_surface with an unknown surface!");
 		return;
 	}
 
@@ -1062,17 +1062,7 @@ bool WaylandEmbedder::handle_generic_msg(Client *client, const WaylandObject *p_
 
 	ERR_FAIL_NULL_V(p_object, false);
 
-#ifdef WAYLAND_EMBED_DEBUG_LOGS_ENABLED
-	const struct wl_interface *interface = p_object->interface;
-#endif
-
 	bool valid = true;
-
-	if (info->direction == ProxyDirection::COMPOSITOR) {
-		DEBUG_LOG_WAYLAND_EMBED(vformat("Generic request %s::%s(%s) g0x%x", interface ? interface->name : "UNKNOWN", message ? message->name : "UNKNOWN", message ? message->signature : "UNKNOWN", info->raw_id));
-	} else {
-		DEBUG_LOG_WAYLAND_EMBED(vformat("Generic event %s::%s(%s) l0x%x", interface ? interface->name : "UNKNOWN", message ? message->name : "UNKNOWN", message ? message->signature : "UNKNOWN", info->raw_id));
-	}
 
 	// Let's strip the header.
 	uint32_t *body = buf + 2;
@@ -1188,12 +1178,12 @@ bool WaylandEmbedder::handle_generic_msg(Client *client, const WaylandObject *p_
 }
 
 WaylandEmbedder::MessageStatus WaylandEmbedder::handle_request(LocalObjectHandle p_object, uint32_t p_opcode, uint32_t *msg_data, size_t msg_len) {
+	ERR_FAIL_COND_V(!p_object.is_valid(), MessageStatus::HANDLED);
+
 	WaylandObject *object = p_object.get();
 	Client *client = p_object.get_client();
 
 	ERR_FAIL_NULL_V(object, MessageStatus::HANDLED);
-
-	ERR_FAIL_COND_V(!p_object.is_valid(), MessageStatus::HANDLED);
 
 	// NOTE: Global ID may be null.
 	uint32_t global_id = p_object.get_global_id();
@@ -1205,7 +1195,7 @@ WaylandEmbedder::MessageStatus WaylandEmbedder::handle_request(LocalObjectHandle
 	ERR_FAIL_COND_V((int)p_opcode >= interface->method_count, MessageStatus::ERROR);
 	const struct wl_message message = interface->methods[p_opcode];
 
-	DEBUG_LOG_WAYLAND_EMBED(vformat("Request %s::%s(%s) l0x%x -> g0x%x", interface->name, message.name, message.signature, local_id, global_id));
+	DEBUG_LOG_WAYLAND_EMBED(vformat("Client #%d -> %s::%s(%s) l0x%x g0x%x", client->socket, interface->name, message.name, message.signature, local_id, global_id));
 
 	uint32_t *body = msg_data + 2;
 	size_t body_len = msg_len - (WL_WORD_SIZE * 2);
@@ -1720,7 +1710,7 @@ WaylandEmbedder::MessageStatus WaylandEmbedder::handle_request(LocalObjectHandle
 
 				// NOTE: At least on sway I can't seem to be able to get this region
 				// working but the calls check out.
-				DEBUG_LOG_WAYLAND_EMBED(vformat("creating custom region x%d y%d width%d height%d", x, y, width, height));
+				DEBUG_LOG_WAYLAND_EMBED(vformat("Creating custom region x%d y%d w%d h%d", x, y, width, height));
 
 				uint32_t new_region_id = allocate_global_id();
 				get_object(new_region_id)->interface = &wl_region_interface;
@@ -1774,8 +1764,6 @@ WaylandEmbedder::MessageStatus WaylandEmbedder::handle_request(LocalObjectHandle
 			uint32_t y = body[1];
 			uint32_t width = body[2];
 			uint32_t height = body[3];
-
-			DEBUG_LOG_WAYLAND_EMBED("Received?");
 
 			WaylandSubsurfaceData *subsurf_data = (WaylandSubsurfaceData *)get_object(toplevel_data->wl_subsurface_id)->data;
 			ERR_FAIL_NULL_V(subsurf_data, MessageStatus::ERROR);
@@ -1909,6 +1897,19 @@ WaylandEmbedder::MessageStatus WaylandEmbedder::handle_event(uint32_t p_global_i
 	WaylandObject *global_object = get_object(p_global_id);
 	ERR_FAIL_NULL_V_MSG(global_object, MessageStatus::ERROR, "Compositor messages must always have a global object.");
 
+	ERR_FAIL_NULL_V(global_object->interface, MessageStatus::ERROR);
+	const struct wl_interface *interface = global_object->interface;
+
+	ERR_FAIL_COND_V((int)p_opcode >= interface->event_count, MessageStatus::ERROR);
+	const struct wl_message message = interface->events[p_opcode];
+
+	if (p_local_handle.is_valid()) {
+		int socket = p_local_handle.get_client()->socket;
+		DEBUG_LOG_WAYLAND_EMBED(vformat("Client %d <- %s::%s(%s) g0x%x", socket, interface->name, message.name, message.signature, p_global_id));
+	} else {
+		DEBUG_LOG_WAYLAND_EMBED(vformat("Client N/A <- %s::%s(%s) g0x%x", interface->name, message.name, message.signature, p_global_id));
+	}
+
 	uint32_t *body = msg_data + 2;
 	//size_t body_len = msg_len - (WL_WORD_SIZE * 2);
 
@@ -1977,7 +1978,7 @@ WaylandEmbedder::MessageStatus WaylandEmbedder::handle_event(uint32_t p_global_i
 			if (p_opcode == WL_DISPLAY_DELETE_ID) {
 				// [Event] wl_display::delete_id(u)
 				uint32_t global_delete_id = body[0];
-				DEBUG_LOG_WAYLAND_EMBED(vformat("Delete ID event g0x%x (no client)", global_delete_id));
+				DEBUG_LOG_WAYLAND_EMBED(vformat("Compositor requested deletion of g0x%x (no client)", global_delete_id));
 
 				delete_object(global_delete_id);
 
@@ -2015,7 +2016,7 @@ WaylandEmbedder::MessageStatus WaylandEmbedder::handle_event(uint32_t p_global_i
 					RegistryGlobalInfo global_info = {};
 					global_info.interface = global_interface;
 					global_info.version = MIN(global_version, (uint32_t)global_interface->version);
-					DEBUG_LOG_WAYLAND_EMBED("Clamped global %s %d", interface_name, global_info.version);
+					DEBUG_LOG_WAYLAND_EMBED("Clamped global %s to version %d.", interface_name, global_info.version);
 					global_info.compositor_name = global_name;
 
 					int new_global_name = registry_globals_counter++;
@@ -2051,7 +2052,7 @@ WaylandEmbedder::MessageStatus WaylandEmbedder::handle_event(uint32_t p_global_i
 						ERR_FAIL_COND_V(wl_subcompositor_id == INVALID_ID, MessageStatus::ERROR);
 					}
 
-					DEBUG_LOG_WAYLAND_EMBED(vformat("Local global-object name l#%d", new_global_name));
+					DEBUG_LOG_WAYLAND_EMBED(vformat("Local registry object name: l#%d", new_global_name));
 
 					if (clients.is_empty()) {
 						// Let's not waste time.
@@ -2072,7 +2073,7 @@ WaylandEmbedder::MessageStatus WaylandEmbedder::handle_event(uint32_t p_global_i
 
 					return MessageStatus::HANDLED;
 				} else {
-					DEBUG_LOG_WAYLAND_EMBED("Skipping unknown global %s %d.", interface_name, global_version);
+					DEBUG_LOG_WAYLAND_EMBED("Skipping unknown global %s version %d.", interface_name, global_version);
 
 					return MessageStatus::HANDLED;
 				}
@@ -2132,7 +2133,7 @@ WaylandEmbedder::MessageStatus WaylandEmbedder::handle_event(uint32_t p_global_i
 			// [Event] wl_display::delete_id(u)
 			uint32_t global_delete_id = body[0];
 			uint32_t local_delete_id = client->get_local_id(global_delete_id);
-			DEBUG_LOG_WAYLAND_EMBED(vformat("Delete ID event g0x%x l0x%x", global_delete_id, local_delete_id));
+			DEBUG_LOG_WAYLAND_EMBED(vformat("Compositor requested delete of g0x%x l0x%x", global_delete_id, local_delete_id));
 			if (local_delete_id == INVALID_ID) {
 				// No idea what this object is, might be of the other client. This
 				// definitely does not make sense to us, so we're done.
@@ -2177,7 +2178,7 @@ WaylandEmbedder::MessageStatus WaylandEmbedder::handle_event(uint32_t p_global_i
 			// NOTE: modifiers event can be sent even without focus, according to the
 			// spec, so there's no need to skip it.
 			if (global_seat_data->focused_surface_id != INVALID_ID && !client->local_ids.has(global_seat_data->focused_surface_id)) {
-				DEBUG_LOG_WAYLAND_EMBED(vformat("skipped wl_keyboard event due to unfocused surface 0x%x", global_seat_data->focused_surface_id));
+				DEBUG_LOG_WAYLAND_EMBED(vformat("Skipped wl_keyboard event due to unfocused surface 0x%x", global_seat_data->focused_surface_id));
 				return MessageStatus::HANDLED;
 			}
 		}
@@ -2670,9 +2671,6 @@ Error WaylandEmbedder::handle_sock(int p_fd) {
 #endif
 	}
 
-	String dir_str = info.direction == ProxyDirection::COMPOSITOR ? "compositor" : "client";
-	DEBUG_LOG_WAYLAND_EMBED(vformat("dir: %s, id: 0x%x, bytes: %d, opcode: %d", dir_str, info.raw_id, info.size, info.opcode));
-
 	if (full_msg.msg_controllen > 0) {
 		struct cmsghdr *cmsg = CMSG_FIRSTHDR(&full_msg);
 		while (cmsg) {
@@ -2728,12 +2726,6 @@ Error WaylandEmbedder::handle_sock(int p_fd) {
 	} else {
 		CRASH_COND(!clients.has(p_fd));
 		client = &clients[p_fd];
-	}
-
-	if (client) {
-		DEBUG_LOG_WAYLAND_EMBED(vformat("Client: %d (pid %d).", client->socket, client->pid));
-	} else {
-		DEBUG_LOG_WAYLAND_EMBED("No client found to forward to.");
 	}
 
 	if (handle_msg_info(client, &info, msg_buf.ptr(), &fds_requested) != OK) {
@@ -2811,8 +2803,6 @@ Error WaylandEmbedder::init() {
 	ERR_FAIL_NULL_V(display, ERR_CANT_OPEN);
 	compositor_socket = wl_display_get_fd(display);
 
-	DEBUG_LOG_WAYLAND_EMBED(vformat("proxy %d compositor %d", proxy_socket, compositor_socket));
-
 	pollfds.push_back({ proxy_socket, POLLIN, 0 });
 	pollfds.push_back({ compositor_socket, POLLIN, 0 });
 
@@ -2858,7 +2848,7 @@ void WaylandEmbedder::handle_fd(int p_fd, int p_revents) {
 	if (p_fd == proxy_socket && p_revents & POLLIN) {
 		// Client init.
 		int new_fd = accept(proxy_socket, nullptr, nullptr);
-		ERR_FAIL_COND_MSG(new_fd == -1, "can't accept client");
+		ERR_FAIL_COND_MSG(new_fd == -1, "Failed to accept client.");
 
 		struct ucred cred = {};
 		socklen_t cred_size = sizeof cred;
