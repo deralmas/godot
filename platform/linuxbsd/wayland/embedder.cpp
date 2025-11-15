@@ -66,7 +66,7 @@
 #include <unistd.h>
 
 // TODO: Wrap this logic in a DEV_ENABLED check.
-#define WAYLAND_EMBED_ID_MAX 250
+#define WAYLAND_EMBED_ID_MAX 1000
 
 #define WAYLAND_EMBED_DEBUG_LOGS_ENABLED
 #ifdef WAYLAND_EMBED_DEBUG_LOGS_ENABLED
@@ -159,6 +159,7 @@ struct WaylandEmbedder::WaylandObject *WaylandEmbedder::get_object(uint32_t p_gl
 		p_global_id &= ~(0xff000000);
 	}
 
+#ifdef DEV_ENABLED
 	if (p_global_id >= WAYLAND_EMBED_ID_MAX) {
 		// Oh no. Time for debug info!
 
@@ -167,10 +168,11 @@ struct WaylandEmbedder::WaylandObject *WaylandEmbedder::get_object(uint32_t p_gl
 			WaylandObject &object = objects[id];
 			DEBUG_LOG_WAYLAND_EMBED(vformat(" - g0x%x (#%d): %s version %d, data 0x%x", id, id, object.interface->name, object.version, (uintptr_t)object.data));
 		}
-#endif
+#endif // WAYLAND_EMBED_DEBUG_LOGS_ENABLED
 
 		CRASH_NOW_MSG(vformat("Tried to access ID bigger than debug cap (%d > %d).", p_global_id, WAYLAND_EMBED_ID_MAX));
 	}
+#endif // DEV_ENABLED
 
 	if (is_server) {
 		if (server_objects.size() <= p_global_id) {
@@ -225,8 +227,9 @@ uint32_t WaylandEmbedder::Client::allocate_server_id() {
 		new_id = allocated_server_ids | 0xff000000;
 
 		++allocated_server_ids;
-
+#ifdef DEV_ENABLED
 		CRASH_COND_MSG(allocated_server_ids > WAYLAND_EMBED_ID_MAX, "Max server ID reached. This might indicate a leak.");
+#endif // DEV_ENABLED
 	}
 
 	DEBUG_LOG_WAYLAND_EMBED(vformat("Allocated server-side id 0x%x.", new_id));
@@ -1019,6 +1022,7 @@ int WaylandEmbedder::allocate_global_id() {
 
 	DEBUG_LOG_WAYLAND_EMBED(vformat("Allocated new global id g0x%x", id));
 
+#ifdef DEV_ENABLED
 	if (id > WAYLAND_EMBED_ID_MAX) {
 		// Oh no. Time for debug info!
 
@@ -1027,10 +1031,11 @@ int WaylandEmbedder::allocate_global_id() {
 			WaylandObject &object = objects[id];
 			DEBUG_LOG_WAYLAND_EMBED(vformat(" - g0x%x (#%d): %s version %d, data 0x%x", i, i, object.interface->name, object.version, (uintptr_t)object.data));
 		}
-#endif
+#endif // WAYLAND_EMBED_DEBUG_LOGS_ENABLED
 
 		CRASH_NOW_MSG("Max ID reached. This might indicate a leak.");
 	}
+#endif // DEV_ENABLED
 
 	return id;
 }
