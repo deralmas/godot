@@ -34,15 +34,6 @@
 
 #ifdef TOOLS_ENABLED
 
-// Rough general to do list:
-//
-//  - Implement custom focusing logic for tablet
-//
-//  - Track and report state for all non-destructible objects on instancing
-//    (luckily there are few of them)
-//
-//  - Do the mario (swing your arms from side to side)
-
 #include <sys/stat.h>
 
 #ifdef __FreeBSD__
