@@ -60,7 +60,7 @@
 
 #define WAYLAND_EMBED_ID_MAX 1000
 
-#define WAYLAND_EMBED_DEBUG_LOGS_ENABLED
+//#define WAYLAND_EMBED_DEBUG_LOGS_ENABLED
 #ifdef WAYLAND_EMBED_DEBUG_LOGS_ENABLED
 
 // Gotta flush as we're doing this mess from a thread without any
@@ -1888,6 +1888,7 @@ WaylandEmbedder::MessageStatus WaylandEmbedder::handle_event(uint32_t p_global_i
 	WaylandObject *global_object = get_object(p_global_id);
 	ERR_FAIL_NULL_V_MSG(global_object, MessageStatus::ERROR, "Compositor messages must always have a global object.");
 
+#ifdef WAYLAND_EMBED_DEBUG_LOGS_ENABLED
 	ERR_FAIL_NULL_V(global_object->interface, MessageStatus::ERROR);
 	const struct wl_interface *interface = global_object->interface;
 
@@ -1900,6 +1901,7 @@ WaylandEmbedder::MessageStatus WaylandEmbedder::handle_event(uint32_t p_global_i
 	} else {
 		DEBUG_LOG_WAYLAND_EMBED(vformat("Client N/A <- %s::%s(%s) g0x%x", interface->name, message.name, message.signature, p_global_id));
 	}
+#endif //WAYLAND_EMBED_DEBUG_LOGS_ENABLED
 
 	const uint32_t *body = msg_data + 2;
 	//size_t body_len = msg_len - (WL_WORD_SIZE * 2);
