@@ -2485,7 +2485,7 @@ Error WaylandEmbedder::handle_msg_info(Client *client, const struct msg_info *in
 						buf[0] = instance_id;
 
 						if (handle_generic_msg(&c, local_obj.get(), message, info, buf, instance_id)) {
-							send_raw_message(c.socket, { { copy, info->size } }, sent_fds);
+							send_raw_message(c.socket, { { buf, info->size } }, sent_fds);
 						}
 
 						handled = true;
@@ -2521,7 +2521,7 @@ Error WaylandEmbedder::handle_msg_info(Client *client, const struct msg_info *in
 					DEBUG_LOG_WAYLAND_EMBED("Falling back to generic handler.");
 
 					if (handle_generic_msg(&c, local_obj.get(), message, info, buf)) {
-						send_raw_message(c.socket, { { copy, info->size } }, sent_fds);
+						send_raw_message(c.socket, { { buf, info->size } }, sent_fds);
 					}
 
 					handled = true;
