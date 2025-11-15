@@ -987,6 +987,14 @@ void GameView::_update_arguments_for_instance(int p_idx, List<String> &r_argumen
 	// macOS requires the embedded display driver.
 	remove_args.insert("--display-driver");
 #endif
+
+#ifdef WAYLAND_ENABLED
+	// Wayland requires the Wayland display driver.
+	if (DisplayServer::get_singleton()->get_name() == "Wayland") {
+		remove_args.insert("--display-driver");
+	}
+#endif
+
 	while (E) {
 		List<String>::Element *N = E->next();
 
@@ -1014,6 +1022,14 @@ void GameView::_update_arguments_for_instance(int p_idx, List<String> &r_argumen
 
 #if MACOS_ENABLED
 	N = r_arguments.insert_after(N, "--embedded");
+#endif
+
+#ifdef WAYLAND_ENABLED
+	// Wayland requires the Wayland display driver.
+	if (DisplayServer::get_singleton()->get_name() == "Wayland") {
+		N = r_arguments.insert_after(N, "--display-driver");
+		N = r_arguments.insert_after(N, "wayland");
+	}
 #endif
 
 	// Be sure to have the correct window size in the embedded_process control.
