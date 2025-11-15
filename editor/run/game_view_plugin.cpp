@@ -672,10 +672,6 @@ GameView::EmbedAvailability GameView::_get_embed_available() {
 		return EMBED_NOT_AVAILABLE_PROJECT_DISPLAY_DRIVER;
 	}
 
-	if (DisplayServer::get_singleton()->get_name() == "Wayland" && display_driver != "wayland") {
-		return EMBED_NOT_AVAILABLE_PROJECT_DISPLAY_DRIVER;
-	}
-
 	EditorRun::WindowPlacement placement = EditorRun::get_window_placement();
 	if (placement.force_fullscreen) {
 		return EMBED_NOT_AVAILABLE_FULLSCREEN;
@@ -721,11 +717,7 @@ void GameView::_update_ui() {
 			state_label->set_text(TTRC("Game embedding not available on your OS."));
 			break;
 		case EMBED_NOT_AVAILABLE_PROJECT_DISPLAY_DRIVER:
-			if (DisplayServer::get_singleton()->get_name() == "Wayland") {
-				state_label->set_text(vformat(TTR("Game embedding not available for the Display Server: '%s'.\nWhen running under Wayland, the only supported display driver is 'wayland'.\nDisplay Server can be modified in the Project Settings (Display > Display Server > Driver)."), GLOBAL_GET("display/display_server/driver")));
-			} else {
-				state_label->set_text(vformat(TTR("Game embedding not available for the Display Server: '%s'.\nDisplay Server can be modified in the Project Settings (Display > Display Server > Driver)."), GLOBAL_GET("display/display_server/driver")));
-			}
+			state_label->set_text(vformat(TTR("Game embedding not available for the Display Server: '%s'.\nDisplay Server can be modified in the Project Settings (Display > Display Server > Driver)."), GLOBAL_GET("display/display_server/driver")));
 			break;
 		case EMBED_NOT_AVAILABLE_MINIMIZED:
 			state_label->set_text(TTR("Game embedding not available when the game starts minimized.") + "\n" + TTR("Consider overriding the window mode project setting with the editor feature tag to Windowed to use game embedding while leaving the exported project intact."));
