@@ -77,6 +77,7 @@
 #include "protocol/xdg_foreign_v2.gen.h"
 #include "protocol/xdg_shell.gen.h"
 #include "protocol/xdg_system_bell.gen.h"
+#include "protocol/xdg_toplevel_icon.gen.h"
 
 #include <errno.h>
 #include <stdint.h>
@@ -430,6 +431,10 @@ private:
 		// xdg-system-bell
 		&xdg_system_bell_v1_interface,
 
+		// xdg-toplevel-icon-v1
+		&xdg_toplevel_icon_manager_v1_interface,
+		&xdg_toplevel_icon_v1_interface,
+
 		// wp-cursor-shape-v1
 		&wp_cursor_shape_manager_v1_interface,
 
@@ -465,6 +470,7 @@ private:
 			&zxdg_decoration_manager_v1_interface,
 			&zxdg_exporter_v1_interface,
 			&zxdg_exporter_v2_interface,
+			&xdg_toplevel_icon_manager_v1_interface,
 			&godot_embedding_compositor_interface,
 	});
 

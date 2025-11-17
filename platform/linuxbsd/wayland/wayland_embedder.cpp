@@ -512,13 +512,25 @@ void WaylandEmbedder::cleanup_socket(int p_socket) {
 				send_wayland_message(compositor_socket, data->wl_subsurface_id, 0, {});
 			}
 
+			if (!data->xdg_surface_handle.is_valid()) {
+				continue;
+			}
+
 			XdgSurfaceData *xdg_surf_data = (XdgSurfaceData *)data->xdg_surface_handle.get()->data;
 			if (xdg_surf_data == nullptr) {
 				continue;
 			}
 
+			if (!data->parent_handle.is_valid()) {
+				continue;
+			}
+
 			XdgToplevelData *parent_data = (XdgToplevelData *)data->parent_handle.get()->data;
 			if (parent_data == nullptr) {
+				continue;
+			}
+
+			if (!parent_data->xdg_surface_handle.is_valid()) {
 				continue;
 			}
 
@@ -1607,22 +1619,39 @@ WaylandEmbedder::MessageStatus WaylandEmbedder::handle_request(LocalObjectHandle
 			XdgToplevelData *data = (XdgToplevelData *)object->data;
 			ERR_FAIL_NULL_V(data, MessageStatus::ERROR);
 
-			XdgSurfaceData *xdg_surf_data = (XdgSurfaceData *)data->xdg_surface_handle.get()->data;
+			XdgSurfaceData *xdg_surf_data = nullptr;
+			if (data->xdg_surface_handle.is_valid()) {
+				xdg_surf_data = (XdgSurfaceData *)data->xdg_surface_handle.get()->data;
+				ERR_FAIL_NULL_V(xdg_surf_data, MessageStatus::ERROR);
+			}
 			ERR_FAIL_NULL_V(xdg_surf_data, MessageStatus::ERROR);
 
-			XdgToplevelData *parent_data = (XdgToplevelData *)data->parent_handle.get()->data;
-			ERR_FAIL_NULL_V(parent_data, MessageStatus::ERROR);
+			XdgSurfaceData *parent_xdg_surf_data = nullptr;
+			{
+				XdgToplevelData *parent_data = nullptr;
+				if (data->parent_handle.is_valid()) {
+					parent_data = (XdgToplevelData *)data->parent_handle.get()->data;
+					ERR_FAIL_NULL_V(parent_data, MessageStatus::ERROR);
+				}
 
-			XdgSurfaceData *parent_xdg_surf_data = (XdgSurfaceData *)parent_data->xdg_surface_handle.get()->data;
-			ERR_FAIL_NULL_V(parent_xdg_surf_data, MessageStatus::ERROR);
+				if (parent_data && parent_data->xdg_surface_handle.is_valid()) {
+					parent_xdg_surf_data = (XdgSurfaceData *)parent_data->xdg_surface_handle.get()->data;
+					ERR_FAIL_NULL_V(parent_xdg_surf_data, MessageStatus::ERROR);
+				}
+			}
 
 			for (uint32_t wl_seat_name : wl_seat_names) {
 				WaylandSeatGlobalData *global_seat_data = (WaylandSeatGlobalData *)registry_globals[wl_seat_name].data;
 				ERR_FAIL_NULL_V(global_seat_data, MessageStatus::ERROR);
 
 				if (global_seat_data->focused_surface_id == xdg_surf_data->wl_surface_id) {
-					seat_name_leave_surface(wl_seat_name, xdg_surf_data->wl_surface_id);
-					seat_name_enter_surface(wl_seat_name, parent_xdg_surf_data->wl_surface_id);
+					if (xdg_surf_data) {
+						seat_name_leave_surface(wl_seat_name, xdg_surf_data->wl_surface_id);
+					}
+
+					if (parent_xdg_surf_data) {
+						seat_name_enter_surface(wl_seat_name, parent_xdg_surf_data->wl_surface_id);
+					}
 				}
 			}
 
