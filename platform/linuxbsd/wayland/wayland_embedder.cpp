@@ -2587,7 +2587,7 @@ Error WaylandEmbedder::handle_msg_info(Client *client, const struct msg_info *in
 					send_raw_message(client->socket, { { buf, info->size } }, sent_fds);
 				}
 			} else {
-				WARN_PRINT(vformat("[Wayland Embedder] Unexpected client-less event from %s#g0x%x. Object has probably leaked.", object->interface->name, global_id));
+				WARN_PRINT_ONCE(vformat("[Wayland Embedder] Unexpected client-less event from %s#g0x%x. Object has probably leaked.", object->interface->name, global_id));
 				handle_generic_msg(nullptr, object, message, info, buf);
 			}
 		}
