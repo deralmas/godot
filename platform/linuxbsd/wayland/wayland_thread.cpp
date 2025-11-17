@@ -4617,12 +4617,19 @@ Error WaylandThread::init() {
 	ERR_FAIL_NULL_V_MSG(registry.wl_compositor, ERR_UNAVAILABLE, "Can't obtain the Wayland compositor global.");
 	ERR_FAIL_NULL_V_MSG(registry.xdg_wm_base, ERR_UNAVAILABLE, "Can't obtain the Wayland XDG shell global.");
 
-	if (!registry.xdg_decoration_manager) {
+	// Embedded games can't access the decoration and icon protocol.
+	if (!Engine::get_singleton()->is_embedded_in_editor()) {
+		if (!registry.xdg_decoration_manager) {
 #ifdef LIBDECOR_ENABLED
-		WARN_PRINT("Can't obtain the XDG decoration manager. Libdecor will be used for drawing CSDs, if available.");
+			WARN_PRINT("Can't obtain the XDG decoration manager. Libdecor will be used for drawing CSDs, if available.");
 #else
-		WARN_PRINT("Can't obtain the XDG decoration manager. Decorations won't show up.");
+			WARN_PRINT("Can't obtain the XDG decoration manager. Decorations won't show up.");
 #endif // LIBDECOR_ENABLED
+		}
+
+		if (!registry.xdg_toplevel_icon_manager_name) {
+			WARN_PRINT("xdg-toplevel-icon protocol not found! Cannot set window icon.");
+		}
 	}
 
 	if (!registry.xdg_activation) {
@@ -4637,10 +4644,6 @@ Error WaylandThread::init() {
 
 	if (!registry.wp_fifo_manager_name) {
 		WARN_PRINT("FIFO protocol not found! Frame pacing will be degraded.");
-	}
-
-	if (!registry.xdg_toplevel_icon_manager_name) {
-		WARN_PRINT("xdg-toplevel-icon protocol not found! Cannot set window icon.");
 	}
 
 	// Wait for seat capabilities.

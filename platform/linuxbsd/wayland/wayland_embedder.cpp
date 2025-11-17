@@ -51,7 +51,7 @@
 
 #define WAYLAND_EMBED_ID_MAX 1000
 
-#define WAYLAND_EMBED_DEBUG_LOGS_ENABLED
+//#define WAYLAND_EMBED_DEBUG_LOGS_ENABLED
 #ifdef WAYLAND_EMBED_DEBUG_LOGS_ENABLED
 
 // Gotta flush as we're doing this mess from a thread without any
