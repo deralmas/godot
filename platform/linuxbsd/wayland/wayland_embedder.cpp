@@ -569,7 +569,6 @@ void WaylandEmbedder::cleanup_socket(int p_socket) {
 			object->destroyed = true;
 
 			if (global_id & 0xff000000) {
-				E = E->prev();
 				delete_object(global_id);
 				object = nullptr;
 			}
