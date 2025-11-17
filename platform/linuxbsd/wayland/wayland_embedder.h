@@ -447,6 +447,7 @@ private:
 		&wp_linux_drm_syncobj_timeline_v1_interface,
 
 		// fifo-v1
+		&wp_fifo_manager_v1_interface,
 		&wp_fifo_v1_interface,
 
 		// commit-timing-v1
