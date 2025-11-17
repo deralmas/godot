@@ -51,7 +51,7 @@
 
 #define WAYLAND_EMBED_ID_MAX 1000
 
-//#define WAYLAND_EMBED_DEBUG_LOGS_ENABLED
+#define WAYLAND_EMBED_DEBUG_LOGS_ENABLED
 #ifdef WAYLAND_EMBED_DEBUG_LOGS_ENABLED
 
 // Gotta flush as we're doing this mess from a thread without any
@@ -536,13 +536,18 @@ void WaylandEmbedder::cleanup_socket(int p_socket) {
 		DEBUG_LOG_WAYLAND_EMBED(vformat("Checking deletability of %s#g0x%x version %s", object->interface->name, global_id, object->version));
 
 		if (object->shared) {
-			DEBUG_LOG_WAYLAND_EMBED("Shared, skipping");
+			DEBUG_LOG_WAYLAND_EMBED("Shared, skipping.");
 			continue;
 		}
 
 		if (object->interface == &wl_callback_interface) {
 			// Those things self-destruct.
 			DEBUG_LOG_WAYLAND_EMBED("wl_callback self destructs.");
+			continue;
+		}
+
+		if (object->destroyed) {
+			DEBUG_LOG_WAYLAND_EMBED("Already destroyed, skipping.");
 			continue;
 		}
 
