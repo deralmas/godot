@@ -590,6 +590,7 @@ private:
 	}
 
 	uint32_t new_object(const struct wl_interface *p_interface, int p_version = 1, WaylandObjectData *p_data = nullptr);
+	WaylandObject *new_server_object(uint32_t p_global_id, const struct wl_interface *p_interface, int p_version = 1, WaylandObjectData *p_data = nullptr);
 
 	void poll_sockets();
 
