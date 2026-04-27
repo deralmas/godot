@@ -8,11 +8,12 @@ import os
 import re
 import subprocess
 import sys
-import zlib
 from collections import OrderedDict
 from io import StringIO
 from pathlib import Path
 from typing import Generator, TextIO, cast
+
+from compression import zstd
 
 from misc.utility.color import print_error, print_info, print_warning
 from platform_methods import detect_arch
@@ -606,6 +607,7 @@ def add_program(env, name, sources, **args):
 def CommandNoCache(env, target, sources, command, **args):
     result = env.Command(target, sources, command, **args)
     env.NoCache(result)
+    env.Depends(result, "#methods.py")
     return result
 
 
@@ -1590,9 +1592,8 @@ def get_buffer(path: str) -> bytes:
 
 
 def compress_buffer(buffer: bytes) -> bytes:
-    # Use maximum zlib compression level to further reduce file size
-    # (at the cost of initial build times).
-    return zlib.compress(buffer, zlib.Z_BEST_COMPRESSION)
+    result = zstd.compress(buffer, zstd.CompressionParameter.compression_level.bounds()[1])
+    return bytes(result)
 
 
 def format_buffer(buffer: bytes, indent: int = 0, width: int = 120) -> str:

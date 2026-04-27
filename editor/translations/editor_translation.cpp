@@ -55,7 +55,7 @@ static void _load(const Ref<TranslationDomain> p_domain, const String &p_locale,
 		if (etl->lang == p_locale) {
 			LocalVector<uint8_t> data;
 			data.resize_uninitialized(etl->uncomp_size);
-			const int64_t ret = Compression::decompress(data.ptr(), etl->uncomp_size, etl->data, etl->comp_size, Compression::MODE_DEFLATE);
+			const int64_t ret = Compression::decompress(data.ptr(), etl->uncomp_size, etl->data, etl->comp_size, Compression::MODE_ZSTD);
 			ERR_FAIL_COND_MSG(ret == -1, "Compressed file is corrupt.");
 
 			Ref<FileAccessMemory> fa;
@@ -101,7 +101,7 @@ Vector<Vector<String>> get_extractable_message_list() {
 
 		LocalVector<uint8_t> data;
 		data.resize_uninitialized(etl->uncomp_size);
-		const int64_t ret = Compression::decompress(data.ptr(), etl->uncomp_size, etl->data, etl->comp_size, Compression::MODE_DEFLATE);
+		const int64_t ret = Compression::decompress(data.ptr(), etl->uncomp_size, etl->data, etl->comp_size, Compression::MODE_ZSTD);
 		ERR_FAIL_COND_V_MSG(ret == -1, list, "Compressed file is corrupt.");
 
 		Ref<FileAccessMemory> fa;
